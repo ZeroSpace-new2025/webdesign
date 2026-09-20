@@ -2,7 +2,7 @@
 
 以下是详细的拆分方案：
 
-菜品与菜单中心 (Menu & Recipe Service)
+菜品与菜单中心 (Menu & Recipe Service) ———— 方家乐
    核心职责：负责管理“卖什么”。这是系统的基础数据中心，负责维护菜品库和菜单的发布。
 
 *   功能模块：
@@ -20,7 +20,7 @@
     *   Menu 表：存储菜单头信息（名称、状态、生效时间）。
     *   Menu_Item 表：存储菜单与菜品的关联关系及当前价格。
 
-订单与交易核心 (Order & Transaction Service)
+订单与交易核心 (Order & Transaction Service) ———— 雷伟舜
    核心职责：负责管理“怎么买”。处理高并发的点餐请求、时间窗口控制及订单生命周期管理。
 
 *   功能模块：
@@ -36,7 +36,7 @@
     *   Order_Form 表：订单主表（员工ID、总价、状态、时间）。
     *   Order_Detail 表：订单详情表（冗余存储下单时的菜名、单价、数量，确保数据一致性）。
 
-运营与履约系统 (Operation & Fulfillment Service)
+运营与履约系统 (Operation & Fulfillment Service) ———— 张颖茵
    核心职责：负责管理“怎么做”和“怎么送”。面向后厨和配送环节，处理截止时间后的数据聚合。
 
 *   功能模块：
@@ -51,7 +51,7 @@
     *   Daily_Statistics 表：每日汇总快照（用于快速查询当日总需求）。
     *   Delivery_Task 表：配送任务记录。
 
-用户与报表中心 (User & Reporting Service)
+用户与报表中心 (User & Reporting Service) ———— 王家豪
    核心职责：负责管理“谁在用”以及“数据洞察”。处理权限控制和复杂的财务统计。
 
 *   功能模块：

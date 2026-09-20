@@ -1,70 +1,84 @@
 package com.university.webdesign.ordertransaction.api;
 
-import com.university.webdesign.menurecipe.api.RecipeData;
+import com.university.webdesign.common.Result;
+import com.university.webdesign.ordertransaction.service.OrderService;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+/*其他的API接口可以根据需要添加。修改后要立即提交。*/
+/*应该只包含与订单相关的API接口，而不应该包含其他相关的接口。*/
+/*请勿把内部实现暴露给外部。*/
 
-@SuppressWarnings("UnusedDeclaration")
-public interface OrderApi
+/**
+ * 订单 API
+ */
+@RestController
+@RequestMapping("/api/order")
+public class OrderApi
 {
-	/**
-	 * 添加菜品到订单
-	 *
-	 * @param recipeData 订单数据类
-	 * @return OrderApi 实例
-	 */
-	OrderApi addRecipe(RecipeData recipeData);
+	private final OrderService orderService;
+	
+	public OrderApi(OrderService orderService) {
+		this.orderService = orderService;
+	}
 	
 	/**
-	 * 添加菜品到订单
+	 * 获取今天的订单列表
 	 *
-	 * @param recipeData 订单数据类列表
-	 * @return OrderApi 实例
+	 * @return 今天的订单列表
 	 */
-	OrderApi addRecipes(List<RecipeData> recipeData);
+	@GetMapping("/today")
+	public Result<List<OrderDTO>> getTodayOrders() {
+		var orders = orderService.getTodayOrders();
+		return Result.success(orders);
+
+	}
 	
 	/**
-	 * 清空订单中的菜品
+	 * 查询订单列表
 	 *
-	 * @return OrderApi 实例
+	 * @param queryData 查询条件
+	 * @return 订单列表
 	 */
-	OrderApi cleanRecipes();
+	@PostMapping("/query")
+	public Result<List<OrderDTO>> queryOrders(OrderQueryData queryData) {
+		var orders = orderService.query(queryData);
+		return Result.success(orders);
+	}
 	
 	/**
-	 * 移除订单中的菜品
+	 * 创建订单
 	 *
-	 * @param recipeData 订单数据类
-	 * @return OrderApi 实例
+	 * @return 创建的订单
 	 */
-	OrderApi removeRecipe(RecipeData recipeData);
+	@PostMapping("/create")
+	public Result<OrderDTO> createOrder() {
+		Long userid = 1L; //todo: get the user id from the request or session
+		var order = orderService.createOrder(userid);
+		return Result.success(order);
+	}
 	
 	/**
-	 * 移除订单中的菜品
+	 * 更新订单
 	 *
-	 * @param recipeData 订单数据类列表
-	 * @return OrderApi 实例
+	 * @param orderDTO 订单DTO
+	 * @return 更新后的订单
 	 */
-	OrderApi removeRecipes(List<RecipeData> recipeData);
-	
-	/**
-	 * 上传/保存订单
-	 *
-	 * @return 订单 ID
-	 * @remark 落库操作
-	 */
-	long uploadOrder();
+	@PutMapping
+	public Result<OrderDTO> updateOrder(@RequestBody OrderDTO orderDTO) {
+		var order = orderService.updateOrder(orderDTO);
+		return Result.success(order);
+	}
 	
 	/**
 	 * 删除订单
 	 *
-	 * @remark 只能删除未上传的订单，已支付的订单不能删除
+	 * @param orderId 订单ID
+	 * @return 删除结果
 	 */
-	void deleteOrder();
-	
-	/**
-	 * 获取订单数据
-	 *
-	 * @return 订单数据类
-	 */
-	OrderData getOrder();
+	@DeleteMapping("/{id}")
+	public Result<Void> deleteOrder(@PathVariable("id") Long orderId) {
+		orderService.deleteOrder(orderId);
+		return Result.success(null);
+	}
 }
