@@ -1,6 +1,7 @@
 package com.university.webdesign.menurecipe.api;
 
 import com.university.webdesign.common.Result;
+import com.university.webdesign.menurecipe.service.MenuService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;

@@ -2,7 +2,7 @@ package com.university.webdesign.ordertransaction;
 
 import com.university.webdesign.menurecipe.api.MenuDTO;
 import com.university.webdesign.menurecipe.api.MenuItemData;
-import com.university.webdesign.menurecipe.api.MenuService;
+import com.university.webdesign.menurecipe.service.MenuService;
 import com.university.webdesign.ordertransaction.api.OrderCreateData;
 import com.university.webdesign.ordertransaction.api.OrderDTO;
 import com.university.webdesign.ordertransaction.api.OrderQueryData;

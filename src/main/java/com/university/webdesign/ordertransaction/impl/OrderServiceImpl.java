@@ -2,7 +2,7 @@ package com.university.webdesign.ordertransaction.impl;
 
 import com.university.webdesign.menurecipe.api.MenuDTO;
 import com.university.webdesign.menurecipe.api.MenuItemData;
-import com.university.webdesign.menurecipe.api.MenuService;
+import com.university.webdesign.menurecipe.service.MenuService;
 import com.university.webdesign.ordertransaction.api.OrderCreateData;
 import com.university.webdesign.ordertransaction.api.OrderDTO;
 import com.university.webdesign.ordertransaction.api.OrderItemDTO;
@@ -12,9 +12,9 @@ import com.university.webdesign.ordertransaction.api.PersonalConsumptionDTO;
 import com.university.webdesign.ordertransaction.data.Order;
 import com.university.webdesign.ordertransaction.data.OrderItem;
 import com.university.webdesign.ordertransaction.data.OrderStatus;
-import com.university.webdesign.ordertransaction.repository.OrderRepository;
+import com.university.webdesign.ordertransaction.repository.*;
 import com.university.webdesign.ordertransaction.service.OrderService;
-import com.university.webdesign.user.api.UserService;
+import com.university.webdesign.user.service.UserService;
 import jakarta.persistence.criteria.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -97,6 +97,9 @@ public class OrderServiceImpl implements OrderService
 	 */
 	private final ZoneId zoneId;
 	
+	/**
+	 * 订单仓储
+	 */
 	private final OrderRepository orderRepository;
 	
 	/**
@@ -121,6 +124,15 @@ public class OrderServiceImpl implements OrderService
 	 */
 	private final UserService userService;
 	
+	/**
+	 * 构造器注入订单仓储、菜单服务、用户服务，以及可配置的截止时间与时区
+	 *
+	 * @param orderRepository 订单仓储
+	 * @param menuService     菜品与菜单中心提供的服务
+	 * @param userService     用户与报表中心提供的服务（角色校验）
+	 * @param cutoffTime      订餐截止时间，默认 09:00
+	 * @param zone            业务时区，留空时取系统时区
+	 */
 	public OrderServiceImpl(OrderRepository orderRepository,
 			MenuService menuService,
 			UserService userService,

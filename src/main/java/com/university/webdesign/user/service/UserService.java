@@ -1,9 +1,14 @@
-package com.university.webdesign.user.api;
+package com.university.webdesign.user.service;
 
+import com.university.webdesign.user.api.LoginData;
+import com.university.webdesign.user.api.UserDTO;
+import com.university.webdesign.user.api.UserRegisterData;
 import org.springframework.stereotype.Component;
 
 /**
  * 用户与权限服务（跨模块能力契约）
+ * <p>
+ * 实现类放在同级的 {@code impl} 包下，命名 {@code UserServiceImpl}。
  * <p>
  * //todo 确认：本接口为跨模块依赖的接口骨架，请用户与报表中心（王家豪）确认后补齐。
  * 订单模块目前最需要其中的两项能力：

@@ -4,6 +4,7 @@ package com.university.webdesign.user.api;
 /*请勿把内部实现暴露给外部。*/
 
 import com.university.webdesign.common.Result;
+import com.university.webdesign.user.service.UserService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;

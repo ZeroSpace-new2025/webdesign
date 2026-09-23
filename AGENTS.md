@@ -22,22 +22,39 @@
 | 用户与报表中心 | `user` / `reporting` | 登录认证、角色权限、员工维护与 Excel 批量导入、月度报表与消费审计 | 王家豪 |
 | 公共设施 | `common` | `Result<T>` 等跨模块共享的极小工具，**只放不偏向任何单个模块的东西** | 全员 |
 
-### 跨模块能力契约（`api` 包中的 Service 接口）
+### 跨模块能力契约（各模块 `service` 包中的接口）
 
-其他模块的实现类尚未落地，为了让项目能编译、上下文能启动，各模块 `api` 包中已经放好了对外的 Service 接口骨架，**调用方只依赖这些接口**：
+其他模块的实现类尚未落地，为了让项目能编译、上下文能启动，各模块 `service` 包中已经放好了对外的 Service 接口骨架，**调用方只依赖这些接口**：
 
 | 接口 | 位置 | 订单模块用到的能力 |
 | --- | --- | --- |
-| `MenuService` | `menurecipe/api` | `getActiveMenu(LocalDate)` 取当日已发布菜单，下单时用它校验菜品与取价 |
-| `RecipeService` | `menurecipe/api` | 暂无调用 |
-| `UserService` | `user/api` | `hasAnyRole(userId, roleCodes)` 已接入订单模块做经理/财务越权校验；登录态仍待接入（目前前端传 `operatorId`） |
+| `MenuService` | `menurecipe/service` | `getActiveMenu(LocalDate)` 取当日已发布菜单，下单时用它校验菜品与取价 |
+| `RecipeService` | `menurecipe/service` | 暂无调用 |
+| `UserService` | `user/service` | `hasAnyRole(userId, roleCodes)` 已接入订单模块做经理/财务越权校验；登录态仍待接入（目前前端传 `operatorId`） |
 
 接口里带 `//todo 确认` 的注释表示「签名是按调用方需要先约定的，需要由对应负责人确认后补齐实现」。
+
+### 各模块的包结构（已按订单模块的结构统一建好）
+
+```
+com.university.webdesign.
+├── common/                        跨模块共享的工具（Result 等）
+├── ordertransaction/              ✔ 已实现：api / service / impl / repository / data
+├── menurecipe/                    api / service ✔有接口 / impl / repository / data
+├── operationfulfillment/          api / service / impl / repository / data
+├── user/                          api / service ✔有接口 / impl / repository / data
+└── reporting/                     报表模块：api / service / impl / repository / data
+```
+
+- 一个模块内五层含义见第 3 节；**跨模块调用只允许依赖对方的 `api` 与 `service` 包**。
+- 报表代码属用户与报表中心，放在顶层 `reporting` 包，不再含在 `user` 里。
+- 刚建好、还没有代码的包用 `package-info.java` 占位（空目录 git 不跟踪），
+  该文件里写明了这个包该放什么、以及可以直接调用哪些已实现的跨模块入口，动手前先读它。
 
 
 **硬性边界规则**：
 
-1. 每个模块对外**只暴露 `api` 包**。其他模块只能依赖对方的 `api` 包，禁止直接依赖别的模块的 `data` / `service` / `impl` / `repository`。
+1. 每个模块对外**只暴露 `api` 与 `service` 两个包**（`api` 放 Controller/DTO，`service` 放能力接口）。其他模块只能依赖这两个包，禁止直接依赖别的模块的 `impl` / `repository` / `data`。
 2. 每个模块只放自己领域的接口，不要把无关接口塞进别人的 Controller（`RecipeApi` / `MenuApi` / `OrderApi` / `UserApi` 头部注释已写明）。
 3. **不要跨模块直接读写对方的表。** 这是本项目最大的架构红线，破坏它就等于拆掉了微服务边界。
 4. 数据所有权单一：用户基础数据只在用户中心改，菜品标准信息只在菜单中心改。
@@ -103,7 +120,7 @@
 2. 各模块的 Service **实现类**都还没有：`menurecipe` 的 `MenuService`、`RecipeService` 与 `user` 的 `UserService` 目前只有接口，需要负责人补齐 `impl`。
 3. 订单模块中所有跨模块/待定决策点都以 `//todo 确认` 标出，例如：**角色编码取值 `MANAGER`/`FINANCE` 需与 IAM 对齐**、登录态来源（现为前端传 `operatorId`，应改为认证上下文）、`getActiveMenu` 的方法签名与菜单项字段、订单号发号规则（并发可能重复）、“一人一天一单”的唯一约束、删单审计字段、时区取值。**这些是需要跟对应负责人确认的问题清单，不要当成已定论。**
 4. `OrderService` 中 `deleteOrder(Long)`、`getHistoryOrders(userId, start, end)` 等**兼容旧签名的重载不校验权限**（`deleteOrder(Long)` 仅告警），接入登录态后应删除这些重载；当前新代码请一律走带 `operatorId` 的重载。
-5. `Report`（报表）功能在 `demand.md` 中属于用户与报表中心，但 `reporting` 包还没有内容。
+5. `Report`（报表）功能在 `demand.md` 中属于用户与报表中心，顶层 `reporting` 包的目录结构已建好，但**还没有任何代码**。
 6. 其他模块的 `api` 包中仍有 `//todo:` 占位，返回空对象/空列表；这类占位不算实现。
 7. `src/main/resources/templates` 与 `static` 目前为空，Thymeleaf 页面尚未开始。
 8. 未接线项：登录态（Spring Security）尚未接入，`operatorId` 仍由前端传入，**因此角色校验目前可被伪造的身份绕过**；`operationfulfillment` 尚未调用 `OrderService.query` / `findActiveOrder` 做聚合与配送。

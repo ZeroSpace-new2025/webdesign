@@ -2,14 +2,14 @@ package com.university.webdesign.support;
 
 import com.university.webdesign.menurecipe.api.MenuDTO;
 import com.university.webdesign.menurecipe.api.MenuQueryData;
-import com.university.webdesign.menurecipe.api.MenuService;
 import com.university.webdesign.menurecipe.api.RecipeDTO;
 import com.university.webdesign.menurecipe.api.RecipeQueryData;
-import com.university.webdesign.menurecipe.api.RecipeService;
+import com.university.webdesign.menurecipe.service.MenuService;
+import com.university.webdesign.menurecipe.service.RecipeService;
 import com.university.webdesign.user.api.LoginData;
 import com.university.webdesign.user.api.UserDTO;
 import com.university.webdesign.user.api.UserRegisterData;
-import com.university.webdesign.user.api.UserService;
+import com.university.webdesign.user.service.UserService;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 
