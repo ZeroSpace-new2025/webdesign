@@ -30,7 +30,7 @@
 | --- | --- | --- |
 | `MenuService` | `menurecipe/api` | `getActiveMenu(LocalDate)` 取当日已发布菜单，下单时用它校验菜品与取价 |
 | `RecipeService` | `menurecipe/api` | 暂无调用 |
-| `UserService` | `user/api` | `hasRole(userId, roleCode)` 做角色校验（**待接线**），登录态取代前端自报的 `operatorId` |
+| `UserService` | `user/api` | `hasAnyRole(userId, roleCodes)` 已接入订单模块做经理/财务越权校验；登录态仍待接入（目前前端传 `operatorId`） |
 
 接口里带 `//todo 确认` 的注释表示「签名是按调用方需要先约定的，需要由对应负责人确认后补齐实现」。
 
@@ -68,6 +68,7 @@
 - **时间窗口**：当日订单必须在“订餐截止时间”（默认 9:00）前提交；截止后禁止新增/修改订单。订单模块已按此实现（`order.cutoff-time` 配置项，默认 `09:00`）。
 - **一人一天一单**：同一员工同一天只能有一张有效订单，需在服务层做校验（并发下要防止绕过）。订单模块已实现“非取消订单占名额”的校验。
 - **数据快照**：订单明细冗余存放下单时的菜名、分类、单价、数量；菜谱/菜单的修改或删除**只能影响未来菜单，不能影响历史订单**。`OrderItem` 已带 `itemName` / `category` / `unitPrice` 快照字段，改菜谱逻辑时务必保住这一点。
+- **权限边界**：员工只能操作/查询自己的订单与消费；经理可删单，经理与财务可查他人历史与消费明细。订单模块通过 `UserService.hasAnyRole` 校验，角色编码暂定 `MANAGER` / `FINANCE`（见第 6 节待确认项）。
 - **删单留痕**：经理删除违规订单走“置为已取消”，不做物理删除，保证财务审计可追溯。
 - **配送时间触发**：到达“配餐开始时间”（默认 11:30）后才开放配送单打印权限。
 - **聚合时机**：总括订单只在截止时间之后汇总当日有效订单（只统计非取消订单）。
@@ -92,19 +93,20 @@
 
 已经落地：
 
-1. **订单与交易核心（`ordertransaction`）已实现**：下单、改单、支付、取消、经理删单、订单查询、个人历史、月度消费统计，共 12 个集成测试（`OrderServiceTests`）覆盖核心规则。对外通过 `OrderService` 暴露，`OrderApi` 提供 REST 接口。
-2. 跨模块调用的 Service 接口骨架已就位（见第 2 节表格），项目当前**可以编译、`gradlew build` 通过**。
+1. **订单与交易核心（`ordertransaction`）已实现**：下单、改单、支付、取消、经理删单、订单查询、个人历史、月度消费统计、经理/财务越权校验，共 14 个集成测试（`OrderServiceTests`）覆盖核心规则。对外通过 `OrderService` 暴露，`OrderApi` 提供 REST 接口。
+2. 跨模块调用的 Service 接口骨架已就位（见第 2 节表格），`UserService` 已接入订单模块做角色校验，项目当前**可以编译、`gradlew build` 通过**。
 3. `MenuDTO.menuItems` 已改为 `List<MenuItemData>`；`OrderItem.itemId` 的 `@ManyToOne`、`OrderStatus` 多余的 `}`、`MenuDTO` 误用 `java.awt.List` 都已修正。
 
 仍是缺口：
 
 1. `application.properties` 目前只有 `spring.application.name`，**没有数据源配置**。`bootRun` 之前需要补 `spring.datasource.url/username/password`（PostgreSQL），且不要提交真实密码。测试走 H2，不受影响。
 2. 各模块的 Service **实现类**都还没有：`menurecipe` 的 `MenuService`、`RecipeService` 与 `user` 的 `UserService` 目前只有接口，需要负责人补齐 `impl`。
-3. 订单模块中所有跨模块/待定决策点都以 `//todo 确认` 标出，例如：登录态来源（现为前端传 `operatorId`，应改为认证上下文）、经理角色校验（`UserService.hasRole`）、`getActiveMenu` 的方法签名与菜单项字段、订单号发号规则（并发可能重复）、“一人一天一单”的唯一约束、删单审计字段、时区取值。**这些是需要跟对应负责人确认的问题清单，不要当成已定论。**
-4. `Report`（报表）功能在 `demand.md` 中属于用户与报表中心，但 `reporting` 包还没有内容。
-5. 其他模块的 `api` 包中仍有 `//todo:` 占位，返回空对象/空列表；这类占位不算实现。
-6. `src/main/resources/templates` 与 `static` 目前为空，Thymeleaf 页面尚未开始。
-7. 未接线项：`UserService` 尚未注入订单模块做角色校验；`operationfulfillment` 尚未调用 `OrderService.query` / `findActiveOrder` 做聚合与配送。
+3. 订单模块中所有跨模块/待定决策点都以 `//todo 确认` 标出，例如：**角色编码取值 `MANAGER`/`FINANCE` 需与 IAM 对齐**、登录态来源（现为前端传 `operatorId`，应改为认证上下文）、`getActiveMenu` 的方法签名与菜单项字段、订单号发号规则（并发可能重复）、“一人一天一单”的唯一约束、删单审计字段、时区取值。**这些是需要跟对应负责人确认的问题清单，不要当成已定论。**
+4. `OrderService` 中 `deleteOrder(Long)`、`getHistoryOrders(userId, start, end)` 等**兼容旧签名的重载不校验权限**（`deleteOrder(Long)` 仅告警），接入登录态后应删除这些重载；当前新代码请一律走带 `operatorId` 的重载。
+5. `Report`（报表）功能在 `demand.md` 中属于用户与报表中心，但 `reporting` 包还没有内容。
+6. 其他模块的 `api` 包中仍有 `//todo:` 占位，返回空对象/空列表；这类占位不算实现。
+7. `src/main/resources/templates` 与 `static` 目前为空，Thymeleaf 页面尚未开始。
+8. 未接线项：登录态（Spring Security）尚未接入，`operatorId` 仍由前端传入，**因此角色校验目前可被伪造的身份绕过**；`operationfulfillment` 尚未调用 `OrderService.query` / `findActiveOrder` 做聚合与配送。
 
 
 ## 7. 工作流约定
