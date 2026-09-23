@@ -2,7 +2,7 @@ package com.university.webdesign.menurecipe.api;
 
 import lombok.Data;
 
-import java.awt.*;
+import java.util.List;
 
 /**
  * 菜单DTO
@@ -28,8 +28,10 @@ public class MenuDTO
 	
 	/**
 	 * 菜单项列表
+	 * <p>
+	 * //todo 确认：元素类型与菜品与菜单中心约定为 {@link MenuItemData}（菜品ID、菜名、分类、菜单售价）。
 	 */
-	private List menuItems;
+	private List<MenuItemData> menuItems;
 	
 	/**
 	 * 菜单创建时间
