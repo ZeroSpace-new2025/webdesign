@@ -100,7 +100,7 @@ public interface OrderService
 	 * 删除订单（经理删除违规订单，以取消状态留痕，不做物理删除）
 	 *
 	 * @param orderId    订单ID
-	 * @param operatorId 操作经理ID
+	 * @param operatorId 操作经理ID；为 null 时视为可信内部调用，不做角色校验
 	 * @return 删除（取消）后的订单
 	 */
 	OrderDTO deleteOrder(Long orderId, Long operatorId);
@@ -115,6 +115,19 @@ public interface OrderService
 	
 	/**
 	 * 个人历史订单查询
+	 * <p>
+	 * 只能查自己的订单；经理与财务可查任意员工（消费审计场景）。
+	 *
+	 * @param userId     要查询的员工ID
+	 * @param operatorId 发起查询的用户ID；为 null 时视为可信内部调用
+	 * @param start      起始日期（含），可为 null 表示不限
+	 * @param end        结束日期（含），可为 null 表示不限
+	 * @return 该员工的历史订单，按下单时间升序
+	 */
+	List<OrderDTO> getHistoryOrders(Long userId, Long operatorId, LocalDate start, LocalDate end);
+	
+	/**
+	 * 个人历史订单查询（兼容旧签名，不校验操作人）
 	 *
 	 * @param userId 员工ID
 	 * @param start  起始日期（含），可为 null 表示不限
@@ -125,6 +138,19 @@ public interface OrderService
 	
 	/**
 	 * 个人月度消费统计
+	 * <p>
+	 * 只能查自己；经理与财务可查任意员工（消费审计场景）。
+	 *
+	 * @param userId     要查询的员工ID
+	 * @param operatorId 发起查询的用户ID；为 null 时视为可信内部调用
+	 * @param year       年份
+	 * @param month      月份（1-12）
+	 * @return 月度消费统计（含明细与按菜品汇总）
+	 */
+	PersonalConsumptionDTO getMonthlyConsumption(Long userId, Long operatorId, int year, int month);
+	
+	/**
+	 * 个人月度消费统计（兼容旧签名，不校验操作人）
 	 *
 	 * @param userId 员工ID
 	 * @param year   年份

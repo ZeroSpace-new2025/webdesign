@@ -12,6 +12,7 @@ import com.university.webdesign.ordertransaction.data.OrderStatus;
 import com.university.webdesign.ordertransaction.repository.OrderRepository;
 import com.university.webdesign.ordertransaction.service.OrderService;
 import com.university.webdesign.support.StubServicesTestConfiguration;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -78,6 +79,12 @@ class OrderServiceTests
 				new MenuItemData(101L, "小炒肉", "热菜", new BigDecimal("18.00")),
 				new MenuItemData(102L, "米饭", "主食", new BigDecimal("2.00"))));
 		Mockito.when(menuService.getActiveMenu(Mockito.any(LocalDate.class))).thenReturn(menu);
+	}
+	
+	@AfterEach
+	void tearDown() {
+		// 角色开关是跨测试共享的静态状态，必须复位
+		StubServicesTestConfiguration.grantAllRoles(false);
 	}
 	
 	/**
@@ -195,6 +202,7 @@ class OrderServiceTests
 	@Test
 	@DisplayName("删除订单：经理删单以已取消留痕，且取消后不再占用当日名额")
 	void deleteOrderShouldCancelAndFreeQuota() {
+		StubServicesTestConfiguration.grantAllRoles(true);
 		OrderDTO created = orderService.createOrder(createData(6L, List.of(101L), List.of(1)));
 		
 		OrderDTO deleted = orderService.deleteOrder(created.getOrderId(), 1L);
@@ -205,6 +213,47 @@ class OrderServiceTests
 		// 取消后当日名额释放，可以重新下单
 		OrderDTO again = orderService.createOrder(createData(6L, List.of(102L), List.of(1)));
 		assertThat(again.getOrderId()).isNotEqualTo(created.getOrderId());
+	}
+	
+	@Test
+	@DisplayName("越权校验：没有经理角色不能删除订单")
+	void deleteOrderRequiresManagerRole() {
+		// 默认桩不授予任何角色
+		OrderDTO created = orderService.createOrder(createData(13L, List.of(101L), List.of(1)));
+		
+		assertThatThrownBy(() -> orderService.deleteOrder(created.getOrderId(), 99L))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("无权执行该操作");
+		
+		// 订单未被取消
+		assertThat(orderService.getOrder(created.getOrderId()).getStatus())
+				.isEqualTo(OrderStatus.UNPAID.toString());
+	}
+	
+	@Test
+	@DisplayName("越权校验：员工只能查自己的历史与消费，经理/财务可查他人")
+	void personalQueriesRequireSelfOrRole() {
+		OrderDTO order = orderService.createOrder(createData(14L, List.of(101L), List.of(1)));
+		LocalDate today = LocalDate.now();
+		
+		// 无角色的人查他人：拒绝
+		assertThatThrownBy(() -> orderService.getHistoryOrders(14L, 99L, null, null))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("无权执行该操作");
+		assertThatThrownBy(() -> orderService.getMonthlyConsumption(14L, 99L, today.getYear(), today.getMonthValue()))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("无权执行该操作");
+		
+		// 查自己：允许
+		assertThat(orderService.getHistoryOrders(14L, 14L, null, null)).hasSize(1);
+		assertThat(orderService.getMonthlyConsumption(14L, 14L, today.getYear(), today.getMonthValue())
+				.getOrderCount()).isEqualTo(1);
+		
+		// 财务角色查他人：允许
+		StubServicesTestConfiguration.grantAllRoles(true);
+		assertThat(orderService.getHistoryOrders(14L, 99L, null, null))
+				.extracting(OrderDTO::getOrderId)
+				.containsExactly(order.getOrderId());
 	}
 	
 	@Test
@@ -237,6 +286,7 @@ class OrderServiceTests
 	@Test
 	@DisplayName("查询：默认过滤已取消订单，按条件可查指定员工的订单")
 	void queryShouldFilterCancelledByDefault() {
+		StubServicesTestConfiguration.grantAllRoles(true);
 		OrderDTO kept = orderService.createOrder(createData(8L, List.of(101L), List.of(1)));
 		OrderDTO removed = orderService.createOrder(createData(9L, List.of(102L), List.of(1)));
 		orderService.deleteOrder(removed.getOrderId(), 1L);
@@ -279,6 +329,7 @@ class OrderServiceTests
 	@Test
 	@DisplayName("查询指定日期有效订单：供履约模块判断员工当日是否已点餐")
 	void findActiveOrderShouldWork() {
+		StubServicesTestConfiguration.grantAllRoles(true);
 		assertThat(orderService.findActiveOrder(11L, LocalDate.now())).isNull();
 		
 		OrderDTO created = orderService.createOrder(createData(11L, List.of(101L), List.of(1)));

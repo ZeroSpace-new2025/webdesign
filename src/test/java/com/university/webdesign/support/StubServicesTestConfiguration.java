@@ -30,6 +30,11 @@ import java.util.List;
 public class StubServicesTestConfiguration
 {
 	/**
+	 * 是否授予所有角色，供需要经理/财务权限的测试切换
+	 */
+	private static volatile boolean ALL_ROLES = false;
+	
+	/**
 	 * 菜单服务桩：默认返回“无生效菜单”，需要菜单的测试自行用 {@code @MockitoBean} 替换。
 	 *
 	 * @return 菜单服务桩
@@ -87,7 +92,7 @@ public class StubServicesTestConfiguration
 	}
 	
 	/**
-	 * 用户服务桩：登录相关方法返回空值，{@code hasRole} 一律返回 false（最小权限）。
+	 * 用户服务桩：登录相关方法返回空值；角色判定由 {@link #grantAllRoles(boolean)} 控制。
 	 *
 	 * @return 用户服务桩
 	 */
@@ -122,8 +127,21 @@ public class StubServicesTestConfiguration
 			
 			@Override
 			public boolean hasRole(Long userId, String roleCode) {
-				return false;
+				// 最小权限：默认不授予任何角色，需要授权角色的测试显式调用 grantAllRoles(true)
+				return userId != null && ALL_ROLES;
 			}
 		};
+	}
+	
+	/**
+	 * 开关“授予所有角色”
+	 * <p>
+	 * 用户中心的实现尚未提供，测试无法通过真实数据造出经理角色，这里提供显式开关。
+	 * 用完记得在测试结束（{@code @AfterEach}）复位，避免影响其他测试。
+	 *
+	 * @param granted true 表示所有用户都拥有任意角色
+	 */
+	public static void grantAllRoles(boolean granted) {
+		ALL_ROLES = granted;
 	}
 }

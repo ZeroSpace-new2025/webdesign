@@ -63,4 +63,26 @@ public interface UserService
 	 * @return 拥有该角色返回 true
 	 */
 	boolean hasRole(Long userId, String roleCode);
+	
+	/**
+	 * 判断用户是否拥有给定角色中的任意一个
+	 * <p>
+	 * 用于“经理或财务均可”这类校验，避免调用方对同一用户反复查询角色。
+	 * 默认实现允许实现类按需覆盖，以走一次查询完成判断。
+	 *
+	 * @param userId    用户ID
+	 * @param roleCodes 角色编码数组
+	 * @return 命中任意一个角色返回 true
+	 */
+	default boolean hasAnyRole(Long userId, String... roleCodes) {
+		if (userId == null || roleCodes == null) {
+			return false;
+		}
+		for (String roleCode : roleCodes) {
+			if (hasRole(userId, roleCode)) {
+				return true;
+			}
+		}
+		return false;
+	}
 }

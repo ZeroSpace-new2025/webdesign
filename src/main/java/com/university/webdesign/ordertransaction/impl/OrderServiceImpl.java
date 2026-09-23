@@ -14,6 +14,7 @@ import com.university.webdesign.ordertransaction.data.OrderItem;
 import com.university.webdesign.ordertransaction.data.OrderStatus;
 import com.university.webdesign.ordertransaction.repository.OrderRepository;
 import com.university.webdesign.ordertransaction.service.OrderService;
+import com.university.webdesign.user.api.UserService;
 import jakarta.persistence.criteria.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -66,6 +67,20 @@ public class OrderServiceImpl implements OrderService
 	private static final long DAILY_SEQUENCE_MODULUS = 100_000L;
 	
 	/**
+	 * 餐厅经理角色编码
+	 * <p>
+	 * //todo 确认：需求只列了角色名称（餐厅经理、厨房主管、配餐员、财务、员工），没有给编码。
+	 * 这里按用户与报表中心（王家豪）的 IAM 约定暂用 MANAGER / FINANCE，
+	 * 需确认实际 roleCode 取值后再定稿。
+	 */
+	private static final String ROLE_MANAGER = "MANAGER";
+	
+	/**
+	 * 财务角色编码，见 {@link #ROLE_MANAGER} 的说明
+	 */
+	private static final String ROLE_FINANCE = "FINANCE";
+	
+	/**
 	 * 订餐截止时间，默认 09:00
 	 * <p>
 	 * //todo 确认：截止时间属于可配置项，需求文档给的是“默认 9:00”。
@@ -96,12 +111,24 @@ public class OrderServiceImpl implements OrderService
 	 */
 	private final MenuService menuService;
 	
+	/**
+	 * 用户与报表中心提供的服务，用于角色与越权校验
+	 * <p>
+	 * //todo 确认：依赖 {@code UserService.hasRole(userId, roleCode)} 判断经理/财务角色。
+	 * 该接口目前只有骨架、没有实现类，测试环境使用 StubServicesTestConfiguration 中的桩
+	 * （桩的 hasRole 一律返回 false）。
+	 * 若用户中心最终不提供角色查询能力，需要改为由 Spring Security 的认证上下文提供权限。
+	 */
+	private final UserService userService;
+	
 	public OrderServiceImpl(OrderRepository orderRepository,
 			MenuService menuService,
+			UserService userService,
 			@Value("${order.cutoff-time:09:00}") String cutoffTime,
 			@Value("${order.zone:}") String zone) {
 		this.orderRepository = orderRepository;
 		this.menuService = menuService;
+		this.userService = userService;
 		this.cutoffTime = LocalTime.parse(cutoffTime);
 		this.zoneId = zone == null || zone.isBlank() ? ZoneId.systemDefault() : ZoneId.of(zone);
 	}
@@ -139,10 +166,29 @@ public class OrderServiceImpl implements OrderService
 	}
 	
 	@Override
-	public List<OrderDTO> getHistoryOrders(Long userId, LocalDate start, LocalDate end) {
+	public List<OrderDTO> getHistoryOrders(Long userId, Long operatorId, LocalDate start, LocalDate end) {
 		if (userId == null) {
 			throw new IllegalArgumentException("员工ID不能为空");
 		}
+		// 只能查自己的历史；经理与财务可查他人（消费审计）
+		assertSelfOrRole(operatorId, userId, "查看他人订单历史", ROLE_MANAGER, ROLE_FINANCE);
+		return queryHistory(userId, start, end);
+	}
+	
+	@Override
+	public List<OrderDTO> getHistoryOrders(Long userId, LocalDate start, LocalDate end) {
+		return getHistoryOrders(userId, null, start, end);
+	}
+	
+	/**
+	 * 个人历史查询的实际实现
+	 *
+	 * @param userId 员工ID
+	 * @param start  起始日期（含），可为 null
+	 * @param end    结束日期（含），可为 null
+	 * @return 历史订单列表
+	 */
+	private List<OrderDTO> queryHistory(Long userId, LocalDate start, LocalDate end) {
 		OrderQueryData queryData = new OrderQueryData();
 		queryData.setUserId(userId);
 		// 个人历史需要能看到自己取消过的订单
@@ -157,10 +203,29 @@ public class OrderServiceImpl implements OrderService
 	}
 	
 	@Override
-	public PersonalConsumptionDTO getMonthlyConsumption(Long userId, int year, int month) {
+	public PersonalConsumptionDTO getMonthlyConsumption(Long userId, Long operatorId, int year, int month) {
 		if (userId == null) {
 			throw new IllegalArgumentException("员工ID不能为空");
 		}
+		// 只能查自己的消费；经理与财务可查他人（财务审计）
+		assertSelfOrRole(operatorId, userId, "查看他人消费明细", ROLE_MANAGER, ROLE_FINANCE);
+		return buildMonthlyConsumption(userId, year, month);
+	}
+	
+	@Override
+	public PersonalConsumptionDTO getMonthlyConsumption(Long userId, int year, int month) {
+		return getMonthlyConsumption(userId, null, year, month);
+	}
+	
+	/**
+	 * 月度消费统计的实际实现
+	 *
+	 * @param userId 员工ID
+	 * @param year   年份
+	 * @param month  月份（1-12）
+	 * @return 月度消费统计
+	 */
+	private PersonalConsumptionDTO buildMonthlyConsumption(Long userId, int year, int month) {
 		YearMonth yearMonth;
 		try {
 			yearMonth = YearMonth.of(year, month);
@@ -371,6 +436,7 @@ public class OrderServiceImpl implements OrderService
 		Order order = loadOrder(orderId);
 		// 经理删单：不受截止时间限制，但以“已取消”留痕，保证历史与财务数据可追溯
 		//todo 确认：删除违规订单是否要求同时记录删除人/删除原因（审计留痕字段），以及是否需要“硬删除”语义
+		assertCanManage(operatorId, "删除订单");
 		if (order.getStatus() == OrderStatus.CANCELLED) {
 			throw new IllegalStateException("该订单已经是已取消状态");
 		}
@@ -457,12 +523,10 @@ public class OrderServiceImpl implements OrderService
 	}
 	
 	/**
-	 * 断言操作人身份
+	 * 断言订单操作人身份（归属校验）
 	 * <p>
-	 * //todo 确认：经理/财务的角色校验应由用户与报表中心（王家豪）的 IAM 提供，
-	 * 例如 {@code boolean hasRole(Long userId, String roleCode)}。
-	 * 目前只能退化为“订单归属人校验”，还没有判断调用者是否为经理，
-	 * 因此经理删单、他人订单查询等越权场景尚未真正拦住。
+	 * 员工对自有订单的改单/支付/取消走这里：只能操作自己的订单。
+	 * 需要“经理可以操作他人订单”的场景请走 {@link #assertRole}。
 	 *
 	 * @param order      订单
 	 * @param operatorId 操作用户ID；为 null 时跳过校验（兼容未接入登录态的调用）
@@ -488,6 +552,64 @@ public class OrderServiceImpl implements OrderService
 			//todo 确认：接入登录态后这里的身份应直接来自认证上下文，不再作为请求参数接收
 			throw new IllegalArgumentException("缺少操作用户ID（operatorId 需由登录态提供）");
 		}
+	}
+	
+	/**
+	 * 断言操作人拥有“管理类”角色（经理删单、财务审计等场景）
+	 * <p>
+	 * 与 {@link #assertOperator(Order, Long)} 不同，这里不放过缺失操作人的情况：
+	 * 管理动作一旦没有可信身份，就不能执行。
+	 *
+	 * @param operatorId 操作用户ID
+	 * @param action     动作名称，用于报错信息
+	 * @param roleCodes  允许的角色编码，满足其一即可
+	 */
+	private void assertRole(Long operatorId, String action, String... roleCodes) {
+		requireOperatorId(operatorId);
+		if (userService.hasAnyRole(operatorId, roleCodes)) {
+			return;
+		}
+		log.warn("用户 {} 尝试执行“{}”，但缺少所需角色 {}", operatorId, action, String.join("/", roleCodes));
+		throw new IllegalStateException("无权执行该操作：" + action);
+	}
+	
+	/**
+	 * 断言操作人可以执行管理类操作，缺失操作人时只告警不拦截
+	 * <p>
+	 * 用于“兼容旧签名”的入口：老调用方不传操作人，此时退化为不校验并留告警，
+	 * 以免破坏现有流程；新代码请使用带 operatorId 的重载。
+	 *
+	 * @param operatorId 操作用户ID，可为 null
+	 * @param action     动作名称
+	 */
+	private void assertCanManage(Long operatorId, String action) {
+		if (operatorId == null) {
+			//todo 确认：这些兼容重载在接入登录态后应当删除，改为强制校验操作人
+			log.warn("执行“{}”时未提供操作人，已跳过角色校验：请改用带 operatorId 的接口", action);
+			return;
+		}
+		assertRole(operatorId, action, ROLE_MANAGER);
+	}
+	
+	/**
+	 * 断言操作人要么是数据本人，要么拥有指定角色
+	 * <p>
+	 * 用于个人历史、个人消费这类“本人可查、经理/财务也可查”的场景。
+	 * 操作人为 null 时视为可信的服务端内部调用（如履约模块聚合当日订单）。
+	 *
+	 * @param operatorId 操作用户ID，可为 null
+	 * @param targetId   数据归属的用户ID
+	 * @param action     动作名称，用于报错信息
+	 * @param roleCodes  允许“查他人”的角色编码
+	 */
+	private void assertSelfOrRole(Long operatorId, Long targetId, String action, String... roleCodes) {
+		if (operatorId == null) {
+			return;
+		}
+		if (Objects.equals(operatorId, targetId)) {
+			return;
+		}
+		assertRole(operatorId, action, roleCodes);
 	}
 	
 	// ------------------------------------------------------------------ 内部方法：菜品与快照

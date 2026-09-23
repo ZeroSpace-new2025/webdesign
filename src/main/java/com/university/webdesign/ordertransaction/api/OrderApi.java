@@ -54,36 +54,42 @@ public class OrderApi
 	
 	/**
 	 * 个人历史订单查询
+	 * <p>
+	 * operatorId 与 userId 相同时查自己的历史；经理与财务可查他人。
 	 *
-	 * @param userId 员工ID
-	 * @param start  起始日期（含），可选
-	 * @param end    结束日期（含），可选
+	 * @param userId     要查询的员工ID
+	 * @param operatorId 发起查询的用户ID
+	 * @param start      起始日期（含），可选
+	 * @param end        结束日期（含），可选
 	 * @return 历史订单列表
 	 */
 	@GetMapping("/history")
 	public Result<List<OrderDTO>> getHistoryOrders(
 			@RequestParam("userId") Long userId,
+			@RequestParam(value = "operatorId", required = false) Long operatorId,
 			@RequestParam(value = "start", required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
 			@RequestParam(value = "end", required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
-		return Result.success(orderService.getHistoryOrders(userId, start, end));
+		return Result.success(orderService.getHistoryOrders(userId, operatorId, start, end));
 	}
 	
 	/**
 	 * 个人月度消费统计（供员工查看/打印，也供财务与经理查询特定员工消费）
 	 *
-	 * @param userId 员工ID
-	 * @param year   年份
-	 * @param month  月份（1-12）
+	 * @param userId     要查询的员工ID
+	 * @param operatorId 发起查询的用户ID
+	 * @param year       年份
+	 * @param month      月份（1-12）
 	 * @return 月度消费统计
 	 */
 	@GetMapping("/consumption/monthly")
 	public Result<PersonalConsumptionDTO> getMonthlyConsumption(
 			@RequestParam("userId") Long userId,
+			@RequestParam(value = "operatorId", required = false) Long operatorId,
 			@RequestParam("year") int year,
 			@RequestParam("month") int month) {
-		return Result.success(orderService.getMonthlyConsumption(userId, year, month));
+		return Result.success(orderService.getMonthlyConsumption(userId, operatorId, year, month));
 	}
 	
 	/**
@@ -164,7 +170,9 @@ public class OrderApi
 	}
 	
 	/**
-	 * 删除订单（经理删除违规订单）
+	 * 删除订单（经理删除违规订单，以取消状态留痕）
+	 * <p>
+	 * operatorId 会被交给用户与报表中心校验是否为餐厅经理。
 	 *
 	 * @param id         订单ID
 	 * @param operatorId 操作经理ID
