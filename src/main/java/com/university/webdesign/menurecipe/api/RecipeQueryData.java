@@ -11,7 +11,7 @@ public class RecipeQueryData
 	private String recipeName;
 	
 	/**
-	 * 菜谱的描述
+	 * 菜谱描述
 	 */
 	private Long recipeId;
 	
