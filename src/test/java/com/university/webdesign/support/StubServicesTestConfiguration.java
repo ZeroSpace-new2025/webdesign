@@ -7,8 +7,13 @@ import com.university.webdesign.menurecipe.api.RecipeQueryData;
 import com.university.webdesign.menurecipe.service.MenuService;
 import com.university.webdesign.menurecipe.service.RecipeService;
 import com.university.webdesign.user.api.LoginData;
+import com.university.webdesign.user.api.PasswordUpdateData;
 import com.university.webdesign.user.api.UserDTO;
+import com.university.webdesign.user.api.UserImportData;
+import com.university.webdesign.user.api.UserImportResultDTO;
+import com.university.webdesign.user.api.UserQueryData;
 import com.university.webdesign.user.api.UserRegisterData;
+import com.university.webdesign.user.api.UserUpdateData;
 import com.university.webdesign.user.service.UserService;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -92,7 +97,8 @@ public class StubServicesTestConfiguration
 	}
 	
 	/**
-	 * 用户服务桩：登录相关方法返回空值；角色判定由 {@link #grantAllRoles(boolean)} 控制。
+	 * 用户服务桩：登录与员工维护类方法返回空值，不落库；
+	 * 角色与权限判定由 {@link #grantAllRoles(boolean)} 控制。
 	 *
 	 * @return 用户服务桩
 	 */
@@ -101,23 +107,23 @@ public class StubServicesTestConfiguration
 		return new UserService()
 		{
 			@Override
-			public String login(LoginData loginData) {
+			public UserDTO login(LoginData loginData) {
 				return null;
 			}
 			
 			@Override
-			public boolean logout() {
-				return true;
+			public void logout() {
+				// 桩实现：无登录态可注销
 			}
 			
 			@Override
-			public Long register(UserRegisterData registerData) {
+			public UserDTO createUser(UserRegisterData registerData) {
 				return null;
 			}
 			
 			@Override
-			public boolean updatePassword(Long userId, String newPassword) {
-				return false;
+			public List<UserDTO> query(UserQueryData queryData) {
+				return List.of();
 			}
 			
 			@Override
@@ -126,7 +132,53 @@ public class StubServicesTestConfiguration
 			}
 			
 			@Override
-			public boolean hasRole(Long userId, String roleCode) {
+			public UserDTO updateUser(UserUpdateData updateData) {
+				return null;
+			}
+			
+			@Override
+			public void changePassword(PasswordUpdateData passwordUpdateData) {
+				// 桩实现：不落库
+			}
+			
+			@Override
+			public void resetPassword(Long userId, String newPassword) {
+				// 桩实现：不落库
+			}
+			
+			@Override
+			public void setEnabled(Long userId, boolean enabled) {
+				// 桩实现：不落库
+			}
+			
+			@Override
+			public void assignRoles(Long userId, List<Long> roleIds) {
+				// 桩实现：不落库
+			}
+			
+			@Override
+			public void deleteUser(Long userId) {
+				// 桩实现：不落库
+			}
+			
+			@Override
+			public UserImportResultDTO importUsers(UserImportData importData) {
+				return new UserImportResultDTO();
+			}
+			
+			@Override
+			public List<String> getPermissionCodes(Long userId) {
+				// 最小权限：默认不授予任何权限，需要授权的测试显式调用 grantAllRoles(true)
+				return ALL_ROLES && userId != null ? List.of("*") : List.of();
+			}
+			
+			@Override
+			public boolean hasPermission(Long userId, String permissionCode) {
+				return userId != null && ALL_ROLES;
+			}
+			
+			@Override
+			public boolean hasAnyRole(Long userId, String... roleCodes) {
 				// 最小权限：默认不授予任何角色，需要授权角色的测试显式调用 grantAllRoles(true)
 				return userId != null && ALL_ROLES;
 			}
