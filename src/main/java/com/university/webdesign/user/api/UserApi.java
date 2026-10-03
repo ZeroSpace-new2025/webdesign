@@ -18,33 +18,35 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserApi
 {
 	private final UserService userService;
-	
+
 	public UserApi(UserService userService) {
 		this.userService = userService;
 	}
-	
+
 	@PostMapping("/login")
-	public Result<String> login(@RequestBody LoginData loginData) {
-		return Result.success("Login successful");
+	public Result<UserDTO> login(@RequestBody LoginData loginData) {
+		return Result.success(userService.login(loginData));
 	}
-	
+
 	@PostMapping("/logout")
-	public Result<String> logout() {
-		return Result.success("Logout successful");
+	public Result<Void> logout() {
+		userService.logout();
+		return Result.success(null);
 	}
-	
+
 	@PostMapping("/register")
-	public Result<String> register(@RequestBody UserRegisterData userRegisterData) {
-		return Result.success("Register successful");
+	public Result<UserDTO> register(@RequestBody UserRegisterData userRegisterData) {
+		return Result.success(userService.createUser(userRegisterData));
 	}
-	
+
 	@PostMapping("/update/password")
-	public Result<String> updatePassword(@RequestBody String newPassword) {
-		return Result.success("Password update successful");
+	public Result<Void> updatePassword(@RequestBody PasswordUpdateData passwordUpdateData) {
+		userService.changePassword(passwordUpdateData);
+		return Result.success(null);
 	}
-	
+
 	@PostMapping("/info")
 	public Result<UserDTO> getUserInfo(@RequestBody long id) {
-		return Result.success(new UserDTO());
+		return Result.success(userService.getUserInfo(id));
 	}
 }
