@@ -65,7 +65,7 @@ com.university.webdesign.
 
 ```
 <module>/
-├── api/         Controller（@RestController）+ 入参出参 DTO + QueryData
+├── api/         Controller（REST 用 @RestController，页面用 @Controller）+ 入参出参 DTO + QueryData
 ├── service/     服务接口（业务能力契约）
 ├── impl/        服务实现（@Component / @Service）
 ├── repository/  Spring Data JPA Repository 接口
@@ -75,6 +75,10 @@ com.university.webdesign.
 约定细节：
 
 - Controller 一律返回 `com.university.webdesign.common.Result<T>`，用 `Result.success(...)` / `Result.failure(code, msg)`（`code=200` 表示成功）。
+- 页面：Thymeleaf 模板放 `src/main/resources/templates/<模块包名>/`（公共片段放该目录下的 `fragments/`），静态资源放 `src/main/resources/static/`。
+  页面控制器与 REST 控制器**分开写**：如 `OrderApi` 走 `/api/order/**` 返回 JSON，`OrderPageApi` 走 `/order/**` 返回视图名；
+  两者都只依赖本模块 `service` 或对方 `service` 的契约接口，不碰任何 `impl` / `repository` / `data`。
+  页面里不要硬编码业务规则（截止时间、状态文案等），一律调用服务层判定后展示结果。
 - DTO / QueryData 用 Lombok `@Data` + Javadoc 注释说明每个字段，字段命名与已有代码保持一致。
 - 实体：`@Entity` + `@Data` + `@NoArgsConstructor` + `@AllArgsConstructor`，显式 `@Table(name = "...")` 和 `@Column(name = "...")`（下划线命名），不用隐式命名策略。
 - 依赖注入用**构造器注入**（已有代码全部如此），禁止字段注入 `@Autowired`。
@@ -98,6 +102,7 @@ com.university.webdesign.
 ./gradlew build            # 编译 + 测试（Windows: .\gradlew.bat build）
 ./gradlew test             # 只跑测试
 ./gradlew test --tests "*OrderServiceTests" --console=plain   # 只跑订单模块测试
+./gradlew test --tests "*OrderPageTests" --console=plain       # 只跑订单模块页面（MockMvc 渲染）测试
 ./gradlew bootRun          # 本地启动（需先补 PostgreSQL 数据源配置）
 ./gradlew compileJava      # 快速语法检查
 ```
@@ -113,17 +118,27 @@ com.university.webdesign.
 1. **订单与交易核心（`ordertransaction`）已实现**：下单、改单、支付、取消、经理删单、订单查询、个人历史、月度消费统计、经理/财务越权校验，共 14 个集成测试（`OrderServiceTests`）覆盖核心规则。对外通过 `OrderService` 暴露，`OrderApi` 提供 REST 接口。
 2. 跨模块调用的 Service 接口骨架已就位（见第 2 节表格），`UserService` 已接入订单模块做角色校验，项目当前**可以编译、`gradlew build` 通过**。
 3. `MenuDTO.menuItems` 已改为 `List<MenuItemData>`；`OrderItem.itemId` 的 `@ManyToOne`、`OrderStatus` 多余的 `}`、`MenuDTO` 误用 `java.awt.List` 都已修正。
+4. **订单模块的页面已落地**（Thymeleaf）：`OrderPageApi`（页面入口，走 `/order/**`）配合 `templates/ordertransaction/`
+   提供「今日点餐」（展示当日已发布菜单、下单、截止前改单、取消）与「我的订单」（个人历史按日期区间查询、支付、取消）两个页面，
+   样式在 `static/css/ordertransaction.css`。`OrderPageTests` 用 9 个 MockMvc 测试覆盖模板渲染、下单/改单、取消与越权回显。
+   月度消费统计页与经理订单管理页**尚未实现**（见第 6 节缺口）。
 
 仍是缺口：
 
 1. `application.properties` 目前只有 `spring.application.name`，**没有数据源配置**。`bootRun` 之前需要补 `spring.datasource.url/username/password`（PostgreSQL），且不要提交真实密码。测试走 H2，不受影响。
 2. 各模块的 Service **实现类**都还没有：`menurecipe` 的 `MenuService`、`RecipeService` 与 `user` 的 `UserService` 目前只有接口，需要负责人补齐 `impl`。
+   `MenuService` 没有实现类时，`OrderPageApi` 的今日菜单取不到数据，点餐页会显示“今日菜单尚未发布”。
 3. 订单模块中所有跨模块/待定决策点都以 `//todo 确认` 标出，例如：**角色编码取值 `MANAGER`/`FINANCE` 需与 IAM 对齐**、登录态来源（现为前端传 `operatorId`，应改为认证上下文）、`getActiveMenu` 的方法签名与菜单项字段、订单号发号规则（并发可能重复）、“一人一天一单”的唯一约束、删单审计字段、时区取值。**这些是需要跟对应负责人确认的问题清单，不要当成已定论。**
 4. `OrderService` 中 `deleteOrder(Long)`、`getHistoryOrders(userId, start, end)` 等**兼容旧签名的重载不校验权限**（`deleteOrder(Long)` 仅告警），接入登录态后应删除这些重载；当前新代码请一律走带 `operatorId` 的重载。
 5. `Report`（报表）功能在 `demand.md` 中属于用户与报表中心，顶层 `reporting` 包的目录结构已建好，但**还没有任何代码**。
 6. 其他模块的 `api` 包中仍有 `//todo:` 占位，返回空对象/空列表；这类占位不算实现。
-7. `src/main/resources/templates` 与 `static` 目前为空，Thymeleaf 页面尚未开始。
-8. 未接线项：登录态（Spring Security）尚未接入，`operatorId` 仍由前端传入，**因此角色校验目前可被伪造的身份绕过**；`operationfulfillment` 尚未调用 `OrderService.query` / `findActiveOrder` 做聚合与配送。
+7. 页面只完成了订单模块：`menurecipe`、`operationfulfillment`、`user`、`reporting` 的 `templates/` 与 `static/` 仍为空，各模块页面尚未开始。
+8. 根包下的 `DevSecurityConfig` 是**开发期临时放行配置**（放行全部请求、关闭 CSRF），只为让各模块页面在登录态接入前能独立打开。
+   用户与报表中心接入 Spring Security 登录/角色后**必须删除该配置**，改为按角色授权并恢复 CSRF。
+9. 未接线项：登录态（Spring Security）尚未接入，`operatorId` 由页面顶部身份栏写入会话（`order.operatorId`）或 URL 参数传入，**因此角色校验目前可被伪造的身份绕过**；
+   `operationfulfillment` 尚未调用 `OrderService.query` / `findActiveOrder` 做聚合与配送。
+10. 页面依赖的跨模块数据（今日菜单）与配置项 `order.cutoff-time` / `order.zone` 在 `OrderServiceImpl` 与 `OrderPageApi` 中各读一次，
+    后续若要统一，应抽到公共配置类并一并迁移。
 
 
 ## 7. 工作流约定
