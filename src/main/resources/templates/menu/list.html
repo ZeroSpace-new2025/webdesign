@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('菜单管理')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('menu')}"></nav>
+
+<div class="container">
+    <div class="page-header">
+        <h1>菜单管理</h1>
+        <a class="btn btn-primary" th:href="@{/menus/new}">+ 新建菜单</a>
+    </div>
+
+    <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+    <div class="card">
+        <div th:if="${menus.isEmpty()}" class="empty">
+            暂无菜单，点击右上角“新建菜单”，从菜品库中挑选菜品生成菜单。
+        </div>
+        <table th:if="${!menus.isEmpty()}">
+            <thead>
+            <tr>
+                <th>菜单名称</th>
+                <th style="width:60px;">菜项数</th>
+                <th style="width:90px;">合计</th>
+                <th style="width:80px;">状态</th>
+                <th style="width:280px;">操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="m : ${menus}">
+                <td>
+                    <strong th:text="${m.name}">菜单名</strong>
+                    <div class="muted" th:if="${m.description != null}" th:text="${m.description}"></div>
+                </td>
+                <td th:text="${m.menuItems != null ? m.menuItems.size() : 0}">0</td>
+                <td>¥<span th:text="${m.totalPrice}">0.00</span></td>
+                <td>
+                    <span class="badge"
+                          th:classappend="${m.status == 'DRAFT'} ? 'badge-draft' : (${m.status == 'PUBLISHED'} ? 'badge-published' : 'badge-offline')"
+                          th:text="${m.status == 'DRAFT'} ? '草稿' : (${m.status == 'PUBLISHED'} ? '已发布' : '已下架')">草稿</span>
+                    <span class="badge badge-inactive" th:if="${m.locked}" style="margin-left:4px;">历史</span>
+                </td>
+                <td>
+                    <!-- 未锁定的草稿才可编辑 -->
+                    <a class="btn btn-sm" th:if="!${m.locked}" th:href="@{/menus/{id}/edit(id=${m.id})}">编辑</a>
+                    <!-- 复制：始终可用，用于复用历史菜单 -->
+                    <form th:action="@{/menus/{id}/copy(id=${m.id})}" method="post" style="display:inline;">
+                        <button class="btn btn-sm">复制</button>
+                    </form>
+                    <!-- 未锁定的草稿可发布 -->
+                    <form th:if="!${m.locked}" th:action="@{/menus/{id}/publish(id=${m.id})}" method="post" style="display:inline;">
+                        <button class="btn btn-sm btn-primary">发布</button>
+                    </form>
+                    <!-- 已锁定且处于发布中：可下架，数据保留 -->
+                    <form th:if="${m.locked and m.status == 'PUBLISHED'}"
+                          th:action="@{/menus/{id}/offline(id=${m.id})}" method="post" style="display:inline;">
+                        <button class="btn btn-sm btn-warning">下架</button>
+                    </form>
+                    <!-- 仅未锁定的草稿可删除 -->
+                    <form th:if="!${m.locked}" th:action="@{/menus/{id}/delete(id=${m.id})}" method="post" style="display:inline;"
+                          onsubmit="return confirm('确定删除该菜单？');">
+                        <button class="btn btn-sm btn-danger">删除</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

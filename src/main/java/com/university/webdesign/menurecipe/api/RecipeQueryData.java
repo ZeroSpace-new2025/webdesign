@@ -2,41 +2,54 @@ package com.university.webdesign.menurecipe.api;
 
 import lombok.Data;
 
+/**
+ * 菜品查询条件
+ */
 @Data
-public class RecipeQueryData
-{
+public class RecipeQueryData {
+
 	/**
-	 * 菜谱名称
-	 */
-	private String recipeName;
-	
-	/**
-	 * 菜谱描述
+	 * 菜品ID
 	 */
 	private Long recipeId;
-	
+
 	/**
-	 * 菜谱创建者ID
+	 * 菜品名称（模糊匹配）
+	 */
+	private String recipeName;
+
+	/**
+	 * 菜品分类
+	 */
+	private String category;
+
+	/**
+	 * 状态
+	 */
+	private String status;
+
+	/**
+	 * 创建者ID
 	 */
 	private Long createdBy;
-	
+
 	/**
-	 * 菜谱状态
+	 * 创建时间区间起始（毫秒时间戳）
 	 */
 	private Long startCreatedTime;
-	
+
 	/**
-	 * 菜谱状态
+	 * 创建时间区间结束（毫秒时间戳）
 	 */
 	private Long endCreatedTime;
-	
+
 	/**
-	 * 菜谱状态
+	 * 最后修改时间区间起始（毫秒时间戳）
 	 */
 	private Long startLastModifiedTime;
-	
+
 	/**
-	 * 菜谱状态
+	 * 最后修改时间区间结束（毫秒时间戳）
 	 */
 	private Long endLastModifiedTime;
 }
