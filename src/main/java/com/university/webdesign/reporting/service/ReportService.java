@@ -22,6 +22,11 @@ public interface ReportService
 	EmployeeConsumptionReportDTO getEmployeeConsumptionReport(Long userId, YearMonth month);
 
 	/**
+	 * 获取指定月份全部员工的消费汇总。
+	 */
+	List<EmployeeConsumptionReportDTO> queryEmployeeConsumptionReports(YearMonth month);
+
+	/**
 	 * 获取已有月度报表的月份列表。
 	 */
 	List<YearMonth> getAvailableReportMonths();
