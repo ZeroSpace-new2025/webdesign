@@ -1,15 +1,49 @@
 package com.university.webdesign.operationfulfillment.api;
 
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import com.university.webdesign.operationfulfillment.dto.ProductionSummaryDTO;
+import com.university.webdesign.operationfulfillment.dto.DeliveryTaskDTO;
+import com.university.webdesign.operationfulfillment.service.FulfillmentService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
 
-/*其他的API接口可以根据需要添加。修改后要立即提交。*/
-/*应该只包含与履行相关的API接口，而不应该包含其他相关的接口。*/
-/*请勿把内部实现暴露给外部。*/
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/fulfillment")
-public class FulfillmentApi
-{
-	//不知道有什么入站请求，先不写
+public class FulfillmentApi {
+
+    @Autowired
+    private FulfillmentService fulfillmentService;
+
+    /**
+     * 厨房主管：查看/获取生产单（按菜品统计）
+     */
+    @GetMapping("/production-summary")
+    public List<ProductionSummaryDTO> getProductionSummary() {
+        return fulfillmentService.getProductionSummary();
+    }
+
+    /**
+     * 配餐员：检查是否到达配餐时间 (11:30)
+     */
+    @GetMapping("/check-delivery-time")
+    public boolean checkDeliveryTime() {
+        return fulfillmentService.isDeliveryTimeReached();
+    }
+
+    /**
+     * 配餐员：批量生成配送单（点击打印时触发）
+     */
+    @PostMapping("/delivery-tasks/generate")
+    public List<DeliveryTaskDTO> generateDeliveryTasks() {
+        return fulfillmentService.generateDeliveryTasks();
+    }
+
+    /**
+     * 配餐员：获取已生成的配送单列表
+     */
+    @GetMapping("/delivery-tasks")
+    public List<DeliveryTaskDTO> getDeliveryTasks() {
+        return fulfillmentService.getDeliveryTasks();
+    }
 }
