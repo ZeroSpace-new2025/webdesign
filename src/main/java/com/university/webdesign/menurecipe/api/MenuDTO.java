@@ -28,26 +28,6 @@ public class MenuDTO {
 	private String description;
 
 	/**
-	 * 菜单项列表。
-	 */
-	private List<MenuItemData> menuItems;
-	
-	/**
-	 * 菜单创建时间
-	 */
-	private long createdTime;
-	
-	/**
-	 * 菜单最后修改时间
-	 */
-	private long lastModifiedTime;
-	
-	/**
-	 * 菜单创建者ID
-	 */
-	private long createdBy;
-	
-	/**
 	 * 菜单状态
 	 */
 	private String status;
@@ -64,8 +44,11 @@ public class MenuDTO {
 
 	/**
 	 * 菜单项列表
+	 * <p>
+	 * 跨模块读模型：元素为 {@link MenuItemData}。订单与履约模块按此结构取菜品ID、菜名、分类与菜单售价，
+	 * 其中 {@code MenuItemData.itemId()} 表示菜品（菜谱）ID（对应实体 {@code MenuItem.recipeId}）。
 	 */
-	private List<MenuItemDTO> menuItems;
+	private List<MenuItemData> menuItems;
 
 	/**
 	 * 创建者ID

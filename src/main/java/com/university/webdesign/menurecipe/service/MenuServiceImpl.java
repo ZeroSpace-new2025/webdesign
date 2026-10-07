@@ -1,7 +1,7 @@
 package com.university.webdesign.menurecipe.service;
 
 import com.university.webdesign.menurecipe.api.MenuDTO;
-import com.university.webdesign.menurecipe.api.MenuItemDTO;
+import com.university.webdesign.menurecipe.api.MenuItemData;
 import com.university.webdesign.menurecipe.api.MenuQueryData;
 import com.university.webdesign.menurecipe.data.Menu;
 import com.university.webdesign.menurecipe.data.MenuItem;
@@ -15,9 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -33,6 +35,27 @@ public class MenuServiceImpl implements MenuService {
 	public MenuServiceImpl(MenuRepository menuRepository, RecipeRepository recipeRepository) {
 		this.menuRepository = menuRepository;
 		this.recipeRepository = recipeRepository;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public MenuDTO getActiveMenu(LocalDate date) {
+		if (date == null) {
+			return null;
+		}
+		// 生效规则：取生效时间不晚于当日的已发布菜单，多条时取生效时间最晚的一份
+		return menuRepository.findByStatus("PUBLISHED").stream()
+				.filter(m -> m.getEffectiveTime() == null || !m.getEffectiveTime().toLocalDate().isAfter(date))
+				.max(Comparator.comparing(Menu::getEffectiveTime,
+						Comparator.nullsFirst(Comparator.naturalOrder())))
+				.map(this::toDTO)
+				.orElse(null);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public MenuDTO getMenu() {
+		return getActiveMenu(LocalDate.now());
 	}
 
 	@Override
@@ -79,6 +102,12 @@ public class MenuServiceImpl implements MenuService {
 	@Transactional(readOnly = true)
 	public List<MenuDTO> getAll() {
 		return menuRepository.findAll().stream().map(this::toDTO).toList();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<MenuDTO> getAllMenus() {
+		return getAll();
 	}
 
 	@Override
@@ -198,21 +227,21 @@ public class MenuServiceImpl implements MenuService {
 	 * 根据传入的菜单项重建菜单的菜品集合。
 	 * 从菜品库读取最新的可用菜品并做快照，仅允许选择 ACTIVE 状态的菜品。
 	 */
-	private void rebuildItems(Menu menu, List<MenuItemDTO> items) {
+	private void rebuildItems(Menu menu, List<MenuItemData> items) {
 		menu.getMenuItems().clear();
 		List<Long> recipeIds = new ArrayList<>();
-		for (MenuItemDTO item : items) {
-			if (item.getRecipeId() == null) {
+		for (MenuItemData item : items) {
+			if (item.itemId() == null) {
 				throw new IllegalArgumentException("菜单项必须指定菜品ID");
 			}
-			recipeIds.add(item.getRecipeId());
+			recipeIds.add(item.itemId());
 		}
 		List<Recipe> recipes = recipeRepository.findAllById(recipeIds);
-		for (MenuItemDTO item : items) {
+		for (MenuItemData item : items) {
 			Recipe recipe = recipes.stream()
-					.filter(r -> r.getRecipeId().equals(item.getRecipeId()))
+					.filter(r -> r.getRecipeId().equals(item.itemId()))
 					.findFirst()
-					.orElseThrow(() -> new IllegalArgumentException("菜品不存在，ID: " + item.getRecipeId()));
+					.orElseThrow(() -> new IllegalArgumentException("菜品不存在，ID: " + item.itemId()));
 			if (!"ACTIVE".equals(recipe.getStatus())) {
 				throw new IllegalStateException("菜品已停用，无法加入新菜单: " + recipe.getRecipeName());
 			}
@@ -222,7 +251,7 @@ public class MenuServiceImpl implements MenuService {
 			entity.setCategory(recipe.getCategory());
 			entity.setUnit(recipe.getUnit());
 			entity.setImageUrl(recipe.getImageUrl());
-			entity.setPrice(item.getPrice() != null ? item.getPrice() : recipe.getPrice());
+			entity.setPrice(item.price() != null ? item.price() : recipe.getPrice());
 			menu.addItem(entity);
 		}
 	}
@@ -249,7 +278,7 @@ public class MenuServiceImpl implements MenuService {
 		dto.setCreatedBy(m.getCreatedBy());
 		dto.setCreatedTime(m.getCreatedTime());
 		dto.setLastModifiedTime(m.getLastModifiedTime());
-		List<MenuItemDTO> itemDTOs = new ArrayList<>();
+		List<MenuItemData> itemDTOs = new ArrayList<>();
 		BigDecimal total = BigDecimal.ZERO;
 		for (MenuItem item : m.getMenuItems()) {
 			itemDTOs.add(toItemDTO(item));
@@ -262,16 +291,8 @@ public class MenuServiceImpl implements MenuService {
 		return dto;
 	}
 
-	private MenuItemDTO toItemDTO(MenuItem item) {
-		MenuItemDTO dto = new MenuItemDTO();
-		dto.setId(item.getId());
-		dto.setRecipeId(item.getRecipeId());
-		dto.setRecipeName(item.getRecipeName());
-		dto.setCategory(item.getCategory());
-		dto.setUnit(item.getUnit());
-		dto.setImageUrl(item.getImageUrl());
-		dto.setPrice(item.getPrice());
-		return dto;
+	private MenuItemData toItemDTO(MenuItem item) {
+		return new MenuItemData(item.getRecipeId(), item.getRecipeName(), item.getCategory(), item.getPrice());
 	}
 
 	private static LocalDateTime toLDT(long epochMillis) {

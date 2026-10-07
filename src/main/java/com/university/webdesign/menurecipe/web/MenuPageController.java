@@ -1,7 +1,7 @@
 package com.university.webdesign.menurecipe.web;
 
 import com.university.webdesign.menurecipe.api.MenuDTO;
-import com.university.webdesign.menurecipe.api.MenuItemDTO;
+import com.university.webdesign.menurecipe.api.MenuItemData;
 import com.university.webdesign.menurecipe.api.RecipeDTO;
 import com.university.webdesign.menurecipe.service.MenuService;
 import com.university.webdesign.menurecipe.service.RecipeService;
@@ -86,14 +86,10 @@ public class MenuPageController {
 			dto.setName(form.getName());
 			dto.setDescription(form.getDescription());
 
-			List<MenuItemDTO> items = form.getRows().stream()
+			List<MenuItemData> items = form.getRows().stream()
 					.filter(MenuFormData.Row::isSelected)
-					.map(row -> {
-						MenuItemDTO item = new MenuItemDTO();
-						item.setRecipeId(row.getRecipeId());
-						item.setPrice(row.getPrice());
-						return item;
-					})
+					.map(row -> new MenuItemData(row.getRecipeId(), row.getRecipeName(),
+							row.getCategory(), row.getPrice()))
 					.toList();
 			dto.setMenuItems(items);
 
@@ -165,10 +161,10 @@ public class MenuPageController {
 	 * 根据所有菜品构建表单行；若正在编辑，按已有菜单项标记选中与价格。
 	 */
 	private List<MenuFormData.Row> buildRows(MenuDTO menu) {
-		Map<Long, MenuItemDTO> existing = new HashMap<>();
+		Map<Long, MenuItemData> existing = new HashMap<>();
 		if (menu != null && menu.getMenuItems() != null) {
-			for (MenuItemDTO item : menu.getMenuItems()) {
-				existing.put(item.getRecipeId(), item);
+			for (MenuItemData item : menu.getMenuItems()) {
+				existing.put(item.itemId(), item);
 			}
 		}
 		List<RecipeDTO> recipes = recipeService.getAll();
@@ -180,10 +176,10 @@ public class MenuPageController {
 			row.setUnit(recipe.getUnit());
 			row.setPrice(recipe.getPrice());
 			row.setInactive(!"ACTIVE".equals(recipe.getStatus()));
-			MenuItemDTO chosen = existing.get(recipe.getRecipeId());
+			MenuItemData chosen = existing.get(recipe.getRecipeId());
 			if (chosen != null) {
 				row.setSelected(true);
-				row.setPrice(chosen.getPrice());
+				row.setPrice(chosen.price());
 			}
 			return row;
 		}).toList();
