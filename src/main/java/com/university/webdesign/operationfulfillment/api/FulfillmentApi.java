@@ -6,9 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/*其他的API接口可以根据需要添加。修改后要立即提交。*/
-/*应该只包含与履行相关的API接口，而不应该包含其他相关的接口。*/
-/*请勿把内部实现暴露给外部。*/
+import java.util.List;
 
 /**
  * 运营与履约 API。
