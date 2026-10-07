@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="${title} + ' - 企业餐厅点餐系统'">企业餐厅点餐系统</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+
+<!-- 导航栏片段：active 参数用于高亮当前菜单 -->
+<nav th:fragment="navbar(active)" class="navbar">
+    <a class="brand" th:href="@{/}">🍽️ 企业餐厅点餐</a>
+    <div class="nav-links">
+        <a th:href="@{/recipes}" th:classappend="${active == 'recipe'} ? 'active'">菜品管理</a>
+        <a th:href="@{/menus}" th:classappend="${active == 'menu'} ? 'active'">菜单管理</a>
+    </div>
+</nav>
+
+</body>
+</html>

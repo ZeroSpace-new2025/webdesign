@@ -2,56 +2,67 @@ package com.university.webdesign.menurecipe.api;
 
 import lombok.Data;
 
-import java.util.Dictionary;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /**
- * 菜谱DTO
+ * 菜品（菜谱）DTO
  */
 @Data
-public class RecipeDTO
-{
+public class RecipeDTO {
+
 	/**
-	 * 菜谱ID
+	 * 菜品ID
 	 */
-	 private Long recipeId;
-	
+	private Long recipeId;
+
 	/**
-	 * 菜谱名称
+	 * 菜品名称
 	 */
 	private String recipeName;
-	
+
 	/**
-	 * 菜谱描述
+	 * 菜品分类
 	 */
-	private String recipeDescription;
-	
+	private String category;
+
 	/**
-	 * 菜谱创建时间
+	 * 计量单位
+	 */
+	private String unit;
+
+	/**
+	 * 标准单价
+	 */
+	private BigDecimal price;
+
+	/**
+	 * 菜品图片地址
 	 */
 	private String recipeImageUrl;
-	
+
 	/**
-	 * 菜谱组成
+	 * 菜品描述
 	 */
-	private Dictionary<Long, Integer> recipeComposition;
-	
+	private String recipeDescription;
+
 	/**
-	 * 菜谱创建时间
-	 */
-	private long createdTime;
-	
-	/**
-	 * 菜谱最后修改时间
-	 */
-	private long lastModifiedTime;
-	
-	/**
-	 * 菜谱创建者ID
-	 */
-	private long createdBy;
-	
-	/**
-	 * 菜谱状态
+	 * 状态：ACTIVE / INACTIVE
 	 */
 	private String status;
+
+	/**
+	 * 创建者ID
+	 */
+	private Long createdBy;
+
+	/**
+	 * 创建时间
+	 */
+	private LocalDateTime createdTime;
+
+	/**
+	 * 最后修改时间
+	 */
+	private LocalDateTime lastModifiedTime;
 }

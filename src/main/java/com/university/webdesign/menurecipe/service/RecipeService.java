@@ -2,6 +2,7 @@ package com.university.webdesign.menurecipe.service;
 
 import com.university.webdesign.menurecipe.api.RecipeDTO;
 import com.university.webdesign.menurecipe.api.RecipeQueryData;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -29,14 +30,43 @@ public interface RecipeService
 	 * 获取全部菜谱
 	 *
 	 * @return 菜谱列表
+	 * 根据ID获取菜品
 	 */
 	List<RecipeDTO> getAllRecipes();
 	
+	RecipeDTO getById(Long id);
+
 	/**
 	 * 按条件查询菜谱
 	 *
 	 * @param queryData 查询条件
 	 * @return 菜谱列表
+	 * 按条件查询菜品
 	 */
 	List<RecipeDTO> query(RecipeQueryData queryData);
+
+	/**
+	 * 获取全部菜品
+	 */
+	List<RecipeDTO> getAll();
+
+	/**
+	 * 新增菜品
+	 */
+	RecipeDTO create(RecipeDTO recipeDTO);
+
+	/**
+	 * 修改菜品
+	 */
+	RecipeDTO update(RecipeDTO recipeDTO);
+
+	/**
+	 * 删除菜品（逻辑停用，保留历史数据）
+	 */
+	void delete(Long id);
+
+	/**
+	 * 上传菜品图片，返回可访问的图片地址
+	 */
+	String uploadImage(MultipartFile file);
 }
