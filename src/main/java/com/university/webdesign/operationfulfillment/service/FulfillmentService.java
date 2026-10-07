@@ -1,56 +1,81 @@
 package com.university.webdesign.operationfulfillment.service;
 
-import com.university.webdesign.operationfulfillment.dto.ProductionSummaryDTO;
-import com.university.webdesign.operationfulfillment.dto.DeliveryTaskDTO;
+import com.university.webdesign.operationfulfillment.api.BlanketOrderDTO;
+import com.university.webdesign.operationfulfillment.api.DeliveryTaskDTO;
+import com.university.webdesign.operationfulfillment.api.DeliveryTaskQueryData;
+import org.springframework.stereotype.Component;
+
 import java.util.List;
 
 /**
- * 运营与履约系统 Service 接口
- * 核心职责：处理“怎么做”(后厨备料) 和 “怎么送”(配送管理)
+ * 运营与履约服务。
+ * <p>
+ * 面向后厨和配送环节，处理“订餐截止时间”后的数据聚合与配送管理：
+ * <ul>
+ *     <li>总括订单：聚合当日所有有效订单，按菜品分类统计总数量，供厨房备料与生产单打印。</li>
+ *     <li>配送管理：到达“配餐开始时间”（默认 11:30）后开放打印权限，按员工/工位维度批量生成配送单。</li>
+ * </ul>
  */
-public interface FulfillmentService {
+@Component
+public interface FulfillmentService
+{
+	/* ==================== 总括订单 (Blanket Order) ==================== */
 
-    // ================== 总括订单 (Blanket Order) ==================
+	/**
+	 * 触发当日总括订单的聚合生成。
+	 * <p>
+	 * 仅在“订餐截止时间”之后允许执行：汇总当日所有有效订单 → 按菜品分类统计总数量 → 写入 Daily_Statistics 快照。
+	 *
+	 * @return 当日总括订单
+	 */
+	BlanketOrderDTO generateBlanketOrder();
 
-    /**
-     * 聚合算法：在“订餐截止时间”后，自动汇总当日所有有效订单。
-     * 该方法通常由定时任务(Scheduled)在截止时间后触发。
-     * 将汇总数据快照存入 Daily_Statistics 表。
-     *
-     * @return 是否聚合成功
-     */
-    boolean aggregateDailyOrders();
+	/**
+	 * 按日期获取总括订单（生产单）。
+	 *
+	 * @param date 日期（毫秒时间戳）
+	 * @return 总括订单；若不存在返回 null
+	 */
+	BlanketOrderDTO getBlanketOrder(Long date);
 
-    /**
-     * 获取生产单汇总数据 (供厨房主管查看/打印)
-     * 从 Daily_Statistics 表中快速查询当日总需求。
-     *
-     * @return 按菜品分类统计的总数量列表
-     */
-    List<ProductionSummaryDTO> getProductionSummary();
+	/**
+	 * 获取今日总括订单。
+	 *
+	 * @return 今日总括订单；若尚未聚合返回 null
+	 */
+	BlanketOrderDTO getTodayBlanketOrder();
 
-    // ================== 配送管理 (Delivery) ==================
+	/* ==================== 配送管理 (Delivery) ==================== */
 
-    /**
-     * 时间触发校验：检查当前是否到达“配餐开始时间”(默认11:30)。
-     * 只有到达时间后，才开放打印和生成权限。
-     *
-     * @return true表示已到达可以配餐的时间，false表示时间未到
-     */
-    boolean isDeliveryTimeReached();
+	/**
+	 * 判断当前是否已开放配送单打印权限（到达“配餐开始时间”后开放）。
+	 *
+	 * @return true 表示已过配餐开始时间，允许打印
+	 */
+	boolean canPrintDelivery();
 
-    /**
-     * 批量打印/生成配送单：
-     * 按员工/工位维度批量生成配送单。
-     * 包含详细信息（菜名、分量、工位、电话）。
-     *
-     * @return 配送任务列表 (Delivery_Task 表数据)
-     */
-    List<DeliveryTaskDTO> generateDeliveryTasks();
+	/**
+	 * 批量生成当日配送任务（按员工/工位维度拆分，包含菜名、分量、工位、电话）。
+	 * <p>
+	 * 调用前应先通过 {@link #canPrintDelivery()} 校验时间窗口，未到配餐开始时间应拒绝生成。
+	 *
+	 * @return 当日生成的配送任务列表
+	 */
+	List<DeliveryTaskDTO> generateDeliveryTasks();
 
-    /**
-     * 获取已生成的配送单列表 (用于页面展示或打印)
-     * @return 配送任务列表
-     */
-    List<DeliveryTaskDTO> getDeliveryTasks();
+	/**
+	 * 按条件查询配送任务。
+	 *
+	 * @param queryData 查询条件
+	 * @return 配送任务列表
+	 */
+	List<DeliveryTaskDTO> queryDeliveryTasks(DeliveryTaskQueryData queryData);
+
+	/**
+	 * 获取指定配送任务详情。
+	 *
+	 * @param taskId 配送任务 ID
+	 * @return 配送任务；若不存在返回 null
+	 */
+	DeliveryTaskDTO getDeliveryTask(Long taskId);
 }

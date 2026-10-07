@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('菜品管理')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('recipe')}"></nav>
+
+<div class="container">
+    <div class="page-header">
+        <h1>菜品管理</h1>
+        <a class="btn btn-primary" th:href="@{/recipes/new}">+ 新增菜品</a>
+    </div>
+
+    <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+
+    <div class="card">
+        <div th:if="${recipes.isEmpty()}" class="empty">
+            暂无菜品，点击右上角“新增菜品”开始添加。
+        </div>
+        <table th:if="${!recipes.isEmpty()}">
+            <thead>
+            <tr>
+                <th style="width:60px;">图片</th>
+                <th>菜品名称</th>
+                <th>分类</th>
+                <th>单位</th>
+                <th>单价</th>
+                <th>状态</th>
+                <th style="width:150px;">操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="r : ${recipes}">
+                <td>
+                    <img th:if="${r.recipeImageUrl != null}" th:src="${r.recipeImageUrl}" class="thumb"/>
+                    <span th:if="${r.recipeImageUrl == null}" class="thumb" style="display:inline-block;"></span>
+                </td>
+                <td th:text="${r.recipeName}">菜品名</td>
+                <td th:text="${r.category}">分类</td>
+                <td th:text="${r.unit}">单位</td>
+                <td>¥<span th:text="${r.price}">0.00</span></td>
+                <td>
+                    <span class="badge"
+                          th:classappend="${r.status == 'ACTIVE'} ? 'badge-active' : 'badge-inactive'"
+                          th:text="${r.status == 'ACTIVE'} ? '启用' : '停用'">启用</span>
+                </td>
+                <td>
+                    <a class="btn btn-sm" th:href="@{/recipes/{id}/edit(id=${r.recipeId})}">编辑</a>
+                    <form th:action="@{/recipes/{id}/delete(id=${r.recipeId})}" method="post"
+                          style="display:inline;"
+                          onsubmit="return confirm('确定停用该菜品？停用后历史数据仍保留。');">
+                        <button type="submit" class="btn btn-sm btn-danger">停用</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>
