@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>用户与报表中心</title>
+	<link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="console-page">
+<div class="app-shell">
+	<!-- 左侧主导航与当前登录环境 -->
+	<aside class="sidebar">
+		<div class="sidebar-brand">
+			<span class="brand-mark">餐</span>
+			<div>
+				<strong>用户与报表中心</strong>
+				<small>IAM &amp; REPORTING</small>
+			</div>
+		</div>
+
+		<nav class="sidebar-nav" aria-label="主导航">
+			<button class="nav-item is-active" type="button" data-view="overview">
+				<i data-lucide="layout-dashboard"></i>
+				<span>数据概览</span>
+			</button>
+			<button class="nav-item" type="button" data-view="users">
+				<i data-lucide="users"></i>
+				<span>用户管理</span>
+				<span id="nav-user-count" class="nav-count">0</span>
+			</button>
+			<button class="nav-item" type="button" data-view="roles">
+				<i data-lucide="shield-check"></i>
+				<span>角色权限</span>
+			</button>
+			<button class="nav-item" type="button" data-view="reports">
+				<i data-lucide="chart-no-axes-column"></i>
+				<span>财务报表</span>
+			</button>
+			<button class="nav-item" type="button" data-view="audit">
+				<i data-lucide="search-check"></i>
+				<span>消费审计</span>
+			</button>
+		</nav>
+
+		<div class="sidebar-footer">
+			<div class="environment-chip">
+				<span class="status-dot"></span>
+				<span>内存数据模式</span>
+			</div>
+			<button id="logout-button" class="sidebar-logout" type="button">
+				<i data-lucide="log-out"></i>
+				<span>退出登录</span>
+			</button>
+		</div>
+	</aside>
+
+	<main class="main-area">
+		<!-- 页面标题和当前登录用户 -->
+		<header class="topbar">
+			<div>
+				<p class="eyebrow" id="page-eyebrow">USER &amp; REPORTING</p>
+				<h1 id="page-title">数据概览</h1>
+			</div>
+			<div class="topbar-actions">
+				<span class="today-label" id="today-label"></span>
+				<div class="current-user">
+					<span class="avatar avatar-current" th:text="${#strings.substring(currentUser.name, 0, 1)}">林</span>
+					<div>
+						<strong th:text="${currentUser.name}">林经理</strong>
+						<small th:text="${currentUser.roleCodes != null && !currentUser.roleCodes.isEmpty() ? currentUser.roleCodes[0] : 'USER'}">MANAGER</small>
+					</div>
+				</div>
+			</div>
+		</header>
+
+		<!-- 数据概览：账号统计、销售排行和部门分布 -->
+		<section id="view-overview" class="content-view is-active">
+			<div class="metric-strip">
+				<article class="metric-item">
+					<div class="metric-icon"><i data-lucide="users"></i></div>
+					<div><span>员工总数</span><strong id="metric-users">0</strong></div>
+				</article>
+				<article class="metric-item">
+					<div class="metric-icon metric-icon-green"><i data-lucide="user-check"></i></div>
+					<div><span>有效账号</span><strong id="metric-active">0</strong></div>
+				</article>
+				<article class="metric-item">
+					<div class="metric-icon metric-icon-amber"><i data-lucide="shield-check"></i></div>
+					<div><span>角色数量</span><strong id="metric-roles">0</strong></div>
+				</article>
+				<article class="metric-item">
+					<div class="metric-icon metric-icon-red"><i data-lucide="badge-yen"></i></div>
+					<div><span>本月销售额</span><strong id="metric-revenue">¥0.00</strong></div>
+				</article>
+			</div>
+
+			<div class="overview-grid">
+				<section class="flat-panel">
+					<header class="panel-header">
+						<div>
+							<p class="eyebrow">SALES MIX</p>
+							<h2>菜品销售排行</h2>
+						</div>
+						<span class="status-tag status-tag-neutral" id="overview-month">--</span>
+					</header>
+					<div id="overview-dish-list" class="ranking-list"></div>
+				</section>
+
+				<section class="flat-panel">
+					<header class="panel-header">
+						<div>
+							<p class="eyebrow">ACCOUNT STATUS</p>
+							<h2>账号状态</h2>
+						</div>
+					</header>
+					<div class="status-summary">
+						<div>
+							<span>正常使用</span>
+							<strong id="overview-enabled">0</strong>
+						</div>
+						<div>
+							<span>已停用</span>
+							<strong id="overview-disabled">0</strong>
+						</div>
+					</div>
+					<div class="department-list" id="overview-departments"></div>
+				</section>
+			</div>
+		</section>
+
+		<!-- 用户管理：筛选、增删改、启停和批量导入 -->
+		<section id="view-users" class="content-view">
+			<section class="flat-panel">
+				<header class="panel-header panel-header-wrap">
+					<div>
+						<p class="eyebrow">EMPLOYEE DIRECTORY</p>
+						<h2>员工账号</h2>
+					</div>
+					<div class="toolbar-actions">
+						<button id="download-template" class="button button-secondary" type="button">
+							<i data-lucide="download"></i><span>导入模板</span>
+						</button>
+						<button id="open-import" class="button button-secondary" type="button">
+							<i data-lucide="file-spreadsheet"></i><span>批量导入</span>
+						</button>
+						<button id="open-user-create" class="button button-primary" type="button">
+							<i data-lucide="user-plus"></i><span>新增员工</span>
+						</button>
+					</div>
+				</header>
+
+				<div class="filter-bar">
+					<label class="search-field">
+						<i data-lucide="search"></i>
+						<input id="user-search" type="search" placeholder="搜索姓名、用户名、工位或电话">
+					</label>
+					<select id="user-department-filter" aria-label="部门筛选">
+						<option value="">全部部门</option>
+					</select>
+					<select id="user-status-filter" aria-label="状态筛选">
+						<option value="">全部状态</option>
+						<option value="true">正常</option>
+						<option value="false">已停用</option>
+					</select>
+					<select id="user-role-filter" aria-label="角色筛选">
+						<option value="">全部角色</option>
+					</select>
+				</div>
+
+				<div class="table-wrap">
+					<table class="data-table">
+						<thead>
+						<tr>
+							<th>员工</th>
+							<th>部门 / 工位</th>
+							<th>联系方式</th>
+							<th>角色</th>
+							<th>状态</th>
+							<th class="align-right">操作</th>
+						</tr>
+						</thead>
+						<tbody id="user-table-body"></tbody>
+					</table>
+				</div>
+				<footer class="table-footer">
+					<span id="user-result-count">共 0 条</span>
+				</footer>
+			</section>
+		</section>
+
+		<!-- 角色权限：维护角色及权限映射 -->
+		<section id="view-roles" class="content-view">
+			<section class="flat-panel">
+				<header class="panel-header panel-header-wrap">
+					<div>
+						<p class="eyebrow">ACCESS CONTROL</p>
+						<h2>角色与权限</h2>
+					</div>
+					<button id="open-role-create" class="button button-primary" type="button">
+						<i data-lucide="plus"></i><span>新增角色</span>
+					</button>
+				</header>
+				<div class="table-wrap">
+					<table class="data-table">
+						<thead>
+						<tr>
+							<th>角色</th>
+							<th>角色编码</th>
+							<th>权限范围</th>
+							<th class="align-right">操作</th>
+						</tr>
+						</thead>
+						<tbody id="role-table-body"></tbody>
+					</table>
+				</div>
+			</section>
+		</section>
+
+		<!-- 财务报表：按月查看餐厅销售汇总 -->
+		<section id="view-reports" class="content-view">
+			<section class="flat-panel report-panel">
+				<header class="panel-header panel-header-wrap">
+					<div>
+						<p class="eyebrow">FINANCIAL REPORT</p>
+						<h2>月度销售总报表</h2>
+					</div>
+					<div class="toolbar-actions">
+						<select id="report-month" aria-label="报表月份"></select>
+						<button id="refresh-report" class="button button-secondary" type="button">
+							<i data-lucide="refresh-cw"></i><span>刷新</span>
+						</button>
+						<button id="print-report" class="button button-primary" type="button">
+							<i data-lucide="printer"></i><span>打印</span>
+						</button>
+					</div>
+				</header>
+
+				<div class="metric-strip metric-strip-compact">
+					<article class="metric-item">
+						<div class="metric-icon"><i data-lucide="receipt-text"></i></div>
+						<div><span>有效订单</span><strong id="report-orders">0</strong></div>
+					</article>
+					<article class="metric-item">
+						<div class="metric-icon metric-icon-green"><i data-lucide="utensils"></i></div>
+						<div><span>售出菜品</span><strong id="report-quantity">0</strong></div>
+					</article>
+					<article class="metric-item">
+						<div class="metric-icon metric-icon-red"><i data-lucide="badge-yen"></i></div>
+						<div><span>销售总额</span><strong id="report-amount">¥0.00</strong></div>
+					</article>
+				</div>
+
+				<div class="table-wrap">
+					<table class="data-table">
+						<thead>
+						<tr>
+							<th>菜品</th>
+							<th>分类</th>
+							<th>销量</th>
+							<th>销售占比</th>
+							<th class="align-right">销售金额</th>
+						</tr>
+						</thead>
+						<tbody id="report-table-body"></tbody>
+					</table>
+				</div>
+			</section>
+		</section>
+
+		<!-- 消费审计：按员工查看月度消费与订单明细 -->
+		<section id="view-audit" class="content-view">
+			<section class="flat-panel">
+				<header class="panel-header panel-header-wrap">
+					<div>
+						<p class="eyebrow">CONSUMPTION AUDIT</p>
+						<h2>员工消费审计</h2>
+					</div>
+					<div class="toolbar-actions">
+						<select id="audit-month" aria-label="审计月份"></select>
+						<label class="search-field compact-search">
+							<i data-lucide="search"></i>
+							<input id="audit-search" type="search" placeholder="搜索员工或部门">
+						</label>
+					</div>
+				</header>
+				<div class="table-wrap">
+					<table class="data-table data-table-clickable">
+						<thead>
+						<tr>
+							<th>员工</th>
+							<th>部门 / 工位</th>
+							<th>订单数</th>
+							<th>菜品数量</th>
+							<th class="align-right">消费金额</th>
+						</tr>
+						</thead>
+						<tbody id="audit-table-body"></tbody>
+					</table>
+				</div>
+			</section>
+		</section>
+	</main>
+</div>
+
+<!-- 用户新增/编辑弹窗 -->
+<dialog id="user-dialog" class="app-dialog">
+	<form id="user-form" class="dialog-form" method="dialog">
+		<header class="dialog-header">
+			<div>
+				<p class="eyebrow">EMPLOYEE PROFILE</p>
+				<h2 id="user-dialog-title">新增员工</h2>
+			</div>
+			<button class="icon-button dialog-close" type="button" aria-label="关闭">
+				<i data-lucide="x"></i>
+			</button>
+		</header>
+		<input id="user-id" type="hidden">
+		<div class="form-grid">
+			<label class="field">
+				<span>用户名</span>
+				<input id="user-username" type="text" required>
+			</label>
+			<label class="field">
+				<span>姓名</span>
+				<input id="user-name" type="text" required>
+			</label>
+			<label class="field" id="user-password-field">
+				<span>初始密码</span>
+				<input id="user-password" type="text" value="123456">
+			</label>
+			<label class="field">
+				<span>部门</span>
+				<input id="user-department" type="text" placeholder="例如：研发部">
+			</label>
+			<label class="field">
+				<span>工位</span>
+				<input id="user-workstation" type="text" placeholder="例如：R-12">
+			</label>
+			<label class="field">
+				<span>电话</span>
+				<input id="user-phone" type="tel">
+			</label>
+		</div>
+		<fieldset class="field permission-fieldset">
+			<legend>角色</legend>
+			<div id="user-role-options" class="check-grid"></div>
+		</fieldset>
+		<p id="user-form-error" class="form-error" role="alert"></p>
+		<footer class="dialog-actions">
+			<button class="button button-secondary dialog-close" type="button">取消</button>
+			<button class="button button-primary" type="submit">
+				<i data-lucide="save"></i><span>保存</span>
+			</button>
+		</footer>
+	</form>
+</dialog>
+
+<!-- 角色新增/编辑与权限选择弹窗 -->
+<dialog id="role-dialog" class="app-dialog">
+	<form id="role-form" class="dialog-form" method="dialog">
+		<header class="dialog-header">
+			<div>
+				<p class="eyebrow">ROLE POLICY</p>
+				<h2 id="role-dialog-title">新增角色</h2>
+			</div>
+			<button class="icon-button dialog-close" type="button" aria-label="关闭">
+				<i data-lucide="x"></i>
+			</button>
+		</header>
+		<input id="role-id" type="hidden">
+		<div class="form-grid">
+			<label class="field">
+				<span>角色编码</span>
+				<input id="role-code" type="text" placeholder="例如：AUDITOR" required>
+			</label>
+			<label class="field">
+				<span>角色名称</span>
+				<input id="role-name" type="text" placeholder="例如：审计员" required>
+			</label>
+			<label class="field field-full">
+				<span>说明</span>
+				<textarea id="role-description" rows="2"></textarea>
+			</label>
+		</div>
+		<fieldset class="field permission-fieldset">
+			<legend>权限</legend>
+			<div id="role-permission-options" class="check-grid"></div>
+		</fieldset>
+		<p id="role-form-error" class="form-error" role="alert"></p>
+		<footer class="dialog-actions">
+			<button class="button button-secondary dialog-close" type="button">取消</button>
+			<button class="button button-primary" type="submit">
+				<i data-lucide="save"></i><span>保存</span>
+			</button>
+		</footer>
+	</form>
+</dialog>
+
+<!-- Excel/CSV批量导入弹窗 -->
+<dialog id="import-dialog" class="app-dialog app-dialog-small">
+	<form id="import-form" class="dialog-form" method="dialog">
+		<header class="dialog-header">
+			<div>
+				<p class="eyebrow">BULK IMPORT</p>
+				<h2>批量导入员工</h2>
+			</div>
+			<button class="icon-button dialog-close" type="button" aria-label="关闭">
+				<i data-lucide="x"></i>
+			</button>
+		</header>
+		<label class="upload-zone" for="import-file">
+			<i data-lucide="file-up"></i>
+			<strong>选择 Excel 或 CSV 文件</strong>
+			<span id="import-file-name">支持 .xlsx、.csv</span>
+		</label>
+		<input id="import-file" class="visually-hidden" type="file" accept=".xlsx,.csv" required>
+		<div id="import-result" class="import-result"></div>
+		<p id="import-form-error" class="form-error" role="alert"></p>
+		<footer class="dialog-actions">
+			<button class="button button-secondary dialog-close" type="button">取消</button>
+			<button class="button button-primary" type="submit">
+				<i data-lucide="upload"></i><span>开始导入</span>
+			</button>
+		</footer>
+	</form>
+</dialog>
+
+<!-- 员工消费订单明细弹窗 -->
+<dialog id="audit-dialog" class="app-dialog app-dialog-wide">
+	<div class="dialog-form">
+		<header class="dialog-header">
+			<div>
+				<p class="eyebrow">ORDER DETAILS</p>
+				<h2 id="audit-dialog-title">消费明细</h2>
+			</div>
+			<button class="icon-button dialog-close" type="button" aria-label="关闭">
+				<i data-lucide="x"></i>
+			</button>
+		</header>
+		<div id="audit-detail-content"></div>
+		<footer class="dialog-actions">
+			<button class="button button-secondary dialog-close" type="button">关闭</button>
+		</footer>
+	</div>
+</dialog>
+
+<div id="toast-container" class="toast-container" aria-live="polite"></div>
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<script th:inline="javascript">
+	window.APP_CONFIG = {
+		currentUserId: /*[[${currentUser.userId}]]*/ 0,
+		currentUserName: /*[[${currentUser.name}]]*/ ''
+	};
+</script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>
