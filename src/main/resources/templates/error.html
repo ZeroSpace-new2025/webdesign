@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!--
+	统一错误页。
+	由 common.GlobalExceptionHandler 在“页面请求”出错时返回（/api/** 仍返回 Result JSON）。
+	status 为业务错误码，message 为中文提示，模板不拼业务规则，只做展示。
+-->
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('操作未能完成')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('')}"></nav>
+
+<div class="container">
+	<div class="page-header">
+		<h1>操作未能完成</h1>
+	</div>
+
+	<div class="card">
+		<p class="alert alert-error">
+			错误码 <strong th:text="${status}">50000</strong>：
+			<span th:text="${message}">服务内部错误</span>
+		</p>
+		<p class="hint">
+			常见原因：缺少登录身份（请重新登录）、参数不合法、资源已不存在，
+			或本次操作不在允许的时间窗口内（例如已过订餐截止时间）。
+		</p>
+		<div class="form-actions">
+			<a class="btn btn-primary" th:href="@{/}">返回首页</a>
+			<a class="btn" th:href="@{/login}">重新登录</a>
+		</div>
+	</div>
+</div>
+</body>
+</html>

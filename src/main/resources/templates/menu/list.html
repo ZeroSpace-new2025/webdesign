@@ -21,10 +21,10 @@
             <thead>
             <tr>
                 <th>菜单名称</th>
-                <th style="width:60px;">菜项数</th>
-                <th style="width:90px;">合计</th>
+                <th style="width:70px;">菜项数</th>
+                <th style="width:70px;">版本</th>
                 <th style="width:80px;">状态</th>
-                <th style="width:280px;">操作</th>
+                <th style="width:320px;">操作</th>
             </tr>
             </thead>
             <tbody>
@@ -32,40 +32,50 @@
                 <td>
                     <strong th:text="${m.name}">菜单名</strong>
                     <div class="muted" th:if="${m.description != null}" th:text="${m.description}"></div>
+                    <div class="muted" th:if="${m.effectiveDate != null}">
+                        生效日期 <span th:text="${m.effectiveDate}">-</span>
+                    </div>
                 </td>
-                <td th:text="${m.menuItems != null ? m.menuItems.size() : 0}">0</td>
-                <td>¥<span th:text="${m.totalPrice}">0.00</span></td>
+                <td th:text="${m.items != null ? m.items.size() : 0}">0</td>
+                <td th:text="${m.version}">0</td>
                 <td>
                     <span class="badge"
                           th:classappend="${m.status == 'DRAFT'} ? 'badge-draft' : (${m.status == 'PUBLISHED'} ? 'badge-published' : 'badge-offline')"
-                          th:text="${m.status == 'DRAFT'} ? '草稿' : (${m.status == 'PUBLISHED'} ? '已发布' : '已下架')">草稿</span>
-                    <span class="badge badge-inactive" th:if="${m.locked}" style="margin-left:4px;">历史</span>
+                          th:text="${m.statusText}">草稿</span>
+                    <span class="badge badge-inactive" th:if="${m.locked}" style="margin-left:4px;">已冻结</span>
                 </td>
                 <td>
                     <!-- 未锁定的草稿才可编辑 -->
-                    <a class="btn btn-sm" th:if="!${m.locked}" th:href="@{/menus/{id}/edit(id=${m.id})}">编辑</a>
-                    <!-- 复制：始终可用，用于复用历史菜单 -->
-                    <form th:action="@{/menus/{id}/copy(id=${m.id})}" method="post" style="display:inline;">
+                    <a class="btn btn-sm" th:if="${!m.locked}" th:href="@{/menus/{id}/edit(id=${m.menuId})}">编辑</a>
+                    <!-- 复制：始终可用，用于复用历史菜单（读取快照生成新草稿） -->
+                    <form th:action="@{/menus/{id}/copy(id=${m.menuId})}" method="post" style="display:inline;">
                         <button class="btn btn-sm">复制</button>
                     </form>
-                    <!-- 未锁定的草稿可发布 -->
-                    <form th:if="!${m.locked}" th:action="@{/menus/{id}/publish(id=${m.id})}" method="post" style="display:inline;">
+                    <!-- 草稿可发布：发布瞬间冻结价格快照并锁定 -->
+                    <form th:if="${!m.locked}" th:action="@{/menus/{id}/publish(id=${m.menuId})}" method="post"
+                          style="display:inline;"
+                          onsubmit="return confirm('发布后菜单将被锁定并冻结价格快照，确定发布？');">
                         <button class="btn btn-sm btn-primary">发布</button>
                     </form>
-                    <!-- 已锁定且处于发布中：可下架，数据保留 -->
-                    <form th:if="${m.locked and m.status == 'PUBLISHED'}"
-                          th:action="@{/menus/{id}/offline(id=${m.id})}" method="post" style="display:inline;">
+                    <!-- 已发布：可下架，快照与历史订单保留 -->
+                    <form th:if="${m.status == 'PUBLISHED'}"
+                          th:action="@{/menus/{id}/offline(id=${m.menuId})}" method="post" style="display:inline;">
+                        <input type="hidden" name="reason" value="页面操作下架"/>
                         <button class="btn btn-sm btn-warning">下架</button>
                     </form>
-                    <!-- 仅未锁定的草稿可删除 -->
-                    <form th:if="!${m.locked}" th:action="@{/menus/{id}/delete(id=${m.id})}" method="post" style="display:inline;"
-                          onsubmit="return confirm('确定删除该菜单？');">
-                        <button class="btn btn-sm btn-danger">删除</button>
+                    <!-- 草稿可直接下架（不做物理删除） -->
+                    <form th:if="${!m.locked}" th:action="@{/menus/{id}/delete(id=${m.menuId})}" method="post"
+                          style="display:inline;">
+                        <button class="btn btn-sm btn-danger">下架草稿</button>
                     </form>
                 </td>
             </tr>
             </tbody>
         </table>
+        <p class="hint">
+            菜单发布即锁定：不可再编辑或删除，只能下架；需要调整时用“复制”生成新草稿。
+            发布时会写入不可变的价格快照，菜谱后续改名调价都不会影响已发布菜单与历史订单。
+        </p>
     </div>
 </div>
 </body>

@@ -13,12 +13,21 @@
 
     <div class="card">
         <form th:action="@{/menus/save}" th:object="${form}" method="post">
-            <input type="hidden" th:field="*{id}"/>
+            <input type="hidden" th:field="*{menuId}"/>
+            <!-- 乐观锁版本号：编辑时回传，并发改动会返回 40902 -->
+            <input type="hidden" th:field="*{version}"/>
 
-            <div class="form-group">
-                <label>菜单名称 <span class="req">*</span></label>
-                <input type="text" class="form-control" th:field="*{name}"
-                       placeholder="如：10月4日午餐菜单" required/>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>菜单名称 <span class="req">*</span></label>
+                    <input type="text" class="form-control" th:field="*{name}"
+                           placeholder="如：10月4日午餐菜单" required/>
+                </div>
+                <div class="form-group">
+                    <label>生效日期 <span class="req">*</span></label>
+                    <input type="date" class="form-control" th:field="*{effectiveDate}" required/>
+                    <div class="muted">点餐按“生效日期不晚于当日”的已发布菜单取价。</div>
+                </div>
             </div>
 
             <div class="form-group">
@@ -29,7 +38,8 @@
             <div class="form-group">
                 <label>挑选菜品并定价</label>
                 <div class="muted" style="margin-bottom:10px;">
-                    勾选要加入菜单的菜品，可在右侧“菜单售价”中微调（默认取菜品标准价）。
+                    勾选要加入菜单的菜品，可在“菜单售价”中微调（默认取菜品标准价）；
+                    菜单售价就是下单时写入订单快照的价格。
                 </div>
                 <div class="recipe-picker">
                     <table>
@@ -39,33 +49,38 @@
                             <th>菜品名称</th>
                             <th>分类</th>
                             <th>单位</th>
+                            <th>标准价</th>
                             <th style="width:120px;">菜单售价</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:each="row, stat : *{rows}"
-                            th:classappend="${row.inactive} ? 'disabled-row'">
+                            th:classappend="${row.disabled} ? 'disabled-row'">
                             <td>
-                                <input type="hidden"
-                                       th:field="*{rows[__${stat.index}__].recipeId}"/>
-                                <input type="checkbox"
-                                       th:field="*{rows[__${stat.index}__].selected}"
-                                       th:disabled="${row.inactive}"/>
+                                <input type="hidden" th:field="*{rows[__${stat.index}__].recipeId}"/>
+                                <input type="checkbox" th:field="*{rows[__${stat.index}__].selected}"
+                                       th:disabled="${row.disabled}"/>
                             </td>
                             <td>
                                 <span th:text="${row.recipeName}">菜名</span>
-                                <span class="muted" th:if="${row.inactive}">（已停用）</span>
+                                <span class="muted" th:if="${row.disabled}">（已停用，仅历史可保留）</span>
                             </td>
                             <td th:text="${row.category}">分类</td>
                             <td th:text="${row.unit}">单位</td>
                             <td>
+                                <span th:text="${row.menuPrice != null ? #numbers.formatDecimal(row.menuPrice, 1, 2) : '-'}">0.00</span>
+                            </td>
+                            <td>
                                 <input type="number" class="form-control price-input"
-                                       th:field="*{rows[__${stat.index}__].price}"
+                                       th:field="*{rows[__${stat.index}__].menuPrice}"
                                        step="0.01" min="0"/>
                             </td>
                         </tr>
                         </tbody>
                     </table>
+                </div>
+                <div class="muted" th:if="${#lists.isEmpty(form.rows)}">
+                    菜品库为空，请先到<a th:href="@{/recipes/new}">菜品管理</a>新增菜品。
                 </div>
             </div>
 

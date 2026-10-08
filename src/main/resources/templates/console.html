@@ -8,7 +8,7 @@
 </head>
 <body class="console-page">
 <div class="app-shell">
-	<!-- 左侧主导航与当前登录环境 -->
+	<!-- 左侧主导航与当前登录环境：导航项由 /console 注入的权限点决定是否显示 -->
 	<aside class="sidebar">
 		<div class="sidebar-brand">
 			<span class="brand-mark">餐</span>
@@ -23,20 +23,25 @@
 				<i data-lucide="layout-dashboard"></i>
 				<span>数据概览</span>
 			</button>
-			<button class="nav-item" type="button" data-view="users">
+			<button class="nav-item" type="button" data-view="users"
+				th:if="${permCodes != null and #lists.contains(permCodes,'user:manage')}">
 				<i data-lucide="users"></i>
-				<span>用户管理</span>
+				<span>员工管理</span>
 				<span id="nav-user-count" class="nav-count">0</span>
 			</button>
-			<button class="nav-item" type="button" data-view="roles">
+			<button class="nav-item" type="button" data-view="roles"
+				th:if="${permCodes != null and #lists.contains(permCodes,'role:manage')}">
 				<i data-lucide="shield-check"></i>
 				<span>角色权限</span>
 			</button>
-			<button class="nav-item" type="button" data-view="reports">
+			<button class="nav-item" type="button" data-view="reports"
+				th:if="${permCodes != null and #lists.contains(permCodes,'report:view')}">
 				<i data-lucide="chart-no-axes-column"></i>
 				<span>财务报表</span>
 			</button>
-			<button class="nav-item" type="button" data-view="audit">
+			<button class="nav-item" type="button" data-view="audit"
+				th:if="${(permCodes != null and #lists.contains(permCodes,'audit:view'))
+					or (currentUser.roleCodes != null and #lists.contains(currentUser.roleCodes,'FINANCE'))}">
 				<i data-lucide="search-check"></i>
 				<span>消费审计</span>
 			</button>
@@ -74,8 +79,17 @@
 		</header>
 
 		<!-- 数据概览：账号统计、销售排行和部门分布 -->
-		<section id="view-overview" class="content-view is-active">
-			<div class="metric-strip">
+		<section id="view-overview" class="content-view is-active"
+			th:with="canConsole=${(permCodes != null and (#lists.contains(permCodes,'user:manage')
+				or #lists.contains(permCodes,'role:manage')
+				or #lists.contains(permCodes,'report:view')
+				or #lists.contains(permCodes,'audit:view')))
+				or (currentUser.roleCodes != null and #lists.contains(currentUser.roleCodes,'FINANCE'))}">
+			<div class="empty-state" th:if="${!canConsole}">
+				当前账号没有任何用户与报表中心权限，请联系管理员分配角色（需要 user:manage / role:manage / report:view / audit:view 之一）。
+			</div>
+
+			<div class="metric-strip" th:if="${canConsole}">
 				<article class="metric-item">
 					<div class="metric-icon"><i data-lucide="users"></i></div>
 					<div><span>员工总数</span><strong id="metric-users">0</strong></div>
@@ -94,7 +108,7 @@
 				</article>
 			</div>
 
-			<div class="overview-grid">
+			<div class="overview-grid" th:if="${canConsole}">
 				<section class="flat-panel">
 					<header class="panel-header">
 						<div>
@@ -119,7 +133,7 @@
 							<strong id="overview-enabled">0</strong>
 						</div>
 						<div>
-							<span>已停用</span>
+							<span>停用 / 锁定</span>
 							<strong id="overview-disabled">0</strong>
 						</div>
 					</div>
@@ -128,8 +142,9 @@
 			</div>
 		</section>
 
-		<!-- 用户管理：筛选、增删改、启停和批量导入 -->
-		<section id="view-users" class="content-view">
+		<!-- 员工管理：筛选、增删改、启停和批量导入（需 user:manage） -->
+		<section id="view-users" class="content-view"
+			th:if="${permCodes != null and #lists.contains(permCodes,'user:manage')}">
 			<section class="flat-panel">
 				<header class="panel-header panel-header-wrap">
 					<div>
@@ -152,15 +167,16 @@
 				<div class="filter-bar">
 					<label class="search-field">
 						<i data-lucide="search"></i>
-						<input id="user-search" type="search" placeholder="搜索姓名、用户名、工位或电话">
+						<input id="user-search" type="search" placeholder="搜索工号、姓名、工位或电话">
 					</label>
 					<select id="user-department-filter" aria-label="部门筛选">
 						<option value="">全部部门</option>
 					</select>
 					<select id="user-status-filter" aria-label="状态筛选">
 						<option value="">全部状态</option>
-						<option value="true">正常</option>
-						<option value="false">已停用</option>
+						<option value="ACTIVE">启用</option>
+						<option value="DISABLED">停用</option>
+						<option value="LOCKED">锁定</option>
 					</select>
 					<select id="user-role-filter" aria-label="角色筛选">
 						<option value="">全部角色</option>
@@ -188,8 +204,9 @@
 			</section>
 		</section>
 
-		<!-- 角色权限：维护角色及权限映射 -->
-		<section id="view-roles" class="content-view">
+		<!-- 角色权限：维护角色及权限映射（需 role:manage） -->
+		<section id="view-roles" class="content-view"
+			th:if="${permCodes != null and #lists.contains(permCodes,'role:manage')}">
 			<section class="flat-panel">
 				<header class="panel-header panel-header-wrap">
 					<div>
@@ -216,8 +233,9 @@
 			</section>
 		</section>
 
-		<!-- 财务报表：按月查看餐厅销售汇总 -->
-		<section id="view-reports" class="content-view">
+		<!-- 财务报表：按月查看餐厅销售汇总（需 report:view） -->
+		<section id="view-reports" class="content-view"
+			th:if="${permCodes != null and #lists.contains(permCodes,'report:view')}">
 			<section class="flat-panel report-panel">
 				<header class="panel-header panel-header-wrap">
 					<div>
@@ -226,8 +244,14 @@
 					</div>
 					<div class="toolbar-actions">
 						<select id="report-month" aria-label="报表月份"></select>
+						<button id="generate-report" class="button button-secondary" type="button">
+							<i data-lucide="file-plus"></i><span>生成</span>
+						</button>
 						<button id="refresh-report" class="button button-secondary" type="button">
 							<i data-lucide="refresh-cw"></i><span>刷新</span>
+						</button>
+						<button id="export-report" class="button button-secondary" type="button">
+							<i data-lucide="download"></i><span>导出</span>
 						</button>
 						<button id="print-report" class="button button-primary" type="button">
 							<i data-lucide="printer"></i><span>打印</span>
@@ -267,19 +291,21 @@
 			</section>
 		</section>
 
-		<!-- 消费审计：按员工查看月度消费与订单明细 -->
-		<section id="view-audit" class="content-view">
+		<!-- 消费审计：按部门查看月度消费，点击行展开员工明细（需 audit:view 或 FINANCE 角色） -->
+		<section id="view-audit" class="content-view"
+			th:if="${(permCodes != null and #lists.contains(permCodes,'audit:view'))
+				or (currentUser.roleCodes != null and #lists.contains(currentUser.roleCodes,'FINANCE'))}">
 			<section class="flat-panel">
 				<header class="panel-header panel-header-wrap">
 					<div>
 						<p class="eyebrow">CONSUMPTION AUDIT</p>
-						<h2>员工消费审计</h2>
+						<h2>部门消费审计</h2>
 					</div>
 					<div class="toolbar-actions">
 						<select id="audit-month" aria-label="审计月份"></select>
 						<label class="search-field compact-search">
 							<i data-lucide="search"></i>
-							<input id="audit-search" type="search" placeholder="搜索员工或部门">
+							<input id="audit-search" type="search" placeholder="搜索部门">
 						</label>
 					</div>
 				</header>
@@ -287,8 +313,8 @@
 					<table class="data-table data-table-clickable">
 						<thead>
 						<tr>
-							<th>员工</th>
-							<th>部门 / 工位</th>
+							<th>部门</th>
+							<th>有消费员工</th>
 							<th>订单数</th>
 							<th>菜品数量</th>
 							<th class="align-right">消费金额</th>
@@ -302,7 +328,7 @@
 	</main>
 </div>
 
-<!-- 用户新增/编辑弹窗 -->
+<!-- 员工新增/编辑弹窗 -->
 <dialog id="user-dialog" class="app-dialog">
 	<form id="user-form" class="dialog-form" method="dialog">
 		<header class="dialog-header">
@@ -317,8 +343,8 @@
 		<input id="user-id" type="hidden">
 		<div class="form-grid">
 			<label class="field">
-				<span>用户名</span>
-				<input id="user-username" type="text" required>
+				<span>工号</span>
+				<input id="user-employee-no" type="text" placeholder="例如：EMP001" required>
 			</label>
 			<label class="field">
 				<span>姓名</span>
@@ -330,7 +356,7 @@
 			</label>
 			<label class="field">
 				<span>部门</span>
-				<input id="user-department" type="text" placeholder="例如：研发部">
+				<input id="user-dept-name" type="text" list="dept-options" placeholder="例如：研发部">
 			</label>
 			<label class="field">
 				<span>工位</span>
@@ -341,11 +367,13 @@
 				<input id="user-phone" type="tel">
 			</label>
 		</div>
+		<datalist id="dept-options"></datalist>
 		<fieldset class="field permission-fieldset">
 			<legend>角色</legend>
 			<div id="user-role-options" class="check-grid"></div>
 		</fieldset>
 		<p id="user-form-error" class="form-error" role="alert"></p>
+		<p class="secondary-line">账号密码由员工本人通过“修改密码”接口自行维护，管理员不提供重置密码。</p>
 		<footer class="dialog-actions">
 			<button class="button button-secondary dialog-close" type="button">取消</button>
 			<button class="button button-primary" type="submit">
@@ -414,6 +442,16 @@
 			<span id="import-file-name">支持 .xlsx、.csv</span>
 		</label>
 		<input id="import-file" class="visually-hidden" type="file" accept=".xlsx,.csv" required>
+		<label class="field">
+			<span>统一部门（可选）</span>
+			<select id="import-dept">
+				<option value="">不指定部门</option>
+			</select>
+		</label>
+		<fieldset class="field permission-fieldset">
+			<legend>统一角色（可选）</legend>
+			<div id="import-role-options" class="check-grid"></div>
+		</fieldset>
 		<div id="import-result" class="import-result"></div>
 		<p id="import-form-error" class="form-error" role="alert"></p>
 		<footer class="dialog-actions">
@@ -425,7 +463,7 @@
 	</form>
 </dialog>
 
-<!-- 员工消费订单明细弹窗 -->
+<!-- 部门消费明细弹窗（按员工展开订单快照） -->
 <dialog id="audit-dialog" class="app-dialog app-dialog-wide">
 	<div class="dialog-form">
 		<header class="dialog-header">
@@ -447,9 +485,12 @@
 <div id="toast-container" class="toast-container" aria-live="polite"></div>
 <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
 <script th:inline="javascript">
+	// permCodes / roleCodes 由页面控制器注入，前端据此决定视图与请求（与后端 @RequiresPerm 一致）。
 	window.APP_CONFIG = {
 		currentUserId: /*[[${currentUser.userId}]]*/ 0,
-		currentUserName: /*[[${currentUser.name}]]*/ ''
+		currentUserName: /*[[${currentUser.name}]]*/ '',
+		permCodes: /*[[${permCodes}]]*/ [],
+		roleCodes: /*[[${currentUser.roleCodes}]]*/ []
 	};
 </script>
 <script th:src="@{/js/app.js}"></script>
