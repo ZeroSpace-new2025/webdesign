@@ -32,6 +32,8 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-thymeleaf-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	// 测试环境使用 H2 内存库：主配置指向 PostgreSQL，但缺少数据源配置时上下文无法启动
+	testRuntimeOnly 'com.h2database:h2'
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testAnnotationProcessor 'org.projectlombok:lombok'

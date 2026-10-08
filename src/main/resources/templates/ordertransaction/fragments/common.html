@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<!--
+	订单模块公共片段（页头、导航、身份栏、提示消息）
+	页面通过 th:replace 引用，例如：
+	  <head th:replace="~{ordertransaction/fragments/common :: head('今日点餐')}"></head>
+-->
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title th:text="'企业餐厅点餐系统 · ' + ${title}">企业餐厅点餐系统</title>
+	<link rel="stylesheet" th:href="@{/css/ordertransaction.css}">
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<header th:fragment="navbar(active)" class="topbar">
+	<div class="topbar-inner">
+		<span class="brand">企业餐厅点餐系统</span>
+		<nav class="nav">
+			<a th:href="@{/order/create}" th:classappend="${active == 'create'} ? 'active'">今日点餐</a>
+			<a th:href="@{/order/mine}" th:classappend="${active == 'mine'} ? 'active'">我的订单</a>
+		</nav>
+		<span class="module-hint">订单与交易核心</span>
+	</div>
+</header>
+
+<!-- 身份栏：登录态由用户与报表中心接入前，暂由页面传入员工ID -->
+<section th:fragment="identity(userId, backTo)" class="identity">
+	<form class="identity-form" th:action="@{/order/identity}" method="post">
+		<input type="hidden" name="redirectTo" th:value="${backTo}">
+		<label for="operatorId">员工ID</label>
+		<input type="number" id="operatorId" name="operatorId" min="1" required
+			  th:value="${userId}" placeholder="请输入员工ID">
+		<button type="submit">切换身份</button>
+	</form>
+	<p class="hint" th:if="${userId == null}">
+		尚未设置员工身份，请先填写员工ID后再点餐（登录态接入后此处将自动取自认证信息）。
+	</p>
+	<p class="hint" th:unless="${userId == null}">
+		当前员工ID：<strong th:text="${userId}">-</strong>
+	</p>
+</section>
+
+<!-- 操作提示 -->
+<div th:fragment="flash" class="flash">
+	<p class="message success" th:if="${success}" th:text="${success}">操作成功</p>
+	<p class="message error" th:if="${error}" th:text="${error}">操作失败</p>
+</div>
+
+</body>
+</html>

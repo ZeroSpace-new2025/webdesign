@@ -34,6 +34,21 @@ public class RecipeServiceImpl implements RecipeService {
 
 	@Override
 	@Transactional(readOnly = true)
+	public RecipeDTO getRecipe(Long recipeId) {
+		if (recipeId == null) {
+			return null;
+		}
+		return recipeRepository.findById(recipeId).map(this::toDTO).orElse(null);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<RecipeDTO> getAllRecipes() {
+		return getAll();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public RecipeDTO getById(Long id) {
 		Recipe recipe = recipeRepository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("菜品不存在，ID: " + id));
