@@ -50,7 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 		"order.zone=Asia/Shanghai",
 		"spring.datasource.url=jdbc:h2:mem:webdesign_order_page;DB_CLOSE_DELAY=-1;MODE=PostgreSQL"
 })
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @Import(StubServicesTestConfiguration.class)
 class OrderPageTests
 {
