@@ -8,6 +8,7 @@ import com.university.webdesign.user.api.UserImportResultDTO;
 import com.university.webdesign.user.api.UserQueryData;
 import com.university.webdesign.user.api.UserRegisterData;
 import com.university.webdesign.user.api.UserUpdateData;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,6 +23,7 @@ import java.util.List;
  * 这里保留一个仅供测试使用的全局开关 {@link #grantAllRolesForTest(boolean)}。
  */
 @Service
+@ConditionalOnProperty(name = "app.storage", havingValue = "stub")
 public class UserServiceImpl implements UserService {
 
 	/**
@@ -40,6 +42,7 @@ public class UserServiceImpl implements UserService {
 	 */
 	public static void grantAllRolesForTest(boolean granted) {
 		ALL_ROLES_FOR_TEST = granted;
+		RoleAuthorizationTestSupport.grantAllRoles(granted);
 	}
 
 	@Override

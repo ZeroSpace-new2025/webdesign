@@ -10,6 +10,7 @@ import com.university.webdesign.user.api.UserImportResultDTO;
 import com.university.webdesign.user.api.UserQueryData;
 import com.university.webdesign.user.api.UserRegisterData;
 import com.university.webdesign.user.api.UserUpdateData;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -28,6 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * 基于内存数据的用户、认证和授权服务。
  */
 @Service
+@ConditionalOnProperty(name = "app.storage", havingValue = "memory")
 public class InMemoryUserService implements UserService
 {
 	private final RoleService roleService;
@@ -228,6 +230,33 @@ public class InMemoryUserService implements UserService
 	@Override
 	public synchronized boolean hasPermission(Long userId, String permissionCode) {
 		return !isBlank(permissionCode) && getPermissionCodes(userId).contains(permissionCode);
+	}
+
+	@Override
+	public synchronized boolean hasAnyRole(Long userId, String... roleCodes) {
+		if (RoleAuthorizationTestSupport.isGrantAllRoles()) {
+			return true;
+		}
+		if (userId == null || roleCodes == null || roleCodes.length == 0) {
+			return false;
+		}
+		UserAccount account = users.get(userId);
+		if (account == null) {
+			return false;
+		}
+		Set<String> targets = new LinkedHashSet<>();
+		for (String roleCode : roleCodes) {
+			if (!isBlank(roleCode)) {
+				targets.add(roleCode.trim().toUpperCase(Locale.ROOT));
+			}
+		}
+		if (targets.isEmpty()) {
+			return false;
+		}
+		return enrich(copyUser(account.user)).getRoleCodes().stream()
+			.filter(Objects::nonNull)
+			.map(code -> code.toUpperCase(Locale.ROOT))
+			.anyMatch(targets::contains);
 	}
 
 	private UserRegisterData toRegisterData(List<String> row, Map<String, Integer> columns) {

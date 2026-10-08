@@ -232,6 +232,33 @@ public class JpaUserService implements UserService
 		return !isBlank(permissionCode) && getPermissionCodes(userId).contains(permissionCode);
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	public boolean hasAnyRole(Long userId, String... roleCodes) {
+		if (RoleAuthorizationTestSupport.isGrantAllRoles()) {
+			return true;
+		}
+		if (userId == null || roleCodes == null || roleCodes.length == 0) {
+			return false;
+		}
+		Set<String> targets = new LinkedHashSet<>();
+		for (String roleCode : roleCodes) {
+			if (!isBlank(roleCode)) {
+				targets.add(roleCode.trim().toUpperCase(Locale.ROOT));
+			}
+		}
+		if (targets.isEmpty()) {
+			return false;
+		}
+		return userRepository.findWithRolesById(userId)
+			.map(user -> user.getRoles().stream()
+				.map(RoleEntity::getCode)
+				.filter(Objects::nonNull)
+				.map(code -> code.toUpperCase(Locale.ROOT))
+				.anyMatch(targets::contains))
+			.orElse(false);
+	}
+
 	private UserEntity requireUser(Long userId) {
 		if (userId == null) {
 			throw new IllegalArgumentException("用户不存在");

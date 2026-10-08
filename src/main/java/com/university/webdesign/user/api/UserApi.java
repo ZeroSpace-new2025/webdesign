@@ -3,13 +3,12 @@ package com.university.webdesign.user.api;
 /*应该只包含与用户相关的API接口，而不应该包含其他相关的接口。*/
 /*请勿把内部实现暴露给外部。*/
 
-import com.university.webdesign.common.AuthSession;
 import com.university.webdesign.common.Result;
 import com.university.webdesign.user.service.UserService;
-import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,26 +37,6 @@ public class UserApi
 
 	public UserApi(UserService userService) {
 		this.userService = userService;
-	}
-
-	/**
-	 * 校验账号密码，并把用户ID写入HttpSession。
-	 */
-	@PostMapping("/login")
-	public Result<UserDTO> login(@RequestBody LoginData loginData, HttpSession session) {
-		UserDTO user = userService.login(loginData);
-		AuthSession.setUserId(session, user.getUserId());
-		return Result.success(user);
-	}
-
-	/**
-	 * 同时清理业务会话和Servlet Session。
-	 */
-	@PostMapping("/logout")
-	public Result<Void> logout(HttpSession session) {
-		userService.logout();
-		AuthSession.clear(session);
-		return Result.success(null);
 	}
 
 	/**
@@ -133,12 +112,12 @@ public class UserApi
 	 * 获取当前登录用户。
 	 */
 	@GetMapping("/me")
-	public Result<UserDTO> currentUser(HttpSession session) {
-		Long userId = AuthSession.getUserId(session);
-		if (userId == null) {
+	public Result<UserDTO> currentUser(Authentication authentication) {
+		if (authentication == null
+			|| !(authentication.getPrincipal() instanceof AuthenticatedUser user)) {
 			throw new IllegalArgumentException("登录状态已失效");
 		}
-		return Result.success(userService.getUserInfo(userId));
+		return Result.success(userService.getUserInfo(user.userId()));
 	}
 
 	/**

@@ -1,7 +1,7 @@
 (function () {
 	"use strict";
 
-	// 登录页只负责收集凭据、调用接口和切换到控制台。
+	// 登录页只负责收集凭据和做提交前校验，认证由 Spring Security 处理。
 	const form = document.getElementById("login-form");
 	const usernameInput = document.getElementById("username");
 	const passwordInput = document.getElementById("password");
@@ -20,39 +20,21 @@
 		}
 	}
 
-	async function submitLogin(event) {
-		event.preventDefault();
+	function submitLogin(event) {
 		setError("");
 		const username = usernameInput.value.trim();
 		const password = passwordInput.value;
 		if (!username || !password) {
+			event.preventDefault();
 			setError("请输入用户名和密码");
 			return;
 		}
 
+		usernameInput.value = username;
 		submitButton.disabled = true;
 		const label = submitButton.querySelector("span");
 		if (label) {
 			label.textContent = "登录中";
-		}
-		try {
-			const response = await fetch("/api/user/login", {
-				method: "POST",
-				headers: {"Content-Type": "application/json"},
-				body: JSON.stringify({username, password})
-			});
-			const result = await response.json();
-			if (!result.success) {
-				throw new Error(result.message || "登录失败");
-			}
-			window.location.assign("/console");
-		} catch (error) {
-			setError(error.message || "登录失败");
-		} finally {
-			submitButton.disabled = false;
-			if (label) {
-				label.textContent = "登录";
-			}
 		}
 	}
 

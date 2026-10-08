@@ -9,6 +9,11 @@ public final class AuthSession
 {
 	public static final String USER_ID = "LOGIN_USER_ID";
 
+	/**
+	 * 订单模块在登录态完全迁移到 Spring Security 前使用的当前员工ID会话键。
+	 */
+	public static final String ORDER_OPERATOR_ID = "order.operatorId";
+
 	private AuthSession() {
 	}
 

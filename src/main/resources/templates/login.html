@@ -34,13 +34,13 @@
 				<p class="eyebrow">ACCOUNT ACCESS</p>
 				<h2>登录控制台</h2>
 			</header>
-			<form id="login-form" class="form-stack" novalidate>
+			<form id="login-form" class="form-stack" th:action="@{/login}" method="post" novalidate>
 				<label class="field">
 					<span>用户名</span>
 					<div class="input-with-icon">
 						<i data-lucide="user"></i>
 						<input id="username" name="username" type="text" autocomplete="username"
-							placeholder="请输入用户名" value="manager" required>
+							placeholder="请输入用户名" required>
 					</div>
 				</label>
 				<label class="field">
@@ -48,10 +48,11 @@
 					<div class="input-with-icon">
 						<i data-lucide="lock-keyhole"></i>
 						<input id="password" name="password" type="password" autocomplete="current-password"
-							placeholder="请输入密码" value="admin123" required>
+							placeholder="请输入密码" required>
 					</div>
 				</label>
-				<p id="login-error" class="form-error" role="alert"></p>
+				<p id="login-error" class="form-error" role="alert"
+					th:text="${param.error != null ? '用户名或密码错误，或账号已停用' : ''}"></p>
 				<button id="login-submit" class="button button-primary button-full" type="submit">
 					<i data-lucide="log-in"></i>
 					<span>登录</span>

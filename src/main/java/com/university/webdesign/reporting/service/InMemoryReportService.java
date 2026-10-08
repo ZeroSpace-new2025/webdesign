@@ -8,6 +8,7 @@ import com.university.webdesign.reporting.api.OrderItemSnapshotDTO;
 import com.university.webdesign.user.api.UserDTO;
 import com.university.webdesign.user.api.UserQueryData;
 import com.university.webdesign.user.service.UserService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -26,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 基于内存订单样本的财务报表服务。
  */
 @Service
+@ConditionalOnProperty(name = "app.storage", havingValue = "memory")
 public class InMemoryReportService implements ReportService
 {
 	private final UserService userService;

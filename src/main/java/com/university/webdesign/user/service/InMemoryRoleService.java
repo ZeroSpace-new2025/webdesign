@@ -2,6 +2,7 @@ package com.university.webdesign.user.service;
 
 import com.university.webdesign.user.api.PermissionDTO;
 import com.university.webdesign.user.api.RoleDTO;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -18,6 +19,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * 基于内存数据的角色与权限服务。
  */
 @Service
+@ConditionalOnProperty(name = "app.storage", havingValue = "memory")
 public class InMemoryRoleService implements RoleService
 {
 	private final Map<Long, RoleDTO> roles = new LinkedHashMap<>();

@@ -86,9 +86,23 @@
 		}
 	}
 
+	function csrfHeaders() {
+		const headers = {};
+		const csrfToken = document.querySelector('meta[name="_csrf"]');
+		const csrfHeader = document.querySelector('meta[name="_csrf_header"]');
+		if (csrfToken && csrfHeader) {
+			headers[csrfHeader.content] = csrfToken.content;
+		}
+		return headers;
+	}
+
 	async function api(url, options) {
 		const config = Object.assign({}, options || {});
 		config.headers = Object.assign({}, config.headers || {});
+		const method = String(config.method || "GET").toUpperCase();
+		if (!["GET", "HEAD", "OPTIONS", "TRACE"].includes(method)) {
+			Object.assign(config.headers, csrfHeaders());
+		}
 		if (config.body && !(config.body instanceof FormData)) {
 			config.headers["Content-Type"] = "application/json";
 			if (typeof config.body !== "string") {
@@ -96,7 +110,16 @@
 			}
 		}
 		const response = await fetch(url, config);
-		const result = await response.json();
+		if (response.redirected && new URL(response.url).pathname === "/login") {
+			window.location.assign("/login");
+			throw new Error("登录状态已失效");
+		}
+		let result;
+		try {
+			result = await response.json();
+		} catch (error) {
+			throw new Error(response.status === 403 ? "没有权限执行该操作" : "请求失败");
+		}
 		if (!result.success) {
 			throw new Error(result.message || "请求失败");
 		}
@@ -771,11 +794,11 @@
 
 		document.getElementById("logout-button").addEventListener("click", async () => {
 			try {
-				await api("/api/user/logout", {method: "POST"});
+				await fetch("/logout", {method: "POST", headers: csrfHeaders()});
 			} catch (ignored) {
 				// 无论请求结果如何都返回登录页。
 			}
-			window.location.assign("/login");
+			window.location.assign("/login?logout");
 		});
 	}
 
