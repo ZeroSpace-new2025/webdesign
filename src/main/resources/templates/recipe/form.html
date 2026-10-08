@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${isEdit} ? '编辑菜品' : '新增菜品')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('recipe')}"></nav>
+
+<div class="container">
+    <div class="page-header">
+        <h1 th:text="${isEdit} ? '编辑菜品' : '新增菜品'">新增菜品</h1>
+    </div>
+
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+    <div class="card">
+        <form th:action="@{/recipes/save}" th:object="${recipe}" method="post"
+              enctype="multipart/form-data">
+            <input type="hidden" th:field="*{recipeId}"/>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>菜品名称 <span class="req">*</span></label>
+                    <input type="text" class="form-control" th:field="*{recipeName}"
+                           placeholder="如：小炒肉" required/>
+                </div>
+                <div class="form-group">
+                    <label>分类</label>
+                    <select class="form-control" th:field="*{category}">
+                        <option value="">请选择分类</option>
+                        <option th:each="c : ${categories}" th:value="${c}" th:text="${c}"></option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>计量单位</label>
+                    <input type="text" class="form-control" th:field="*{unit}"
+                           placeholder="如：份、两、个"/>
+                </div>
+                <div class="form-group">
+                    <label>单价（元）<span class="req">*</span></label>
+                    <input type="number" class="form-control" th:field="*{price}"
+                           step="0.01" min="0" required/>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>菜品图片</label>
+                <input type="file" class="form-control" name="image" accept="image/*"/>
+                <div class="muted" th:if="${recipe.recipeImageUrl != null}">
+                    当前图片：<a th:href="${recipe.recipeImageUrl}" th:text="${recipe.recipeImageUrl}" target="_blank"></a>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>菜品描述</label>
+                <textarea class="form-control" th:field="*{recipeDescription}"
+                          placeholder="菜品口味、特色等"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>状态</label>
+                <select class="form-control" th:field="*{status}">
+                    <option value="ACTIVE">启用</option>
+                    <option value="INACTIVE">停用</option>
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">保存</button>
+                <a class="btn" th:href="@{/recipes}">取消</a>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>

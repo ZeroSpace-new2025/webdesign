@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<!--
+	今日点餐页（订单与交易核心）
+	对应 demand.md：点餐服务 —— 时间窗口控制、下单、截止前改单（一人一天一单）。
+	数据来自 OrderPageData，业务规则全部由 OrderService 判定。
+-->
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{ordertransaction/fragments/common :: head('今日点餐')}"></head>
+<body>
+
+<header th:replace="~{ordertransaction/fragments/common :: navbar('create')}"></header>
+
+<main class="page">
+	<h1>今日点餐</h1>
+
+	<div th:replace="~{ordertransaction/fragments/common :: flash}"></div>
+	<section th:replace="~{ordertransaction/fragments/common :: identity(${data.userId}, '/order/create')}"></section>
+
+	<p class="notice" th:if="${data.canOrder}">
+		今日订餐截止时间为 <strong th:text="${data.cutoffTime}">09:00</strong>，
+		请在截止前完成下单或改单；每人每天只能有一张有效订单。
+	</p>
+	<p class="notice warn" th:unless="${data.canOrder}">
+		已过今日订餐截止时间（<strong th:text="${data.cutoffTime}">09:00</strong>），
+		不能再下单或修改订单。如需调整，请联系餐厅经理处理。
+	</p>
+
+	<!-- 今日已有点单：展示快照信息，可在截止前改单或取消 -->
+	<section class="card" th:if="${data.currentOrder != null}">
+		<h2>我的今日订单</h2>
+		<p class="meta">
+			订单号 <strong th:text="${data.currentOrder.orderNumber}">-</strong>
+			<span class="badge" th:text="${data.currentOrder.status}">未支付</span>
+			合计 <strong class="amount" th:text="'¥' + ${#numbers.formatDecimal(data.currentOrder.total, 1, 2)}">¥0.00</strong>
+		</p>
+		<table class="data-table">
+			<thead>
+			<tr>
+				<th>菜名</th>
+				<th>分类</th>
+				<th class="num">单价（元）</th>
+				<th class="num">数量</th>
+				<th class="num">小计（元）</th>
+			</tr>
+			</thead>
+			<tbody>
+			<tr th:each="item : ${data.currentOrder.items}">
+				<td th:text="${item.itemName}">菜名</td>
+				<td th:text="${item.category}">分类</td>
+				<td class="num" th:text="${#numbers.formatDecimal(item.unitPrice, 1, 2)}">0.00</td>
+				<td class="num" th:text="${item.quantity}">1</td>
+				<td class="num" th:text="${#numbers.formatDecimal(item.subtotal, 1, 2)}">0.00</td>
+			</tr>
+			</tbody>
+		</table>
+		<p class="hint">
+			明细为下单时刻的菜名、单价快照：之后菜单改动不会影响这张订单。
+			下方数量即为当前订单，改完点“提交改单”即整体替换。
+		</p>
+		<form class="inline-form" th:action="@{/order/{id}/cancel(id=${data.currentOrder.orderId})}" method="post">
+			<input type="hidden" name="redirectTo" value="/order/create">
+			<button type="submit" class="danger" th:disabled="${!data.canOrder}">取消今日订单</button>
+		</form>
+	</section>
+
+	<!-- 今日菜单 -->
+	<section class="card">
+		<h2 th:text="${data.currentOrder != null} ? '修改点餐内容' : '选择菜品'">选择菜品</h2>
+
+		<form class="menu-form" th:action="@{/order/submit}" method="post"
+			  th:if="${not #maps.isEmpty(data.menuGroups)}">
+			<section class="menu-group" th:each="group : ${data.menuGroups}">
+				<h3 th:text="${group.key}">分类</h3>
+				<table class="data-table">
+					<thead>
+					<tr>
+						<th>菜名</th>
+						<th class="num">单价（元）</th>
+						<th class="num">数量</th>
+					</tr>
+					</thead>
+					<tbody>
+					<tr th:each="item : ${group.value}">
+						<td th:text="${item.itemName()}">菜名</td>
+						<td class="num"
+							th:text="${item.price() != null ? #numbers.formatDecimal(item.price(), 1, 2) : '-'}">0.00</td>
+						<td class="num">
+							<input type="number" class="qty" min="0" max="999" step="1"
+								  th:name="|quantity_${item.itemId()}|"
+								  th:value="${data.currentQuantities.get(item.itemId())} ?: 0">
+						</td>
+					</tr>
+					</tbody>
+				</table>
+			</section>
+			<p class="hint">数量填 0 表示不点这道菜，至少选择一道菜品才能提交。</p>
+			<button type="submit" class="primary" th:disabled="${!data.canOrder}"
+					th:text="${data.currentOrder != null} ? '提交改单' : '提交订单'">提交订单</button>
+		</form>
+
+		<p class="empty" th:if="${#maps.isEmpty(data.menuGroups)}">
+			今日菜单尚未发布（或已下架），暂时无法点餐。菜单由菜品与菜单中心维护，请稍后再试。
+		</p>
+	</section>
+</main>
+
+</body>
+</html>
