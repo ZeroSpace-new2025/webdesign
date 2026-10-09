@@ -12,22 +12,26 @@
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
 
     <div class="card">
-        <form th:action="@{/recipes/save}" th:object="${recipe}" method="post"
+        <form th:action="@{/recipes/save}" th:object="${form}" method="post"
               enctype="multipart/form-data">
             <input type="hidden" th:field="*{recipeId}"/>
+            <!-- 乐观锁版本号：编辑时回传，与库中不一致会返回 40902 -->
+            <input type="hidden" th:field="*{version}"/>
+            <input type="hidden" th:field="*{imageUrl}"/>
 
             <div class="form-row">
                 <div class="form-group">
                     <label>菜品名称 <span class="req">*</span></label>
-                    <input type="text" class="form-control" th:field="*{recipeName}"
+                    <input type="text" class="form-control" th:field="*{name}"
                            placeholder="如：小炒肉" required/>
                 </div>
                 <div class="form-group">
                     <label>分类</label>
-                    <select class="form-control" th:field="*{category}">
-                        <option value="">请选择分类</option>
-                        <option th:each="c : ${categories}" th:value="${c}" th:text="${c}"></option>
-                    </select>
+                    <input type="text" class="form-control" th:field="*{category}"
+                           list="category-options" placeholder="如：热菜（可新建分类）"/>
+                    <datalist id="category-options">
+                        <option th:each="c : ${categories}" th:value="${c}"></option>
+                    </datalist>
                 </div>
             </div>
 
@@ -39,31 +43,31 @@
                 </div>
                 <div class="form-group">
                     <label>单价（元）<span class="req">*</span></label>
-                    <input type="number" class="form-control" th:field="*{price}"
+                    <input type="number" class="form-control" th:field="*{unitPrice}"
                            step="0.01" min="0" required/>
                 </div>
             </div>
 
             <div class="form-group">
                 <label>菜品图片</label>
-                <input type="file" class="form-control" name="image" accept="image/*"/>
-                <div class="muted" th:if="${recipe.recipeImageUrl != null}">
-                    当前图片：<a th:href="${recipe.recipeImageUrl}" th:text="${recipe.recipeImageUrl}" target="_blank"></a>
+                <input type="file" class="form-control" name="imageFile" accept="image/*"/>
+                <div class="muted" th:if="${form.imageUrl != null}">
+                    当前图片：<a th:href="${form.imageUrl}" th:text="${form.imageUrl}" target="_blank"></a>
                 </div>
             </div>
 
             <div class="form-group">
                 <label>菜品描述</label>
-                <textarea class="form-control" th:field="*{recipeDescription}"
+                <textarea class="form-control" th:field="*{description}"
                           placeholder="菜品口味、特色等"></textarea>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" th:if="${isEdit}">
                 <label>状态</label>
                 <select class="form-control" th:field="*{status}">
-                    <option value="ACTIVE">启用</option>
-                    <option value="INACTIVE">停用</option>
+                    <option th:each="s : ${allStatus}" th:value="${s.name()}" th:text="${s.label}">可售</option>
                 </select>
+                <div class="muted">下架请回到列表页点“停用”，这里只用于把误停用的菜品重新置为可售。</div>
             </div>
 
             <div class="form-actions">

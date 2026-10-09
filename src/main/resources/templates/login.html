@@ -32,15 +32,15 @@
 		<div class="login-form-wrap">
 			<header>
 				<p class="eyebrow">ACCOUNT ACCESS</p>
-				<h2>登录控制台</h2>
+				<h2>登录系统</h2>
 			</header>
 			<form id="login-form" class="form-stack" novalidate>
 				<label class="field">
-					<span>用户名</span>
+					<span>工号</span>
 					<div class="input-with-icon">
 						<i data-lucide="user"></i>
-						<input id="username" name="username" type="text" autocomplete="username"
-							placeholder="请输入用户名" value="manager" required>
+						<input id="username" name="employeeNo" type="text" autocomplete="username"
+							placeholder="请输入工号" value="manager" required>
 					</div>
 				</label>
 				<label class="field">
@@ -61,14 +61,20 @@
 			<div class="demo-accounts">
 				<div class="section-mini-title">
 					<span>演示账号</span>
-					<span class="status-tag status-tag-neutral">内存模式</span>
+					<span class="status-tag status-tag-neutral">含临时管理员</span>
 				</div>
-				<button class="account-option" type="button" data-username="manager" data-password="admin123">
+				<button class="account-option account-option-temp" type="button"
+					data-employee-no="admin" data-password="admin123">
+					<span class="avatar avatar-manager">临</span>
+					<span><strong>临时管理员</strong><small>admin / admin123 · 硬编码全权限</small></span>
+					<i data-lucide="arrow-right"></i>
+				</button>
+				<button class="account-option" type="button" data-employee-no="manager" data-password="admin123">
 					<span class="avatar avatar-manager">林</span>
 					<span><strong>餐厅经理</strong><small>manager / admin123</small></span>
 					<i data-lucide="arrow-right"></i>
 				</button>
-				<button class="account-option" type="button" data-username="finance" data-password="finance123">
+				<button class="account-option" type="button" data-employee-no="finance" data-password="finance123">
 					<span class="avatar avatar-finance">周</span>
 					<span><strong>财务</strong><small>finance / finance123</small></span>
 					<i data-lucide="arrow-right"></i>

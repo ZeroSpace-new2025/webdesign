@@ -2,7 +2,8 @@
 <!--
 	我的订单页（订单与交易核心）
 	对应 demand.md：个人历史查询 —— 员工查看自己的历史订单。
-	今日订单可直接支付/取消；历史订单展示下单时刻的快照明细。
+	今日订单可在截止前取消；历史订单展示下单时刻的快照明细。
+	身份来自认证上下文，页面不再提供“切换身份”。
 -->
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{ordertransaction/fragments/common :: head('我的订单')}"></head>
@@ -14,20 +15,20 @@
 	<h1>我的订单</h1>
 
 	<div th:replace="~{ordertransaction/fragments/common :: flash}"></div>
-	<section th:replace="~{ordertransaction/fragments/common :: identity(${data.userId}, '/order/mine')}"></section>
+	<section th:replace="~{ordertransaction/fragments/common :: identity(${data.userId}, ${data.userName})}"></section>
 
 	<p class="notice" th:if="${data.userId == null}">
-		尚未设置员工身份，请在上方填写员工ID后再查看订单。历史订单只能查看自己的，
-		经理与财务查询他人消费走报表中心的入口。
+		尚未登录，无法查看订单。历史订单只能查看自己的；经理与财务查询他人消费走报表中心的入口。
 	</p>
 
-	<!-- 今日订单：可支付 / 可取消 / 可去改单 -->
-	<section class="card" th:if="${data.todayRow != null}">
+	<!-- 今日订单：可取消 / 可去改单 -->
+	<section class="card" th:if="${data.todayOrder != null}">
 		<h2>我的今日订单</h2>
 		<p class="meta">
-			订单号 <strong th:text="${data.todayRow.order.orderNumber}">-</strong>
-			<span class="badge" th:text="${data.todayRow.order.status}">未支付</span>
-			合计 <strong class="amount" th:text="'¥' + ${#numbers.formatDecimal(data.todayRow.order.total, 1, 2)}">¥0.00</strong>
+			订单号 <strong th:text="${data.todayOrder.orderNo}">-</strong>
+			<span class="badge" th:text="${data.todayOrder.statusText}">待确认</span>
+			合计 <strong class="amount"
+				th:text="'¥' + ${#numbers.formatDecimal(data.todayOrder.totalAmount, 1, 2)}">¥0.00</strong>
 		</p>
 		<table class="data-table">
 			<thead>
@@ -40,23 +41,18 @@
 			</tr>
 			</thead>
 			<tbody>
-			<tr th:each="item : ${data.todayRow.order.items}">
-				<td th:text="${item.itemName}">菜名</td>
+			<tr th:each="item : ${data.todayOrder.items}">
+				<td th:text="${item.recipeName}">菜名</td>
 				<td th:text="${item.category}">分类</td>
 				<td class="num" th:text="${#numbers.formatDecimal(item.unitPrice, 1, 2)}">0.00</td>
 				<td class="num" th:text="${item.quantity}">1</td>
-				<td class="num" th:text="${#numbers.formatDecimal(item.subtotal, 1, 2)}">0.00</td>
+				<td class="num" th:text="${#numbers.formatDecimal(item.amount, 1, 2)}">0.00</td>
 			</tr>
 			</tbody>
 		</table>
 		<div class="actions">
-			<form class="inline-form" th:if="${data.todayRow.payable}"
-				  th:action="@{/order/{id}/pay(id=${data.todayRow.order.orderId})}" method="post">
-				<input type="hidden" name="redirectTo" value="/order/mine">
-				<button type="submit" class="primary">支付订单</button>
-			</form>
-			<form class="inline-form" th:if="${data.todayRow.cancellable}"
-				  th:action="@{/order/{id}/cancel(id=${data.todayRow.order.orderId})}" method="post">
+			<form class="inline-form" th:if="${data.canModify}"
+				  th:action="@{/order/{id}/cancel(id=${data.todayOrder.orderId})}" method="post">
 				<input type="hidden" name="redirectTo" value="/order/mine">
 				<button type="submit" class="danger">取消订单</button>
 			</form>
@@ -87,7 +83,7 @@
 		<h2>订单明细</h2>
 		<p class="summary">
 			共 <strong th:text="${data.orderCount}">0</strong> 张订单，
-			消费合计（不含已取消）<strong class="amount"
+			消费合计（不含已取消/已作废）<strong class="amount"
 				th:text="'¥' + ${#numbers.formatDecimal(data.totalAmount, 1, 2)}">¥0.00</strong>
 		</p>
 
@@ -95,14 +91,14 @@
 
 		<article class="order-card" th:each="row : ${data.rows}">
 			<h3>
-				订单号 <span th:text="${row.order.orderNumber}">-</span>
+				订单号 <span th:text="${row.order.orderNo}">-</span>
 				<span class="badge" th:classappend="${row.cancelled} ? 'cancelled'"
-					  th:text="${row.order.status}">未支付</span>
+					  th:text="${row.order.statusText}">待确认</span>
 			</h3>
 			<p class="meta">
 				下单时间 <span th:text="${row.createdAtText}">-</span>
 				· 合计 <strong class="amount"
-					th:text="'¥' + ${#numbers.formatDecimal(row.order.total, 1, 2)}">¥0.00</strong>
+					th:text="'¥' + ${#numbers.formatDecimal(row.order.totalAmount, 1, 2)}">¥0.00</strong>
 			</p>
 			<table class="data-table">
 				<thead>
@@ -116,21 +112,16 @@
 				</thead>
 				<tbody>
 				<tr th:each="item : ${row.order.items}">
-					<td th:text="${item.itemName}">菜名</td>
+					<td th:text="${item.recipeName}">菜名</td>
 					<td th:text="${item.category}">分类</td>
 					<td class="num" th:text="${#numbers.formatDecimal(item.unitPrice, 1, 2)}">0.00</td>
 					<td class="num" th:text="${item.quantity}">1</td>
-					<td class="num" th:text="${#numbers.formatDecimal(item.subtotal, 1, 2)}">0.00</td>
+					<td class="num" th:text="${#numbers.formatDecimal(item.amount, 1, 2)}">0.00</td>
 				</tr>
 				</tbody>
 			</table>
-			<div class="actions" th:if="${row.payable or row.cancellable}">
-				<form class="inline-form" th:if="${row.payable}"
-					  th:action="@{/order/{id}/pay(id=${row.order.orderId})}" method="post">
-					<input type="hidden" name="redirectTo" value="/order/mine">
-					<button type="submit" class="primary">支付</button>
-				</form>
-				<form class="inline-form" th:if="${row.cancellable}"
+			<div class="actions" th:if="${row.cancellable}">
+				<form class="inline-form"
 					  th:action="@{/order/{id}/cancel(id=${row.order.orderId})}" method="post">
 					<input type="hidden" name="redirectTo" value="/order/mine">
 					<button type="submit" class="danger">取消</button>
