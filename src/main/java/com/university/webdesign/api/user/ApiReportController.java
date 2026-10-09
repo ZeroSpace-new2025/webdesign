@@ -1,8 +1,8 @@
 package com.university.webdesign.api.user;
 
-import com.university.webdesign.common.PermCodes;
 import com.university.webdesign.common.Result;
 import com.university.webdesign.common.RoleCodes;
+import com.university.webdesign.common.enums.PermissionEnum;
 import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.order.dto.ExportFormat;
 import com.university.webdesign.service.report.ConsumptionAuditService;
@@ -35,8 +35,8 @@ import java.util.Map;
  * 业务规则都在 {@link ReportService} / {@link ConsumptionAuditService} 中。
  * <p>
  * 鉴权：由 {@code config.AuthInterceptor} 按 {@link RequiresPerm} 声明统一校验；
- * 报表查看用 {@link PermCodes#REPORT_VIEW}，导出额外接受
- * {@link PermCodes#REPORT_EXPORT}，消费审计接受 {@link PermCodes#AUDIT_VIEW} / 财务角色。
+ * 报表查看用 {@link PermissionEnum#REPORT_VIEW}，导出额外接受
+ * {@link PermissionEnum#REPORT_EXPORT}，消费审计接受 {@link PermissionEnum#AUDIT_VIEW} / 财务角色。
  */
 @RestController
 @RequestMapping("/api/v1/user")
@@ -65,7 +65,7 @@ public class ApiReportController extends ApiUserSupport
 	 * @return 报表ID与生成时间
 	 */
 	@PostMapping("/reports/monthly/generate")
-	@RequiresPerm(PermCodes.REPORT_VIEW)
+	@RequiresPerm(PermissionEnum.REPORT_VIEW)
 	public Result<Map<String, Object>> generateMonthly(
 			@RequestParam("month") String month,
 			@RequestParam(value = "force", defaultValue = "false") boolean force) {
@@ -84,7 +84,7 @@ public class ApiReportController extends ApiUserSupport
 	 * @return 月度报表
 	 */
 	@GetMapping("/reports/monthly")
-	@RequiresPerm(PermCodes.REPORT_VIEW)
+	@RequiresPerm(PermissionEnum.REPORT_VIEW)
 	public Result<MonthlyReportVO> getMonthly(
 			@RequestParam("month") String month,
 			@RequestParam(value = "deptId", required = false) Long deptId) {
@@ -99,7 +99,7 @@ public class ApiReportController extends ApiUserSupport
 	 * @return 报表文件
 	 */
 	@GetMapping("/reports/monthly/export")
-	@RequiresPerm({PermCodes.REPORT_VIEW, PermCodes.REPORT_EXPORT})
+	@RequiresPerm({PermissionEnum.REPORT_VIEW, PermissionEnum.REPORT_EXPORT})
 	public ResponseEntity<Resource> exportMonthly(
 			@RequestParam("month") String month,
 			@RequestParam(value = "format", required = false) String format) {
@@ -128,7 +128,7 @@ public class ApiReportController extends ApiUserSupport
 	 * @return 报表ID与刷新时间
 	 */
 	@PostMapping("/reports/monthly/refresh")
-	@RequiresPerm(PermCodes.REPORT_VIEW)
+	@RequiresPerm(PermissionEnum.REPORT_VIEW)
 	public Result<Map<String, Object>> refreshMonthly(@RequestParam("month") String month) {
 		reportService.refreshMonthly(MonthConverter.parse(month));
 		MonthlyReportVO vo = reportService.getMonthly(MonthConverter.parse(month), null);
@@ -143,7 +143,7 @@ public class ApiReportController extends ApiUserSupport
 	 * @return 月份列表（yyyy-MM），倒序；无报表时返回当月
 	 */
 	@GetMapping("/reports/months")
-	@RequiresPerm({PermCodes.REPORT_VIEW, PermCodes.AUDIT_VIEW})
+	@RequiresPerm({PermissionEnum.REPORT_VIEW, PermissionEnum.AUDIT_VIEW})
 	public Result<List<String>> reportMonths() {
 		return Result.success(reportService.listReportMonths().stream()
 				.map(YearMonth::toString)
@@ -159,7 +159,7 @@ public class ApiReportController extends ApiUserSupport
 	 * @return 员工月度消费汇总
 	 */
 	@GetMapping("/reports/employee-consumption")
-	@RequiresPerm(value = PermCodes.AUDIT_VIEW, roles = RoleCodes.FINANCE)
+	@RequiresPerm(value = PermissionEnum.AUDIT_VIEW, roles = RoleCodes.FINANCE)
 	public Result<EmployeeConsumptionVO> employeeConsumption(
 			@RequestParam("employeeId") Long employeeId,
 			@RequestParam("month") String month,
@@ -176,7 +176,7 @@ public class ApiReportController extends ApiUserSupport
 	 * @return 部门维度汇总
 	 */
 	@GetMapping("/reports/dept-consumption")
-	@RequiresPerm(value = PermCodes.AUDIT_VIEW, roles = RoleCodes.FINANCE)
+	@RequiresPerm(value = PermissionEnum.AUDIT_VIEW, roles = RoleCodes.FINANCE)
 	public Result<List<DeptConsumptionVO>> deptConsumption(
 			@RequestParam("month") String month,
 			@RequestParam(value = "deptIds", required = false) List<Long> deptIds) {

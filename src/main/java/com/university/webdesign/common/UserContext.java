@@ -1,5 +1,7 @@
 package com.university.webdesign.common;
 
+import com.university.webdesign.common.enums.PermissionEnum;
+
 import java.util.List;
 
 /**
@@ -15,7 +17,7 @@ import java.util.List;
  * @param deptId        部门ID
  * @param workstation   工位
  * @param phone         联系电话
- * @param roles         角色编码集合
+ * @param roles         角色名称集合（`role.name`，预置角色取 {@code RoleCodes} 的取值）
  * @param permCodes     权限点编码集合（角色权限的展开结果）
  */
 public record UserContext(
@@ -31,7 +33,7 @@ public record UserContext(
 	/**
 	 * 判断是否拥有指定角色中的任意一个
 	 *
-	 * @param roleCodes 角色编码
+	 * @param roleCodes 角色名称（`role.name`）
 	 * @return 命中任一角色时返回 true
 	 */
 	public boolean hasAnyRole(String... roleCodes) {
@@ -53,6 +55,19 @@ public record UserContext(
 
 	/**
 	 * 判断是否拥有指定权限点
+	 *
+	 * @param permission 权限点枚举
+	 * @return 拥有时返回 true
+	 */
+	public boolean hasPermission(PermissionEnum permission) {
+		return permission != null && hasPermission(permission.displayCode());
+	}
+
+	/**
+	 * 判断是否拥有指定权限点
+	 * <p>
+	 * 入参是 JWT 载荷里的权限点编码（如 {@code report:view}），
+	 * 与前端 {@code permCodes} 同一口径。
 	 *
 	 * @param permCode 权限点编码
 	 * @return 拥有时返回 true

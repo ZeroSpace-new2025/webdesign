@@ -1,6 +1,7 @@
 package com.university.webdesign.service.user;
 
 import com.university.webdesign.common.UserContext;
+import com.university.webdesign.common.enums.PermissionEnum;
 import com.university.webdesign.service.user.dto.CurrentUserVO;
 import com.university.webdesign.service.user.dto.LoginVO;
 
@@ -73,8 +74,8 @@ public interface AuthService
 	 * 权限点判定（供各模块 Service 调用）
 	 *
 	 * @param userId   用户ID
-	 * @param permCode 权限点编码，如 {@code order:invalidate}
-	 * @return 拥有该权限点时返回 true；用户不存在或入参为空时返回 false
+	 * @param permCode 权限点枚举（见 {@code common.enums.PermissionEnum}）
+	 * @return 拥有该权限点时返回 true；用户不存在、入参为空或传 {@code PermissionEnum.None} 时返回 false
 	 */
-	boolean checkPermission(Long userId, String permCode);
+	boolean checkPermission(Long userId, PermissionEnum permCode);
 }

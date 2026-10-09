@@ -3,9 +3,9 @@ package com.university.webdesign.api.operation;
 import com.university.webdesign.common.DateRange;
 import com.university.webdesign.common.PageQuery;
 import com.university.webdesign.common.PageResult;
-import com.university.webdesign.common.PermCodes;
 import com.university.webdesign.common.Result;
 import com.university.webdesign.common.RoleCodes;
+import com.university.webdesign.common.enums.PermissionEnum;
 import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.operation.BlanketOrderService;
 import com.university.webdesign.service.operation.dto.CategoryStatVO;
@@ -59,7 +59,7 @@ public class ApiBlanketOrderController
 	 * @return 当日汇总快照
 	 */
 	@PostMapping("/blanket-orders/aggregate")
-	@RequiresPerm(value = PermCodes.OPERATION_AGGREGATE,
+	@RequiresPerm(value = PermissionEnum.OPERATION_AGGREGATE,
 			roles = {RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.MANAGER})
 	public Result<DailyStatVO> aggregate(
 			@RequestParam(value = "date", required = false)
@@ -77,7 +77,7 @@ public class ApiBlanketOrderController
 	 * @return 分页的“分类 → 菜品 → 总量/单位”列表
 	 */
 	@GetMapping("/blanket-orders")
-	@RequiresPerm(value = PermCodes.OPERATION_AGGREGATE,
+	@RequiresPerm(value = PermissionEnum.OPERATION_AGGREGATE,
 			roles = {RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.DELIVERY_STAFF, RoleCodes.MANAGER})
 	public Result<PageResult<CategoryStatVO>> list(
 			@RequestParam(value = "date", required = false)
@@ -95,7 +95,7 @@ public class ApiBlanketOrderController
 	 * @return 生产单文件流
 	 */
 	@PostMapping("/blanket-orders/print")
-	@RequiresPerm(value = PermCodes.OPERATION_AGGREGATE,
+	@RequiresPerm(value = PermissionEnum.OPERATION_AGGREGATE,
 			roles = {RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.MANAGER})
 	public ResponseEntity<byte[]> print(@Valid @RequestBody PrintProductionRequest request) {
 		Resource resource = blanketOrderService.printProductionOrder(
@@ -112,7 +112,7 @@ public class ApiBlanketOrderController
 	 * @return 生产单文件流
 	 */
 	@GetMapping("/blanket-orders/print")
-	@RequiresPerm(value = PermCodes.OPERATION_AGGREGATE,
+	@RequiresPerm(value = PermissionEnum.OPERATION_AGGREGATE,
 			roles = {RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.MANAGER})
 	public ResponseEntity<byte[]> printByQuery(
 			@RequestParam(value = "date", required = false)
@@ -131,7 +131,7 @@ public class ApiBlanketOrderController
 	 * @return 分类粒度的总量与金额
 	 */
 	@GetMapping("/blanket-orders/by-category")
-	@RequiresPerm(value = PermCodes.OPERATION_AGGREGATE,
+	@RequiresPerm(value = PermissionEnum.OPERATION_AGGREGATE,
 			roles = {RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.DELIVERY_STAFF, RoleCodes.MANAGER})
 	public Result<List<CategorySumVO>> byCategory(
 			@RequestParam(value = "date", required = false)
@@ -148,7 +148,7 @@ public class ApiBlanketOrderController
 	 * @return 分页的每日汇总
 	 */
 	@GetMapping("/statistics/daily")
-	@RequiresPerm(value = PermCodes.OPERATION_AGGREGATE,
+	@RequiresPerm(value = PermissionEnum.OPERATION_AGGREGATE,
 			roles = {RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.MANAGER})
 	public Result<PageResult<DailyStatVO>> dailyStat(
 			@RequestParam(value = "dateFrom", required = false)
@@ -170,7 +170,7 @@ public class ApiBlanketOrderController
 	 * @return 重算后的当日汇总快照
 	 */
 	@PostMapping("/statistics/daily/refresh")
-	@RequiresPerm(value = PermCodes.OPERATION_AGGREGATE,
+	@RequiresPerm(value = PermissionEnum.OPERATION_AGGREGATE,
 			roles = {RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.MANAGER})
 	public Result<DailyStatVO> refresh(
 			@RequestParam(value = "date", required = false)

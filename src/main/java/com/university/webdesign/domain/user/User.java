@@ -109,17 +109,17 @@ public class User
 	}
 
 	/**
-	 * 取全部角色编码
+	 * 取全部角色名称
 	 *
-	 * @return 角色编码集合，永不为 null
+	 * @return 角色名称集合，永不为 null
 	 */
-	public Set<String> roleCodes() {
-		Set<String> codes = new LinkedHashSet<>();
+	public Set<String> roleNames() {
+		Set<String> names = new LinkedHashSet<>();
 		for (Role role : roles) {
-			if (role != null && role.getRoleCode() != null) {
-				codes.add(role.getRoleCode());
+			if (role != null && role.getName() != null) {
+				names.add(role.getName());
 			}
 		}
-		return codes;
+		return names;
 	}
 }

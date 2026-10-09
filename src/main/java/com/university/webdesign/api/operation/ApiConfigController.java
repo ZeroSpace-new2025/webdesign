@@ -1,8 +1,8 @@
 package com.university.webdesign.api.operation;
 
-import com.university.webdesign.common.PermCodes;
 import com.university.webdesign.common.Result;
 import com.university.webdesign.common.RoleCodes;
+import com.university.webdesign.common.enums.PermissionEnum;
 import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.operation.ServiceWindowService;
 import com.university.webdesign.service.operation.dto.ServiceWindowCmd;
@@ -45,7 +45,7 @@ public class ApiConfigController
 	 * @return 配置ID
 	 */
 	@PostMapping("/configs/service-window")
-	@RequiresPerm(value = PermCodes.OPERATION_WINDOW_MANAGE,
+	@RequiresPerm(value = PermissionEnum.OPERATION_WINDOW_MANAGE,
 			roles = {RoleCodes.MANAGER, RoleCodes.KITCHEN_SUPERVISOR})
 	public Result<Long> create(@Valid @RequestBody ServiceWindowCreateRequest request) {
 		return Result.success(serviceWindowService.create(toCmd(request)));
@@ -59,7 +59,7 @@ public class ApiConfigController
 	 * @return 更新后的配置
 	 */
 	@PutMapping("/configs/service-window/{configId}")
-	@RequiresPerm(value = PermCodes.OPERATION_WINDOW_MANAGE,
+	@RequiresPerm(value = PermissionEnum.OPERATION_WINDOW_MANAGE,
 			roles = {RoleCodes.MANAGER, RoleCodes.KITCHEN_SUPERVISOR})
 	public Result<ServiceWindowVO> update(@PathVariable("configId") Long configId,
 			@Valid @RequestBody ServiceWindowUpdateRequest request) {

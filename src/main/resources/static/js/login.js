@@ -1,7 +1,7 @@
 (function () {
 	"use strict";
 
-	// 登录页只负责收集凭据、调用接口、保存 token 并跳转到控制台。
+	// 登录页只负责收集凭据、调用接口、保存 token 并跳转到总门户。
 	const form = document.getElementById("login-form");
 	const usernameInput = document.getElementById("username");
 	const passwordInput = document.getElementById("password");
@@ -56,7 +56,7 @@
 				throw new Error(result.message || "登录失败");
 			}
 			saveToken(result.data && result.data.token);
-			window.location.assign("/console");
+			window.location.assign("/portal");
 		} catch (error) {
 			setError(error.message || "登录失败");
 		} finally {

@@ -1,9 +1,9 @@
 package com.university.webdesign.api.operation;
 
 import com.university.webdesign.common.PageResult;
-import com.university.webdesign.common.PermCodes;
 import com.university.webdesign.common.Result;
 import com.university.webdesign.common.RoleCodes;
+import com.university.webdesign.common.enums.PermissionEnum;
 import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.operation.DeliveryService;
 import com.university.webdesign.service.operation.dto.DeliveryTaskVO;
@@ -55,7 +55,7 @@ public class ApiDeliveryController
 	 * @return 本次生成的任务ID列表
 	 */
 	@PostMapping("/deliveries/generate")
-	@RequiresPerm(value = PermCodes.OPERATION_DELIVERY_PRINT,
+	@RequiresPerm(value = PermissionEnum.OPERATION_DELIVERY_PRINT,
 			roles = {RoleCodes.DELIVERY_STAFF, RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.MANAGER})
 	public Result<List<Long>> generate(
 			@RequestParam(value = "date", required = false)
@@ -72,7 +72,7 @@ public class ApiDeliveryController
 	 * @return 分页任务
 	 */
 	@GetMapping("/deliveries")
-	@RequiresPerm(value = PermCodes.OPERATION_DELIVERY_PRINT,
+	@RequiresPerm(value = PermissionEnum.OPERATION_DELIVERY_PRINT,
 			roles = {RoleCodes.DELIVERY_STAFF, RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.MANAGER})
 	public Result<PageResult<DeliveryTaskVO>> page(@ModelAttribute DeliveryPageRequest query) {
 		return Result.success(deliveryService.page(query));
@@ -85,7 +85,7 @@ public class ApiDeliveryController
 	 * @return 任务详情（含明细）
 	 */
 	@GetMapping("/deliveries/{taskId}")
-	@RequiresPerm(value = PermCodes.OPERATION_DELIVERY_PRINT,
+	@RequiresPerm(value = PermissionEnum.OPERATION_DELIVERY_PRINT,
 			roles = {RoleCodes.DELIVERY_STAFF, RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.MANAGER})
 	public Result<DeliveryTaskVO> detail(@PathVariable("taskId") Long taskId) {
 		return Result.success(deliveryService.getDetail(taskId));
@@ -98,7 +98,7 @@ public class ApiDeliveryController
 	 * @return 打印批次与数量
 	 */
 	@PostMapping("/deliveries/batch-print")
-	@RequiresPerm(value = PermCodes.OPERATION_DELIVERY_PRINT,
+	@RequiresPerm(value = PermissionEnum.OPERATION_DELIVERY_PRINT,
 			roles = {RoleCodes.DELIVERY_STAFF, RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.MANAGER})
 	public Result<PrintBatchVO> batchPrint(
 			@RequestBody(required = false) BatchPrintRequest request,
@@ -116,7 +116,7 @@ public class ApiDeliveryController
 	 * @return 更新后的任务详情
 	 */
 	@PutMapping("/deliveries/{taskId}/status")
-	@RequiresPerm(value = PermCodes.OPERATION_DELIVERY_PRINT,
+	@RequiresPerm(value = PermissionEnum.OPERATION_DELIVERY_PRINT,
 			roles = {RoleCodes.DELIVERY_STAFF, RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.MANAGER})
 	public Result<DeliveryTaskVO> updateStatus(@PathVariable("taskId") Long taskId,
 			@RequestBody(required = false) DeliveryStatusRequest request) {
@@ -135,7 +135,7 @@ public class ApiDeliveryController
 	 * @return 文件流
 	 */
 	@GetMapping("/deliveries/export")
-	@RequiresPerm(value = PermCodes.OPERATION_DELIVERY_PRINT,
+	@RequiresPerm(value = PermissionEnum.OPERATION_DELIVERY_PRINT,
 			roles = {RoleCodes.DELIVERY_STAFF, RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.MANAGER})
 	public ResponseEntity<byte[]> export(
 			@RequestParam(value = "date", required = false)

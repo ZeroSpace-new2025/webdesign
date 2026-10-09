@@ -29,21 +29,21 @@ public interface UserRepository extends JpaRepository<User, Long>
 	Optional<User> findByEmployeeNoIgnoreCase(String employeeNo);
 
 	/**
-	 * 按工号查询并抓取角色与权限
+	 * 按工号查询并抓取角色（角色权限是位图基本属性，随角色一起加载）
 	 *
 	 * @param employeeNo 工号
 	 * @return 用户
 	 */
-	@EntityGraph(attributePaths = {"roles", "roles.permissions"})
+	@EntityGraph(attributePaths = {"roles"})
 	Optional<User> findWithRolesByEmployeeNoIgnoreCase(String employeeNo);
 
 	/**
-	 * 按ID查询并抓取角色与权限
+	 * 按ID查询并抓取角色（角色权限是位图基本属性，随角色一起加载）
 	 *
 	 * @param id 用户ID
 	 * @return 用户
 	 */
-	@EntityGraph(attributePaths = {"roles", "roles.permissions"})
+	@EntityGraph(attributePaths = {"roles"})
 	Optional<User> findWithRolesById(Long id);
 
 	/**

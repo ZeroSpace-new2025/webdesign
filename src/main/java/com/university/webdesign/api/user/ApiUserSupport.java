@@ -31,7 +31,7 @@ abstract class ApiUserSupport
 	 * 校验当前登录用户拥有指定角色之一，否则抛 40300
 	 *
 	 * @param action    动作名称，用于中文提示
-	 * @param roleCodes 允许的角色编码
+	 * @param roleCodes 允许的角色名称（`role.name`）
 	 * @return 登录用户上下文
 	 */
 	protected UserContext requireAnyRole(String action, String... roleCodes) {

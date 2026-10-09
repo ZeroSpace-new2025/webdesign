@@ -81,14 +81,17 @@ web/
 
 ### 2.1 角色与权限编码（全项目统一常量）
 
-角色：`MANAGER`(餐厅经理)、`KITCHEN_SUPERVISOR`(厨房主管)、`DELIVERY_STAFF`(配餐员)、
-`FINANCE`(财务管理)、`EMPLOYEE`(企业员工)。
+角色名称（即 `role.name`，全局唯一）：`MANAGER`(餐厅经理)、`KITCHEN_SUPERVISOR`(厨房主管)、
+`DELIVERY_STAFF`(配餐员)、`FINANCE`(财务管理)、`EMPLOYEE`(企业员工)；预置角色名不可改名、不可删除。
 
-权限点：`menu:recipe:manage`、`menu:menu:manage`、`order:submit`、`order:invalidate`、
+权限点（对应 `PermissionEnum` 中 `permCode` 非空的 13 个细粒度权限点）：
+`menu:recipe:manage`、`menu:menu:manage`、`order:submit`、`order:invalidate`、
 `order:view:all`、`operation:aggregate`、`operation:delivery:print`、`operation:window:manage`、
 `user:manage`、`role:manage`、`report:view`、`report:export`、`audit:view`。
 
-常量类：`com.university.webdesign.common.RoleCodes`、`com.university.webdesign.common.PermCodes`。
+常量类与枚举：`com.university.webdesign.common.RoleCodes`（角色名称）、
+`com.university.webdesign.common.enums.PermissionEnum`（权限点编码与权限点字典，
+`permCode` 是权限点编码的唯一来源，枚举值即位图位号，已有枚举值不可修改、新增只能往后追加）。
 
 ---
 
@@ -109,8 +112,7 @@ web/
 | M3 | `daily_statistics` | `DailyStatistics` | `domain/operation` |
 | M3 | `delivery_task` | `DeliveryTask` | `domain/operation` |
 | M4 | `users` | `User` | `domain/user` |
-| M4 | `roles` | `Role` | `domain/user` |
-| M4 | `permissions` | `Permission` | `domain/user` |
+| M4 | `role` | `Role`（`id` / `name`(unique) / `permission_list` 位图） | `domain/user` |
 | M4 | `monthly_report` | `MonthlyReport`（+`MonthlyReportItem`） | `domain/report` |
 
 > 历史遗留名说明：`my_order`/`order_item` 是重构前的表名，重构后统一为需求原文的
@@ -133,8 +135,11 @@ web/
   `print_count`、`printed_at`、`receiver`、`remark`、`delivered_at`、`items`（`delivery_task_item`：`recipe_name`/`quantity`/`unit`）。
 - `User`：`employee_no`(unique)、`password`(BCrypt)、`name`、`dept_id`、`dept_name`、`workstation`、
   `phone`、`status`(ACTIVE/DISABLED/LOCKED)、`roles`(ManyToMany `user_role`)。
-- `Role`：`role_code`(unique)、`role_name`、`description`、`permissions`(ManyToMany `role_permission`)。
-- `Permission`：`perm_code`(unique)、`perm_name`、`module`、`description`。
+- `Role`：`id`(IDENTITY)、`name`(unique，长度 50，预置角色取 `common.RoleCodes` 的取值)、
+  `permission_list`（权限位图，落库为 `"13,15,17"` 形式的逗号分隔位号字符串，长度 500，
+  由 `common/converter/RoleListConverter` 与 `common/model/PermissionList`(BitSet) 转换）。
+  权限点不再是实体/表：由 `common/enums/PermissionEnum` 表达（权限字典即其中 `permCode` 非空的取值），
+  因此没有 `Permission` 实体、没有 `permissions` 表、也没有 `role_permission` 关联表。
 - `MonthlyReport`：`report_month`(unique, `yyyy-MM`)、`total_quantity`、`total_amount`、`order_count`、
   `generated_at`、`items`（`monthly_report_item`：`recipe_name`/`category`/`quantity`/`amount`）。
 

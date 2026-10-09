@@ -221,8 +221,7 @@
 					<table class="data-table">
 						<thead>
 						<tr>
-							<th>角色</th>
-							<th>角色编码</th>
+							<th>角色名称</th>
 							<th>权限范围</th>
 							<th class="align-right">操作</th>
 						</tr>
@@ -397,19 +396,12 @@
 		</header>
 		<input id="role-id" type="hidden">
 		<div class="form-grid">
-			<label class="field">
-				<span>角色编码</span>
-				<input id="role-code" type="text" placeholder="例如：AUDITOR" required>
-			</label>
-			<label class="field">
-				<span>角色名称</span>
-				<input id="role-name" type="text" placeholder="例如：审计员" required>
-			</label>
 			<label class="field field-full">
-				<span>说明</span>
-				<textarea id="role-description" rows="2"></textarea>
+				<span>角色名称</span>
+				<input id="role-name" type="text" placeholder="例如：AUDITOR" required>
 			</label>
 		</div>
+		<p class="secondary-line">角色名称即角色身份，全局唯一；预置角色（MANAGER / KITCHEN_SUPERVISOR / DELIVERY_STAFF / FINANCE / EMPLOYEE）不可改名、不可删除。</p>
 		<fieldset class="field permission-fieldset">
 			<legend>权限</legend>
 			<div id="role-permission-options" class="check-grid"></div>

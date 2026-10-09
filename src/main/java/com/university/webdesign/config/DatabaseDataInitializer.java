@@ -1,13 +1,12 @@
 package com.university.webdesign.config;
 
-import com.university.webdesign.common.PermCodes;
 import com.university.webdesign.common.RoleCodes;
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.common.model.PermissionList;
 import com.university.webdesign.domain.menu.RecipeStatus;
-import com.university.webdesign.domain.user.Permission;
 import com.university.webdesign.domain.user.Role;
 import com.university.webdesign.domain.user.User;
 import com.university.webdesign.domain.user.UserStatus;
-import com.university.webdesign.repository.user.PermissionRepository;
 import com.university.webdesign.repository.user.RoleRepository;
 import com.university.webdesign.repository.user.UserRepository;
 import com.university.webdesign.service.menu.MenuService;
@@ -38,8 +37,8 @@ import java.util.Map;
  * <p>
  * 按《重构实施规范》第 8 节与 `AGENTS.md` 的约定，本类负责把“系统能跑起来”所需的最小数据落库：
  * <ol>
- *     <li><b>权限点</b>：以 {@link PermCodes} 为权威列表写入 {@code permissions}；</li>
- *     <li><b>预置角色</b>：{@link RoleCodes} 的五类角色并授予对应权限；</li>
+ *     <li><b>预置角色</b>：{@link RoleCodes} 的五类角色，按 {@link PermissionEnum} 授予权限位图
+ *         （权限点不再单独建表，字典由枚举提供）；</li>
  *     <li><b>演示账号</b>：经理 / 财务 / 厨房主管 / 配餐员 / 员工，密码统一 BCrypt 加密；</li>
  *     <li><b>时间窗口</b>：默认 09:00 / 11:30；</li>
  *     <li><b>演示菜品与当日已发布菜单</b>：让点餐页与下单链路开箱可用。</li>
@@ -55,7 +54,6 @@ import java.util.Map;
 @ConditionalOnProperty(name = "app.storage", havingValue = "database", matchIfMissing = true)
 public class DatabaseDataInitializer implements CommandLineRunner
 {
-	private final PermissionRepository permissionRepository;
 	private final RoleRepository roleRepository;
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
@@ -64,14 +62,12 @@ public class DatabaseDataInitializer implements CommandLineRunner
 	private final ServiceWindowService serviceWindowService;
 
 	public DatabaseDataInitializer(
-			PermissionRepository permissionRepository,
 			RoleRepository roleRepository,
 			UserRepository userRepository,
 			PasswordEncoder passwordEncoder,
 			RecipeService recipeService,
 			MenuService menuService,
 			ServiceWindowService serviceWindowService) {
-		this.permissionRepository = permissionRepository;
 		this.roleRepository = roleRepository;
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
@@ -83,7 +79,6 @@ public class DatabaseDataInitializer implements CommandLineRunner
 	@Override
 	@Transactional
 	public void run(String... args) {
-		seedPermissions();
 		seedRoles();
 		seedUsers();
 		seedServiceWindow();
@@ -91,43 +86,22 @@ public class DatabaseDataInitializer implements CommandLineRunner
 	}
 
 	/**
-	 * 写入权限点字典（对应 `permissions` 表）
-	 */
-	private void seedPermissions() {
-		if (permissionRepository.count() > 0) {
-			return;
-		}
-		List<Permission> permissions = new ArrayList<>();
-		for (String code : PermCodes.ALL) {
-			Permission permission = new Permission();
-			permission.setPermCode(code);
-			permission.setPermName(permissionName(code));
-			permission.setModule(code.split(":")[0]);
-			permission.setDescription(permissionName(code));
-			permissions.add(permission);
-		}
-		permissionRepository.saveAll(permissions);
-		log.info("已初始化 {} 个权限点", permissions.size());
-	}
-
-	/**
-	 * 写入五类预置角色并授权
+	 * 写入五类预置角色并授予权限位图
 	 */
 	private void seedRoles() {
 		if (roleRepository.count() > 0) {
 			return;
 		}
-		roleRepository.save(role(RoleCodes.MANAGER, "餐厅经理", "系统管理员，拥有全部权限", PermCodes.ALL));
-		roleRepository.save(role(RoleCodes.KITCHEN_SUPERVISOR, "厨房主管", "查看订单、聚合总括订单与打印生产单",
-				new String[] {PermCodes.ORDER_VIEW_ALL, PermCodes.OPERATION_AGGREGATE,
-						PermCodes.OPERATION_DELIVERY_PRINT, PermCodes.REPORT_VIEW}));
-		roleRepository.save(role(RoleCodes.DELIVERY_STAFF, "配餐员", "生成与打印配送单、更新配送状态",
-				new String[] {PermCodes.OPERATION_DELIVERY_PRINT}));
-		roleRepository.save(role(RoleCodes.FINANCE, "财务管理", "查看与导出报表、审计员工消费",
-				new String[] {PermCodes.ORDER_VIEW_ALL, PermCodes.REPORT_VIEW,
-						PermCodes.REPORT_EXPORT, PermCodes.AUDIT_VIEW}));
-		roleRepository.save(role(RoleCodes.EMPLOYEE, "企业员工", "企业员工基础权限：点餐与查看自己的订单",
-				new String[] {PermCodes.ORDER_SUBMIT}));
+		roleRepository.save(role(RoleCodes.MANAGER, PermissionEnum.dictionary()));
+		roleRepository.save(role(RoleCodes.KITCHEN_SUPERVISOR,
+				List.of(PermissionEnum.ORDER_VIEW_ALL, PermissionEnum.OPERATION_AGGREGATE,
+						PermissionEnum.OPERATION_DELIVERY_PRINT, PermissionEnum.REPORT_VIEW)));
+		roleRepository.save(role(RoleCodes.DELIVERY_STAFF,
+				List.of(PermissionEnum.OPERATION_DELIVERY_PRINT)));
+		roleRepository.save(role(RoleCodes.FINANCE,
+				List.of(PermissionEnum.ORDER_VIEW_ALL, PermissionEnum.REPORT_VIEW,
+						PermissionEnum.REPORT_EXPORT, PermissionEnum.AUDIT_VIEW)));
+		roleRepository.save(role(RoleCodes.EMPLOYEE, List.of(PermissionEnum.ORDER_SUBMIT)));
 		log.info("已初始化 {} 个预置角色", roleRepository.count());
 	}
 
@@ -207,22 +181,18 @@ public class DatabaseDataInitializer implements CommandLineRunner
 	}
 
 	/**
-	 * 构造角色实体并挂权限
+	 * 构造预置角色实体并写入权限位图
 	 *
-	 * @param code        角色编码
-	 * @param name        角色名称
-	 * @param description 角色描述
-	 * @param permCodes   权限点编码
+	 * @param name        角色名称（{@link RoleCodes} 的取值，同时是 `role.name`）
+	 * @param permissions 权限枚举值
 	 * @return 角色实体
 	 */
-	private Role role(String code, String name, String description, String[] permCodes) {
+	private Role role(String name, List<PermissionEnum> permissions) {
 		Role role = new Role();
-		role.setRoleCode(code);
-		role.setRoleName(name);
-		role.setDescription(description);
-		for (String permCode : permCodes) {
-			permissionRepository.findByPermCode(permCode).ifPresent(role.getPermissions()::add);
-		}
+		role.setName(name);
+		PermissionList permissionList = new PermissionList();
+		permissionList.setRoles(permissions);
+		role.setPermissionList(permissionList);
 		return role;
 	}
 
@@ -236,10 +206,10 @@ public class DatabaseDataInitializer implements CommandLineRunner
 	 * @param deptName    部门名称
 	 * @param workstation 工位
 	 * @param phone       联系电话
-	 * @param roleCode    角色编码
+	 * @param roleName    角色名称（{@link RoleCodes} 的取值）
 	 */
 	private void addUser(String employeeNo, String rawPassword, String name, Long deptId, String deptName,
-			String workstation, String phone, String roleCode) {
+			String workstation, String phone, String roleName) {
 		if (userRepository.existsByEmployeeNoIgnoreCase(employeeNo)) {
 			return;
 		}
@@ -252,32 +222,7 @@ public class DatabaseDataInitializer implements CommandLineRunner
 		user.setWorkstation(workstation);
 		user.setPhone(phone);
 		user.setStatus(UserStatus.ACTIVE);
-		roleRepository.findByRoleCodeIgnoreCase(roleCode).ifPresent(role -> user.getRoles().add(role));
+		roleRepository.findByNameIgnoreCase(roleName).ifPresent(role -> user.getRoles().add(role));
 		userRepository.save(user);
-	}
-
-	/**
-	 * 权限点编码 → 中文名称（权限树展示用）
-	 *
-	 * @param code 权限点编码
-	 * @return 中文名称；未登记的编码回退为编码本身
-	 */
-	private String permissionName(String code) {
-		return switch (code) {
-			case PermCodes.MENU_RECIPE_MANAGE -> "菜品维护";
-			case PermCodes.MENU_MENU_MANAGE -> "菜单维护";
-			case PermCodes.ORDER_SUBMIT -> "提交订单";
-			case PermCodes.ORDER_INVALIDATE -> "作废违规订单";
-			case PermCodes.ORDER_VIEW_ALL -> "查看全部订单";
-			case PermCodes.OPERATION_AGGREGATE -> "聚合总括订单";
-			case PermCodes.OPERATION_DELIVERY_PRINT -> "配送单打印";
-			case PermCodes.OPERATION_WINDOW_MANAGE -> "维护时间窗口";
-			case PermCodes.USER_MANAGE -> "员工账号维护";
-			case PermCodes.ROLE_MANAGE -> "角色权限维护";
-			case PermCodes.REPORT_VIEW -> "查看报表";
-			case PermCodes.REPORT_EXPORT -> "导出报表";
-			case PermCodes.AUDIT_VIEW -> "消费审计";
-			default -> code;
-		};
 	}
 }

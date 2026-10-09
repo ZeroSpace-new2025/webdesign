@@ -141,7 +141,7 @@ public interface UserService
 	 * 不依赖 M2/M3 的任何类型，避免环形依赖。
 	 *
 	 * @param userId    用户ID
-	 * @param roleCodes 允许的角色编码，满足其一即返回 true
+	 * @param roleCodes 允许的角色名称（`role.name`，预置角色取 {@code RoleCodes} 的取值），满足其一即返回 true
 	 * @return 拥有其中任一角色时返回 true；用户不存在或入参为空时返回 false
 	 */
 	boolean hasAnyRole(Long userId, String... roleCodes);

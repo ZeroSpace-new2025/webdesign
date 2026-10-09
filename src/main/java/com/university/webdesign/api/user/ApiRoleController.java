@@ -1,8 +1,8 @@
 package com.university.webdesign.api.user;
 
 import com.university.webdesign.common.PageResult;
-import com.university.webdesign.common.PermCodes;
 import com.university.webdesign.common.Result;
+import com.university.webdesign.common.enums.PermissionEnum;
 import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.user.RoleService;
 import com.university.webdesign.service.user.dto.PermVO;
@@ -31,11 +31,11 @@ import java.util.Set;
  * 新增角色、分页角色、更新角色、删除角色、权限点字典、配置角色权限、查询角色权限。
  * 本类只做协议转换，业务规则全部在 {@link RoleService} 中。
  * <p>
- * 鉴权：由 {@code config.AuthInterceptor} 按 {@link RequiresPerm}（{@link PermCodes#ROLE_MANAGE}）统一校验。
+ * 鉴权：由 {@code config.AuthInterceptor} 按 {@link RequiresPerm}（{@link PermissionEnum#ROLE_MANAGE}）统一校验。
  */
 @RestController
 @RequestMapping("/api/v1/user")
-@RequiresPerm(PermCodes.ROLE_MANAGE)
+@RequiresPerm(PermissionEnum.ROLE_MANAGE)
 public class ApiRoleController extends ApiUserSupport
 {
 	private final RoleService roleService;
@@ -52,15 +52,13 @@ public class ApiRoleController extends ApiUserSupport
 	/**
 	 * M4-13 新增角色
 	 *
-	 * @param request 角色编码、名称、描述
+	 * @param request 角色名称
 	 * @return 新角色ID
 	 */
 	@PostMapping("/roles")
 	public Result<Long> create(@Valid @RequestBody RoleRequest request) {
 		RoleCmd cmd = new RoleCmd();
-		cmd.setRoleCode(request.getRoleCode());
-		cmd.setRoleName(request.getRoleName());
-		cmd.setDescription(request.getDescription());
+		cmd.setName(request.getName());
 		return Result.success(roleService.create(cmd));
 	}
 
@@ -76,19 +74,17 @@ public class ApiRoleController extends ApiUserSupport
 	}
 
 	/**
-	 * M4-15 更新角色
+	 * M4-15 更新角色（改名，预置角色不可改名）
 	 *
 	 * @param roleId  角色ID
-	 * @param request 名称、描述
+	 * @param request 角色名称
 	 * @return 空结果
 	 */
 	@PutMapping("/roles/{roleId}")
 	public Result<Void> update(@PathVariable("roleId") Long roleId,
 			@Valid @RequestBody RoleRequest request) {
 		RoleCmd cmd = new RoleCmd();
-		cmd.setRoleCode(request.getRoleCode());
-		cmd.setRoleName(request.getRoleName());
-		cmd.setDescription(request.getDescription());
+		cmd.setName(request.getName());
 		roleService.update(roleId, cmd);
 		return Result.ok();
 	}

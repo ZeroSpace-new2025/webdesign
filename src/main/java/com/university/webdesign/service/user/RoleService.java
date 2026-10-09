@@ -23,7 +23,7 @@ public interface RoleService
 	/**
 	 * 新增角色（M4-13）
 	 * <p>
-	 * 角色编码唯一，冲突抛 40901。
+	 * 角色名称唯一，冲突抛 40901。
 	 *
 	 * @param cmd 角色入参
 	 * @return 新角色ID
@@ -39,10 +39,10 @@ public interface RoleService
 	PageResult<RoleVO> page(RoleQuery q);
 
 	/**
-	 * 更新角色名称与描述（M4-15）
+	 * 更新角色名称（M4-15）
 	 * <p>
 	 * 发布 {@link com.university.webdesign.event.RolePermissionChangedEvent} 使鉴权缓存失效；
-	 * 角色编码不可修改。
+	 * 名称即角色身份，预置角色（{@code RoleCodes.ALL}）不可改名。
 	 *
 	 * @param roleId 角色ID
 	 * @param cmd    角色入参
@@ -60,6 +60,8 @@ public interface RoleService
 
 	/**
 	 * 查询权限点字典（M4-17）
+	 * <p>
+	 * 数据来源是 {@code PermissionEnum} 的细粒度权限点，不再读权限点表。
 	 *
 	 * @param module 模块名，为空表示全部模块
 	 * @return 权限点列表，按模块与编码排序
@@ -69,6 +71,7 @@ public interface RoleService
 	/**
 	 * 配置角色权限（M4-18），全量覆盖
 	 * <p>
+	 * 入参为权限点编码（{@code PermissionEnum.permCode}），落库时转为角色权限位图；
 	 * 发布 {@link com.university.webdesign.event.RolePermissionChangedEvent}。
 	 *
 	 * @param roleId    角色ID

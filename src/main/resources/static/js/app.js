@@ -20,6 +20,11 @@
 	const permCodes = new Set(Array.isArray(config.permCodes) ? config.permCodes : []);
 	const roleCodes = new Set(Array.isArray(config.roleCodes) ? config.roleCodes : []);
 
+	// 预置角色（与后端 common/RoleCodes.ALL 一致）：名称即角色身份，不可改名、不可删除。
+	const presetRoleNames = new Set([
+		"MANAGER", "KITCHEN_SUPERVISOR", "DELIVERY_STAFF", "FINANCE", "EMPLOYEE"
+	]);
+
 	const viewMeta = {
 		overview: {title: "数据概览", eyebrow: "USER & REPORTING"},
 		users: {title: "员工管理", eyebrow: "EMPLOYEE DIRECTORY"},
@@ -238,7 +243,12 @@
 	}
 
 	function roleLabel(role) {
-		return role.roleName || role.name || "--";
+		return role.name || "--";
+	}
+
+	// 预置角色名按后端 RoleCodes 取值匹配，不依赖固定 ID。
+	function isPresetRole(role) {
+		return Boolean(role && presetRoleNames.has(String(role.name || "").toUpperCase()));
 	}
 
 	function statusClass(status) {
@@ -388,7 +398,7 @@
 			? state.roles.map((role) => `
 				<label class="check-option">
 					<input type="checkbox" name="user-role" value="${escapeHtml(role.roleId)}">
-					<span><strong>${escapeHtml(roleLabel(role))}</strong><small>${escapeHtml(role.roleCode)}</small></span>
+					<span><strong>${escapeHtml(roleLabel(role))}</strong></span>
 				</label>`).join("")
 			: `<span class="secondary-line">需要角色管理权限（role:manage）才能读取角色字典</span>`);
 
@@ -402,7 +412,7 @@
 			? state.roles.map((role) => `
 				<label class="check-option">
 					<input type="checkbox" name="import-role" value="${escapeHtml(role.roleId)}">
-					<span><strong>${escapeHtml(roleLabel(role))}</strong><small>${escapeHtml(role.roleCode)}</small></span>
+					<span><strong>${escapeHtml(roleLabel(role))}</strong></span>
 				</label>`).join("")
 			: `<span class="secondary-line">无可用角色（需要角色管理权限）</span>`);
 
@@ -572,7 +582,7 @@
 			return;
 		}
 		if (!state.roles.length) {
-			tableBody.innerHTML = `<tr><td colspan="4"><div class="empty-state">暂无角色</div></td></tr>`;
+			tableBody.innerHTML = `<tr><td colspan="3"><div class="empty-state">暂无角色</div></td></tr>`;
 			return;
 		}
 		const permissionNames = new Map(state.permissions.map((permission) => [permission.permCode, permission.permName]));
@@ -580,8 +590,8 @@
 			const permCodes = [...(role.permCodes || [])];
 			return `
 			<tr>
-				<td><strong>${escapeHtml(roleLabel(role))}</strong><span class="secondary-line">${escapeHtml(role.description || "--")}</span></td>
-				<td><span class="status-tag status-tag-neutral">${escapeHtml(role.roleCode || "--")}</span></td>
+				<td><strong>${escapeHtml(roleLabel(role))}</strong>${isPresetRole(role)
+					? `<span class="secondary-line">预置角色</span>` : ""}</td>
 				<td><div class="permission-list">${permCodes.length
 					? permCodes.map((code) => `<span class="permission-chip">${escapeHtml(permissionNames.get(code) || code)}</span>`).join("")
 					: `<span class="secondary-line">无业务权限</span>`}</div></td>
@@ -782,11 +792,11 @@
 			if (passwordField) {
 				passwordField.hidden = false;
 			}
-			// 默认勾选企业员工角色（按角色编码匹配，不依赖固定 ID）。
+			// 默认勾选企业员工角色（按角色名称匹配，不依赖固定 ID）。
 			const roles = roleMap();
 			roleCheckboxes.forEach((checkbox) => {
 				const role = roles.get(Number(checkbox.value));
-				checkbox.checked = Boolean(role && role.roleCode === "EMPLOYEE");
+				checkbox.checked = Boolean(role && role.name === "EMPLOYEE");
 			});
 		}
 		openDialog("user-dialog");
@@ -861,7 +871,7 @@
 			form.reset();
 		}
 		setText("role-form-error", "");
-		const codeInput = byId("role-code");
+		const nameInput = byId("role-name");
 		const permissionCheckboxes = document.querySelectorAll('input[name="role-permission"]');
 		const idInput = byId("role-id");
 		if (role) {
@@ -869,18 +879,10 @@
 			if (idInput) {
 				idInput.value = role.roleId;
 			}
-			// 角色编码不可修改（RoleCmd 更新时只使用名称与描述）。
-			if (codeInput) {
-				codeInput.value = role.roleCode || "";
-				codeInput.disabled = true;
-			}
-			const nameInput = byId("role-name");
 			if (nameInput) {
 				nameInput.value = roleLabel(role);
-			}
-			const descriptionInput = byId("role-description");
-			if (descriptionInput) {
-				descriptionInput.value = role.description || "";
+				// 角色名称即角色身份：预置角色被后端 @RequiresPerm/RoleCodes 引用，禁止改名。
+				nameInput.disabled = isPresetRole(role);
 			}
 			const permCodeSet = new Set(role.permCodes || []);
 			permissionCheckboxes.forEach((checkbox) => {
@@ -891,8 +893,8 @@
 			if (idInput) {
 				idInput.value = "";
 			}
-			if (codeInput) {
-				codeInput.disabled = false;
+			if (nameInput) {
+				nameInput.disabled = false;
 			}
 			permissionCheckboxes.forEach((checkbox) => {
 				checkbox.checked = false;
@@ -908,16 +910,15 @@
 		const roleId = valueOf("role-id");
 		const permCodeList = [...document.querySelectorAll('input[name="role-permission"]:checked')]
 			.map((input) => input.value);
-		const roleName = valueOf("role-name").trim();
-		const description = valueOf("role-description").trim();
+		const name = valueOf("role-name").trim();
 		try {
 			let targetId = roleId ? Number(roleId) : null;
 			if (targetId) {
-				await api(`/api/v1/user/roles/${targetId}`, {method: "PUT", body: {roleName, description}});
+				await api(`/api/v1/user/roles/${targetId}`, {method: "PUT", body: {name}});
 			} else {
 				targetId = await api("/api/v1/user/roles", {
 					method: "POST",
-					body: {roleCode: valueOf("role-code").trim().toUpperCase(), roleName, description}
+					body: {name: name.toUpperCase()}
 				});
 			}
 			if (targetId) {

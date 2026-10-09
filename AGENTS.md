@@ -33,13 +33,8 @@ com.university.webdesign
 │   ├── order/       ApiOrderController, ApiOrderHistoryController
 │   ├── operation/   ApiBlanketOrderController, ApiDeliveryController, ApiConfigController
 │   └── user/        ApiUserController, ApiRoleController, ApiAuthController, ApiReportController
-├── service/                           程序内部业务层：接口 + dto/
-│   ├── menu/        RecipeService, MenuService, MenuSnapshotService
-│   ├── order/       OrderService, OrderQueryService, OrderStatisticsService
-│   ├── operation/   BlanketOrderService, DeliveryService, ServiceWindowService
-│   ├── user/        UserService, RoleService, AuthService
-│   ├── report/      ReportService, ConsumptionAuditService
-│   └── impl/        上述接口的实现，按同名子包分组（impl/menu, impl/order, ...）
+├── service/                           程序内部业务层：接口 + dto/（menu / order / operation / user / report 子包）
+├── impl/                              service 接口的实现（@Service），按同名子包分组（impl/menu, impl/order, ...）
 ├── domain/                            实体、值对象、枚举（menu / order / operation / user / report）
 ├── repository/                        Spring Data JPA 仓储（menu / order / operation / user / report）
 └── web/                               Thymeleaf 页面控制器（menu / order / ...）
@@ -49,10 +44,10 @@ com.university.webdesign
 
 | 模块 | 职责 | 代码位置 | 负责人 |
 | --- | --- | --- | --- |
-| M1 菜品与菜单中心 | 食谱 CRUD、图片上传、菜单生成/版本/发布下架、菜单调价、菜单发布快照冻结 | `api/menu`、`service/{menu,impl/menu}`、`domain/menu`、`repository/menu` | 方家乐 |
-| M2 订单与交易核心 | 点餐时间窗口、下单与改单、一人一天一单、个人历史与月度消费 | `api/order`、`service/{order,impl/order}`、`domain/order`、`repository/order` | 雷伟舜 |
-| M3 运营与履约系统 | 截止后聚合总括订单、生产单打印、配送时间触发与批量配送单 | `api/operation`、`service/{operation,impl/operation}`、`domain/operation`、`repository/operation` | 张颖茵 |
-| M4 用户与报表中心 | 登录认证、角色权限、员工维护与批量导入、月度报表与消费审计 | `api/user`、`service/{user,report,impl/user,impl/report}`、`domain/{user,report}`、`repository/{user,report}` | 王家豪 |
+| M1 菜品与菜单中心 | 食谱 CRUD、图片上传、菜单生成/版本/发布下架、菜单调价、菜单发布快照冻结 | `api/menu`、`service/menu`、`impl/menu`、`domain/menu`、`repository/menu` | 方家乐 |
+| M2 订单与交易核心 | 点餐时间窗口、下单与改单、一人一天一单、个人历史与月度消费 | `api/order`、`service/order`、`impl/order`、`domain/order`、`repository/order` | 雷伟舜 |
+| M3 运营与履约系统 | 截止后聚合总括订单、生产单打印、配送时间触发与批量配送单 | `api/operation`、`service/operation`、`impl/operation`、`domain/operation`、`repository/operation` | 张颖茵 |
+| M4 用户与报表中心 | 登录认证、角色权限、员工维护与批量导入、月度报表与消费审计 | `api/user`、`service/{user,report}`、`impl/{user,report}`、`domain/{user,report}`、`repository/{user,report}` | 王家豪 |
 | 公共设施 | `Result`、`ErrorCode`、`BusinessException`、分页、`UserContextHolder`、导出工具 | `common` | 全员 |
 
 ### 2.2 分层红线
@@ -77,7 +72,7 @@ com.university.webdesign
 | `OrderQueryService.listValidByDate(date)` / `getDetail` / `page` | `service/order` | M3 聚合与派单、M4 报表与消费审计 |
 | `UserService.listByIds(ids)` / `getBrief(userId)` | `service/user` | M2 补员工姓名、M3 补工位电话、M4 补部门归属 |
 | `UserService.hasAnyRole(userId, roleCodes...)` | `service/user` | M2 越权校验 |
-| `AuthService.verifyToken(token)` / `checkPermission(userId, permCode)` | `service/user` | 认证拦截器与各模块的权限复核 |
+| `AuthService.verifyToken(token)` / `checkPermission(userId, PermissionEnum)` | `service/user` | 认证拦截器与各模块的权限复核 |
 
 **禁止** `AuthService` / `UserService` 反向依赖 M2/M3 的类型（会造成环形依赖）。
 
@@ -87,7 +82,7 @@ com.university.webdesign
 <模块>/
 ├── api/          Controller + 仅该 Controller 使用的请求/响应 DTO
 ├── service/      接口 + dto/（跨层入参出参：Cmd / Query / VO）
-├── service/impl/ 实现（@Service），一个接口一个实现类
+├── impl/         实现（@Service），一个接口一个实现类
 ├── domain/       @Entity、枚举、值对象
 └── repository/   Spring Data JPA 接口
 ```
@@ -100,7 +95,8 @@ com.university.webdesign
   `IllegalArgumentException` 表达业务错误。错误码见《对外方法表》1.5 与 `ErrorCode` 枚举。
 - **身份传递**：service **不接收 `operatorId` 参数**，统一用 `UserContextHolder.require()` /
   `currentUserId()` 取当前登录用户；定时任务等无请求上下文的场景显式传参。禁止接受客户端自报身份。
-- **权限**：api 层用 `@RequiresPerm({PermCodes.XXX})` 声明式拦截（`AuthInterceptor` 统一校验）；
+- **权限**：api 层用 `@RequiresPerm({PermissionEnum.XXX})` 声明式拦截（`AuthInterceptor` 统一校验）；
+  注解取值直接写 `common.enums.PermissionEnum` 常量（权限点编码只在该枚举里定义，不再有 `PermCodes` 常量类）；
   service 层仍要做**数据行级归属校验**（本人 or 经理/财务），越权抛 40300。
 - **参数校验**：api 层 DTO 用 Jakarta Bean Validation（`@NotBlank`、`@NotEmpty`、`@NotNull`、`@Min`），
   失败由 `common.GlobalExceptionHandler` 统一转 40001。
@@ -147,7 +143,10 @@ com.university.webdesign
 提交前**至少跑一次 `./gradlew build`**（或 `compileJava` + `test`），确认能编过再提交。
 
 测试约定：`src/test/resources/application.properties` 用 **H2 内存库**替代 PostgreSQL。
-主链路测试（`service/order/OrderServiceIntegrationTests`）用 `@SpringBootTest` 走真实上下文与真实
+测试目录镜像主代码分层：实现类测试放 `src/test/java/com/university/webdesign/impl/<模块>/`，
+公共设施（`PermissionEnum`、`PermissionList`、`RoleListConverter` 等）的测试放
+`src/test/java/com/university/webdesign/common/<子包>/`。
+主链路测试（`impl/order/OrderServiceIntegrationTests`）用 `@SpringBootTest` 走真实上下文与真实
 角色/权限数据；模块内部逻辑用 Mockito 或 `@DataJpaTest` 直测实现类。**没有数据库的机器也能跑通。**
 
 ## 6. 当前状态与缺口（接手时请注意）
@@ -163,10 +162,19 @@ com.university.webdesign
    `SecurityConfig` 为唯一安全配置。
 4. **数据库表按需求原文命名**：`recipe` / `menu` / `menu_item` / `menu_snapshot` /
    `order_form` / `order_detail` / `service_window` / `daily_statistics` / `delivery_task` /
-   `users` / `roles` / `permissions` / `monthly_report`。
+   `users` / `role` / `monthly_report`。角色权限不再建权限点表：`role` 只有 `id` / `name`(唯一) /
+   `permission_list`（权限位图，逗号分隔位号字符串），权限点由 `common/enums/PermissionEnum` 表达，
+   权限字典即该枚举中 `permCode` 非空的取值（13 个细粒度权限点，`PermissionEnum` 范围 13~25）。
 5. **定时任务与事件**：`OrderWindowCloseJob`（09:00 发 `OrderWindowClosedEvent`）、
    `DeliveryOpenJob`（11:30 预生成配送任务）+ `event/listener` 下的监听器。
-6. **`DatabaseDataInitializer`** 在 `app.storage=database`（默认）时写入权限点、5 个预置角色与演示账号。
+6. **`DatabaseDataInitializer`** 在 `app.storage=database`（默认）时写入 5 个预置角色
+   （名称取 `common.RoleCodes`，授权为该角色的细粒度权限点集合）与演示账号；
+   权限点字典由 `PermissionEnum` 提供，不需要初始化数据。
+7. **总门户 + 临时硬编码管理员**：登录成功后落到总门户 `/portal`（按当前账号的权限点列出各功能入口，
+   M3 尚无页面的功能以禁用卡片明确标注），`/console` 仍是用户与报表控制台。
+   另有**临时硬编码管理员账号** `config.TemporaryAdminAccount`（默认 `admin` / `admin123`，
+   可用 `app.temporary-admin.*` 覆盖）：**不落库**、拥有全部 13 个权限点，
+   因此 `app.storage=none` 或空库时也能进系统。**上线前必须删除**，删除步骤见该类的类注释。
 
 仍待补齐 / 需要确认：
 
@@ -184,8 +192,9 @@ com.university.webdesign
    唯一约束会拒绝，需要重试或改用数据库序列/Redis 发号。
 7. **事件监听器目前只覆盖 M3 的聚合与重算**；M4 报表缓存失效、菜单缓存预热尚未接监听器
    （`ReportService.getMonthly` 是“读缓存、缺失即同步生成”，因此暂无正确性风险，只是少了主动失效）。
-8. **页面覆盖**：订单（`/order/**`）、菜品（`/recipes/**`）、菜单（`/menus/**`）与控制台（`/console`）已可用；
-   M3 的聚合/配送/时间窗口目前只有 REST 接口，尚无专门的 Thymeleaf 页面。
+8. **页面覆盖**：总门户（`/portal`）、订单（`/order/**`）、菜品（`/recipes/**`）、菜单（`/menus/**`）
+   与控制台（`/console`）已可用；
+   M3 的聚合/配送/时间窗口目前只有 REST 接口，尚无专门的 Thymeleaf 页面（总门户里以禁用卡片占位）。
 9. **`items` 在列表类响应里**由 Jackson 正常序列化为数组；用 PowerShell `ConvertTo-Json` 查看时
    空集合会显示成空字符串，这是查看工具的假象，不要据此判断接口有问题。
 

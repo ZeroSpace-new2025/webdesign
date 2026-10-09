@@ -1,9 +1,9 @@
 package com.university.webdesign.api.menu;
 
 import com.university.webdesign.common.PageResult;
-import com.university.webdesign.common.PermCodes;
 import com.university.webdesign.common.Result;
 import com.university.webdesign.common.RoleCodes;
+import com.university.webdesign.common.enums.PermissionEnum;
 import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.menu.MenuService;
 import com.university.webdesign.service.menu.dto.MenuCreateCmd;
@@ -54,7 +54,7 @@ public class ApiMenuController
 	 * @return 菜单ID + 版本号 + 状态
 	 */
 	@PostMapping
-	@RequiresPerm(value = PermCodes.MENU_MENU_MANAGE, roles = RoleCodes.MANAGER)
+	@RequiresPerm(value = PermissionEnum.MENU_MENU_MANAGE, roles = RoleCodes.MANAGER)
 	public Result<MenuCreateResultVO> createDraft(@Valid @RequestBody MenuCreateCmd cmd) {
 		Long menuId = menuService.createDraft(cmd);
 		MenuVO menu = findMenu(menuId);
@@ -75,7 +75,7 @@ public class ApiMenuController
 	 * @return 更新后的新版本号
 	 */
 	@PutMapping("/{menuId}")
-	@RequiresPerm(value = PermCodes.MENU_MENU_MANAGE, roles = RoleCodes.MANAGER)
+	@RequiresPerm(value = PermissionEnum.MENU_MENU_MANAGE, roles = RoleCodes.MANAGER)
 	public Result<Integer> update(@PathVariable("menuId") Long menuId, @Valid @RequestBody MenuUpdateCmd cmd) {
 		return Result.success(menuService.update(menuId, cmd));
 	}
@@ -87,7 +87,7 @@ public class ApiMenuController
 	 * @return 发布结果（status、publishedAt、snapshotCount、version）
 	 */
 	@PostMapping("/{menuId}/publish")
-	@RequiresPerm(value = PermCodes.MENU_MENU_MANAGE, roles = RoleCodes.MANAGER)
+	@RequiresPerm(value = PermissionEnum.MENU_MENU_MANAGE, roles = RoleCodes.MANAGER)
 	public Result<PublishResultVO> publish(@PathVariable("menuId") Long menuId) {
 		return Result.success(menuService.publish(menuId));
 	}
@@ -100,7 +100,7 @@ public class ApiMenuController
 	 * @return 下架后的菜单视图（含 status 与 offlineAt）
 	 */
 	@PostMapping("/{menuId}/unpublish")
-	@RequiresPerm(value = PermCodes.MENU_MENU_MANAGE, roles = RoleCodes.MANAGER)
+	@RequiresPerm(value = PermissionEnum.MENU_MENU_MANAGE, roles = RoleCodes.MANAGER)
 	public Result<MenuVO> unpublish(
 			@PathVariable("menuId") Long menuId,
 			@RequestParam(value = "reason", required = false) String reason) {

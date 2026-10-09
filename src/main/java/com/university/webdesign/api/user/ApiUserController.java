@@ -1,8 +1,8 @@
 package com.university.webdesign.api.user;
 
 import com.university.webdesign.common.PageResult;
-import com.university.webdesign.common.PermCodes;
 import com.university.webdesign.common.Result;
+import com.university.webdesign.common.enums.PermissionEnum;
 import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.domain.user.UserStatus;
 import com.university.webdesign.service.user.UserService;
@@ -41,11 +41,11 @@ import java.util.List;
  * 本类只做协议转换，业务规则全部在 {@link UserService} 中。
  * <p>
  * 鉴权：由 {@code config.AuthInterceptor} 按 {@link RequiresPerm} 声明统一校验
- * （员工维护需要 {@link PermCodes#USER_MANAGE}，员工导入同时接受 {@link PermCodes#ROLE_MANAGE}）。
+ * （员工维护需要 {@link PermissionEnum#USER_MANAGE}，员工导入同时接受 {@link PermissionEnum#ROLE_MANAGE}）。
  */
 @RestController
 @RequestMapping("/api/v1/user")
-@RequiresPerm(PermCodes.USER_MANAGE)
+@RequiresPerm(PermissionEnum.USER_MANAGE)
 public class ApiUserController extends ApiUserSupport
 {
 	private final UserService userService;
@@ -127,7 +127,7 @@ public class ApiUserController extends ApiUserSupport
 	 * @return 逐行校验结果（支持部分成功）
 	 */
 	@PostMapping("/users/import")
-	@RequiresPerm({PermCodes.USER_MANAGE, PermCodes.ROLE_MANAGE})
+	@RequiresPerm({PermissionEnum.USER_MANAGE, PermissionEnum.ROLE_MANAGE})
 	public Result<ImportResultVO> importEmployees(
 			@RequestPart("file") MultipartFile file,
 			@RequestParam(value = "deptId", required = false) Long deptId,
@@ -141,7 +141,7 @@ public class ApiUserController extends ApiUserSupport
 	 * @return 模板文件
 	 */
 	@GetMapping("/users/import/template")
-	@RequiresPerm({PermCodes.USER_MANAGE, PermCodes.ROLE_MANAGE})
+	@RequiresPerm({PermissionEnum.USER_MANAGE, PermissionEnum.ROLE_MANAGE})
 	public ResponseEntity<Resource> importTemplate() {
 		Resource resource = userService.exportImportTemplate();
 		String fileName = URLEncoder.encode("员工导入模板.csv", StandardCharsets.UTF_8).replace("+", "%20");

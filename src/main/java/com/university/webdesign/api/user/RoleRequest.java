@@ -6,25 +6,16 @@ import lombok.Data;
 /**
  * 新增/更新角色请求（M4-13、M4-15）。
  * <p>
- * 新增时 {@code roleCode} 与 {@code roleName} 必填；更新时只使用 {@code roleName} 与
- * {@code description}，角色编码不可修改。
+ * 角色只有名称一个业务字段：新增时必填且全局唯一；更新时传名称即改名，
+ * 预置角色（{@code RoleCodes.ALL}）不允许改名，权限另走
+ * {@code PUT /roles/{roleId}/permissions}。
  */
 @Data
 public class RoleRequest
 {
 	/**
-	 * 角色编码（如 {@code MANAGER}），新增时必填
-	 */
-	private String roleCode;
-
-	/**
-	 * 角色名称
+	 * 角色名称（如 {@code MANAGER}），全局唯一
 	 */
 	@NotBlank(message = "角色名称不能为空")
-	private String roleName;
-
-	/**
-	 * 角色描述
-	 */
-	private String description;
+	private String name;
 }

@@ -70,7 +70,7 @@ public class UserVO
 	private List<Long> roleIds = new ArrayList<>();
 
 	/**
-	 * 角色编码集合
+	 * 角色名称集合（字段名保持 `roleCodes` 以兼容前端，取值是 {@code role.name}）
 	 */
 	private List<String> roleCodes = new ArrayList<>();
 }

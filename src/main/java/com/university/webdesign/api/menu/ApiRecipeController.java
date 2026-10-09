@@ -1,9 +1,9 @@
 package com.university.webdesign.api.menu;
 
 import com.university.webdesign.common.PageResult;
-import com.university.webdesign.common.PermCodes;
 import com.university.webdesign.common.Result;
 import com.university.webdesign.common.RoleCodes;
+import com.university.webdesign.common.enums.PermissionEnum;
 import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.menu.RecipeService;
 import com.university.webdesign.service.menu.dto.CategoryVO;
@@ -57,7 +57,7 @@ public class ApiRecipeController
 	 * @return 菜品ID + 菜品 VO
 	 */
 	@PostMapping
-	@RequiresPerm(value = PermCodes.MENU_RECIPE_MANAGE, roles = {RoleCodes.MANAGER, RoleCodes.KITCHEN_SUPERVISOR})
+	@RequiresPerm(value = PermissionEnum.MENU_RECIPE_MANAGE, roles = {RoleCodes.MANAGER, RoleCodes.KITCHEN_SUPERVISOR})
 	public Result<RecipeVO> create(@Valid @RequestBody RecipeCreateCmd cmd) {
 		Long recipeId = recipeService.create(cmd);
 		return Result.success(recipeService.getById(recipeId));
@@ -71,7 +71,7 @@ public class ApiRecipeController
 	 * @return 更新后的菜品 VO
 	 */
 	@PutMapping("/{recipeId}")
-	@RequiresPerm(value = PermCodes.MENU_RECIPE_MANAGE, roles = {RoleCodes.MANAGER, RoleCodes.KITCHEN_SUPERVISOR})
+	@RequiresPerm(value = PermissionEnum.MENU_RECIPE_MANAGE, roles = {RoleCodes.MANAGER, RoleCodes.KITCHEN_SUPERVISOR})
 	public Result<RecipeVO> update(@PathVariable("recipeId") Long recipeId,
 			@Valid @RequestBody RecipeUpdateCmd cmd) {
 		recipeService.update(recipeId, cmd);
@@ -86,7 +86,7 @@ public class ApiRecipeController
 	 * @return 受影响菜单数（被已发布菜单引用时抛 42203）
 	 */
 	@DeleteMapping("/{recipeId}")
-	@RequiresPerm(value = PermCodes.MENU_RECIPE_MANAGE, roles = {RoleCodes.MANAGER, RoleCodes.KITCHEN_SUPERVISOR})
+	@RequiresPerm(value = PermissionEnum.MENU_RECIPE_MANAGE, roles = {RoleCodes.MANAGER, RoleCodes.KITCHEN_SUPERVISOR})
 	public Result<Integer> disable(
 			@PathVariable("recipeId") Long recipeId,
 			@RequestParam(value = "reason", required = false) String reason) {
@@ -122,7 +122,7 @@ public class ApiRecipeController
 	 * @return 图片地址与存储键
 	 */
 	@PostMapping("/images")
-	@RequiresPerm(value = PermCodes.MENU_RECIPE_MANAGE, roles = {RoleCodes.MANAGER, RoleCodes.KITCHEN_SUPERVISOR})
+	@RequiresPerm(value = PermissionEnum.MENU_RECIPE_MANAGE, roles = {RoleCodes.MANAGER, RoleCodes.KITCHEN_SUPERVISOR})
 	public Result<ImageUploadVO> uploadImage(@RequestParam("file") MultipartFile file) {
 		return Result.success(ImageUploadVO.of(recipeService.uploadImage(file)));
 	}
