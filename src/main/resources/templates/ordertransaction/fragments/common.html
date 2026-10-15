@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <!--
-	订单模块公共片段（页头、导航、身份栏、提示消息）
+	订单模块公共片段（页头、导航、登录身份展示、提示消息）
 	页面通过 th:replace 引用，例如：
 	  <head th:replace="~{ordertransaction/fragments/common :: head('今日点餐')}"></head>
+	身份不再由页面填写：登录态由用户与报表中心签发 JWT，认证拦截器解析后写入登录上下文。
 -->
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head th:fragment="head(title)">
@@ -25,20 +26,14 @@
 	</div>
 </header>
 
-<!-- 身份栏：登录态由用户与报表中心接入前，暂由页面传入员工ID -->
-<section th:fragment="identity(userId, backTo)" class="identity">
-	<form class="identity-form" th:action="@{/order/identity}" method="post">
-		<input type="hidden" name="redirectTo" th:value="${backTo}">
-		<label for="operatorId">员工ID</label>
-		<input type="number" id="operatorId" name="operatorId" min="1" required
-			  th:value="${userId}" placeholder="请输入员工ID">
-		<button type="submit">切换身份</button>
-	</form>
+<!-- 登录身份展示：只读，取值来自认证上下文（不再允许页面切换身份） -->
+<section th:fragment="identity(userId, userName)" class="identity">
 	<p class="hint" th:if="${userId == null}">
-		尚未设置员工身份，请先填写员工ID后再点餐（登录态接入后此处将自动取自认证信息）。
+		当前请求没有登录身份，请先到登录页登录后再点餐。
 	</p>
 	<p class="hint" th:unless="${userId == null}">
-		当前员工ID：<strong th:text="${userId}">-</strong>
+		当前登录：<strong th:text="${userName} ?: ('员工#' + ${userId})">员工</strong>
+		（ID <span th:text="${userId}">-</span>）
 	</p>
 </section>
 

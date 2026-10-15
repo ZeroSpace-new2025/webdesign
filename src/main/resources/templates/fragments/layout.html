@@ -12,8 +12,11 @@
 <nav th:fragment="navbar(active)" class="navbar">
     <a class="brand" th:href="@{/}">🍽️ 企业餐厅点餐</a>
     <div class="nav-links">
+        <a th:href="@{/order/create}" th:classappend="${active == 'order'} ? 'active'">今日点餐</a>
+        <a th:href="@{/order/mine}" th:classappend="${active == 'mine'} ? 'active'">我的订单</a>
         <a th:href="@{/recipes}" th:classappend="${active == 'recipe'} ? 'active'">菜品管理</a>
         <a th:href="@{/menus}" th:classappend="${active == 'menu'} ? 'active'">菜单管理</a>
+        <a th:href="@{/console}" th:classappend="${active == 'console'} ? 'active'">控制台</a>
     </div>
 </nav>
 

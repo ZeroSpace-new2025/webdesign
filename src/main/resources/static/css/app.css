@@ -1470,3 +1470,221 @@ svg {
 		border: 0;
 	}
 }
+
+/* ===== 总门户（/portal） ===== */
+
+.portal-page {
+	min-height: 100vh;
+}
+
+.portal-topbar {
+	position: sticky;
+	top: 0;
+	z-index: 5;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14px;
+	padding: 14px 26px;
+	border-bottom: 1px solid var(--line);
+	background: var(--surface);
+}
+
+.portal-brand {
+	display: flex;
+	align-items: center;
+	gap: 11px;
+	text-decoration: none;
+}
+
+.portal-brand > div {
+	display: grid;
+}
+
+.portal-brand small {
+	color: var(--muted);
+	font-size: 11px;
+	letter-spacing: 0.08em;
+}
+
+.portal-account {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.portal-account-info {
+	display: grid;
+	text-align: right;
+}
+
+.portal-account-info small {
+	color: var(--muted);
+}
+
+.portal-shell {
+	display: grid;
+	gap: 26px;
+	max-width: 1180px;
+	margin: 0 auto;
+	padding: 26px;
+}
+
+.portal-notice,
+.portal-empty {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 13px 16px;
+	border-radius: var(--radius);
+	border: 1px solid var(--line);
+	background: var(--surface-muted);
+	color: var(--text-soft);
+}
+
+.portal-notice {
+	border-color: var(--amber);
+	background: var(--amber-soft);
+	color: var(--amber);
+}
+
+.portal-notice code {
+	padding: 1px 5px;
+	border-radius: 4px;
+	background: rgba(0, 0, 0, 0.06);
+	font-size: 12px;
+}
+
+.portal-notice svg,
+.portal-empty svg {
+	flex: none;
+	width: 18px;
+	height: 18px;
+	margin-top: 2px;
+}
+
+.portal-hero {
+	display: grid;
+	gap: 8px;
+	padding: 26px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	background: linear-gradient(135deg, var(--surface) 0%, var(--surface-muted) 100%);
+}
+
+.portal-hero h1 {
+	font-size: 26px;
+}
+
+.portal-hero-sub {
+	color: var(--text-soft);
+}
+
+.portal-section {
+	display: grid;
+	gap: 14px;
+}
+
+.portal-section-title {
+	font-size: 14px;
+	color: var(--text-soft);
+	letter-spacing: 0.06em;
+}
+
+.portal-grid {
+	display: grid;
+	gap: 14px;
+	grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.portal-card {
+	display: grid;
+	gap: 9px;
+	align-content: start;
+	padding: 20px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	background: var(--surface);
+	text-decoration: none;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.portal-card:hover {
+	border-color: var(--accent);
+	box-shadow: var(--shadow);
+	transform: translateY(-2px);
+}
+
+.portal-card-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 38px;
+	height: 38px;
+	border-radius: var(--radius-small);
+	background: var(--accent-soft);
+	color: var(--accent-strong);
+}
+
+.portal-card-icon svg {
+	width: 19px;
+	height: 19px;
+}
+
+.portal-card strong {
+	font-size: 15px;
+}
+
+.portal-card p {
+	color: var(--text-soft);
+	font-size: 13px;
+}
+
+.portal-card-meta {
+	color: var(--muted);
+	font-size: 12px;
+}
+
+.portal-card.is-disabled {
+	cursor: not-allowed;
+	background: var(--surface-muted);
+}
+
+.portal-card.is-disabled:hover {
+	border-color: var(--line);
+	box-shadow: none;
+	transform: none;
+}
+
+.portal-card.is-disabled .portal-card-icon {
+	background: var(--line);
+	color: var(--muted);
+}
+
+@media (max-width: 720px) {
+	.portal-topbar {
+		padding: 12px 16px;
+	}
+
+	.portal-account-info {
+		text-align: left;
+	}
+
+	.portal-shell {
+		padding: 18px;
+	}
+
+	.portal-hero {
+		padding: 20px;
+	}
+}
+/* 登录页的临时管理员账号按钮：琥珀色边框提示“非正式账号” */
+.account-option-temp {
+	border: 1px dashed var(--amber);
+	background: var(--amber-soft);
+}
+
+.account-option-temp:hover {
+	border-color: var(--amber);
+}

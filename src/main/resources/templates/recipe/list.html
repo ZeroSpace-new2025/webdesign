@@ -11,8 +11,26 @@
     </div>
 
     <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+    <!-- 查询条件：名称模糊 + 状态 -->
+    <div class="card">
+        <form class="filter-form" th:action="@{/recipes}" method="get">
+            <label for="keyword">菜品名称</label>
+            <input type="text" id="keyword" name="keyword" th:value="${keyword}" placeholder="支持模糊匹配"/>
+            <label for="status">状态</label>
+            <select id="status" name="status">
+                <option value="">全部</option>
+                <option th:each="s : ${allStatus}" th:value="${s.name()}"
+                        th:text="${s.label}" th:selected="${status == s.name()}">可售</option>
+            </select>
+            <button type="submit">查询</button>
+            <a class="link" th:href="@{/recipes}">重置</a>
+        </form>
+    </div>
 
     <div class="card">
+        <p class="summary">共 <strong th:text="${total}">0</strong> 道菜品</p>
         <div th:if="${recipes.isEmpty()}" class="empty">
             暂无菜品，点击右上角“新增菜品”开始添加。
         </div>
@@ -25,35 +43,39 @@
                 <th>单位</th>
                 <th>单价</th>
                 <th>状态</th>
-                <th style="width:150px;">操作</th>
+                <th style="width:180px;">操作</th>
             </tr>
             </thead>
             <tbody>
             <tr th:each="r : ${recipes}">
                 <td>
-                    <img th:if="${r.recipeImageUrl != null}" th:src="${r.recipeImageUrl}" class="thumb"/>
-                    <span th:if="${r.recipeImageUrl == null}" class="thumb" style="display:inline-block;"></span>
+                    <img th:if="${r.imageUrl != null}" th:src="${r.imageUrl}" class="thumb" alt="菜品图片"/>
+                    <span th:if="${r.imageUrl == null}" class="thumb" style="display:inline-block;"></span>
                 </td>
-                <td th:text="${r.recipeName}">菜品名</td>
+                <td th:text="${r.name}">菜品名</td>
                 <td th:text="${r.category}">分类</td>
                 <td th:text="${r.unit}">单位</td>
-                <td>¥<span th:text="${r.price}">0.00</span></td>
+                <td>¥<span th:text="${#numbers.formatDecimal(r.unitPrice, 1, 2)}">0.00</span></td>
                 <td>
                     <span class="badge"
                           th:classappend="${r.status == 'ACTIVE'} ? 'badge-active' : 'badge-inactive'"
-                          th:text="${r.status == 'ACTIVE'} ? '启用' : '停用'">启用</span>
+                          th:text="${r.statusText}">启用</span>
                 </td>
                 <td>
                     <a class="btn btn-sm" th:href="@{/recipes/{id}/edit(id=${r.recipeId})}">编辑</a>
                     <form th:action="@{/recipes/{id}/delete(id=${r.recipeId})}" method="post"
                           style="display:inline;"
-                          onsubmit="return confirm('确定停用该菜品？停用后历史数据仍保留。');">
+                          th:if="${r.status == 'ACTIVE'}"
+                          onsubmit="return confirm('确定停用该菜品？停用只影响未来菜单，历史订单与快照不受影响。');">
                         <button type="submit" class="btn btn-sm btn-danger">停用</button>
                     </form>
                 </td>
             </tr>
             </tbody>
         </table>
+        <p class="hint">
+            菜品采用逻辑下架（不做物理删除）：已发布菜单的价格快照与历史订单的快照明细都不会被改动。
+        </p>
     </div>
 </div>
 </body>
