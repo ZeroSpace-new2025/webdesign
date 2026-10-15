@@ -3,6 +3,8 @@ package com.university.webdesign.service.report.dto;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 部门维度消费汇总。
@@ -42,4 +44,9 @@ public class DeptConsumptionVO
 	 * 消费总金额
 	 */
 	private BigDecimal totalAmount;
+
+	/**
+	 * 该部门有消费记录员工的汇总，供财务在无员工管理权限时继续下钻到个人明细
+	 */
+	private List<DeptEmployeeConsumptionVO> employees = new ArrayList<>();
 }
