@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('历史菜品')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('recipe')}"></nav>
+
+<div class="container">
+    <div class="page-header">
+        <h1>历史菜品</h1>
+        <a class="btn" th:href="@{/recipes}">返回菜品管理</a>
+    </div>
+
+    <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+    <!-- 查询条件：名称模糊 + 分类（历史菜品只包含已下架菜品，状态固定由服务端判定） -->
+    <div class="card">
+        <form style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;"
+              th:action="@{/recipes/history}" method="get">
+            <div class="form-group" style="margin:0;">
+                <label for="keyword">菜品名称</label>
+                <input type="text" id="keyword" name="keyword" class="form-control"
+                       th:value="${keyword}" placeholder="支持模糊匹配"/>
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label for="category">分类</label>
+                <select id="category" name="category" class="form-control">
+                    <option value="">全部分类</option>
+                    <option th:each="c : ${categories}" th:value="${c}" th:text="${c}"
+                            th:selected="${category == c}">分类</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" type="submit">查询</button>
+            <a class="btn" th:href="@{/recipes/history}">重置</a>
+        </form>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+        <p class="summary">共 <strong th:text="${total}">0</strong> 道已下架菜品</p>
+        <div th:if="${recipes.isEmpty()}" class="empty">
+            暂无已下架菜品。菜品采用逻辑下架：列表页点“停用”后才会进入这里，历史菜单与历史订单不受影响。
+        </div>
+        <table th:if="${!recipes.isEmpty()}">
+            <thead>
+            <tr>
+                <th style="width:60px;">图片</th>
+                <th>菜品名称</th>
+                <th>分类</th>
+                <th>单位</th>
+                <th>单价</th>
+                <th>下架原因</th>
+                <th style="width:150px;">最后修改</th>
+                <th style="width:90px;">状态</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="r : ${recipes}">
+                <td>
+                    <img th:if="${r.imageUrl != null}" th:src="${r.imageUrl}" class="thumb" alt="菜品图片"/>
+                    <span th:if="${r.imageUrl == null}" class="thumb" style="display:inline-block;"></span>
+                </td>
+                <td>
+                    <div th:text="${r.name}">菜名</div>
+                    <div class="muted" th:if="${r.description != null}" th:text="${r.description}"></div>
+                </td>
+                <td th:text="${r.category != null ? r.category : '未分类'}">分类</td>
+                <td th:text="${r.unit != null ? r.unit : '—'}">单位</td>
+                <td>¥<span th:text="${#numbers.formatDecimal(r.unitPrice, 1, 2)}">0.00</span></td>
+                <td th:text="${r.offlineReason != null ? r.offlineReason : '—'}">—</td>
+                <td><th:block th:replace="~{fragments/layout :: timestamp(${r.updatedAt})}"></th:block></td>
+                <td>
+                    <span class="badge badge-inactive" th:text="${r.statusText}">已下架</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="hint">
+            历史菜品只读：已下架菜品不再出现在新建/编辑菜单的候选里，但它在历史菜单与历史订单中的明细
+            来自当时的快照，改价或下架都不会影响这些历史记录。
+        </p>
+    </div>
+</div>
+</body>
+</html>

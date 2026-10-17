@@ -66,6 +66,11 @@ public class RecipeVO
 	private String statusText;
 
 	/**
+	 * 下架原因：仅 {@code DISABLED} 时有值，历史菜品页展示
+	 */
+	private String offlineReason;
+
+	/**
 	 * 乐观锁版本号
 	 */
 	private Integer version;

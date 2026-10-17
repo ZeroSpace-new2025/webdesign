@@ -20,5 +20,12 @@
     </div>
 </nav>
 
+<!-- 时间戳片段：LocalDateTime 渲染成 yyyy-MM-dd HH:mm，空值显示占位符 -->
+<th:block th:fragment="timestamp(value)">
+    <span th:if="${value == null}">—</span>
+    <span th:if="${value != null}"
+          th:text="${#strings.substring(#strings.replace(value.toString(), 'T', ' '), 0, 16)}">2026-01-01 12:00</span>
+</th:block>
+
 </body>
 </html>

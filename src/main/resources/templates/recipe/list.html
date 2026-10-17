@@ -7,7 +7,10 @@
 <div class="container">
     <div class="page-header">
         <h1>菜品管理</h1>
-        <a class="btn btn-primary" th:href="@{/recipes/new}">+ 新增菜品</a>
+        <div style="display:flex;gap:10px;">
+            <a class="btn" th:href="@{/recipes/history}">历史菜品</a>
+            <a class="btn btn-primary" th:href="@{/recipes/new}">+ 新增菜品</a>
+        </div>
     </div>
 
     <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
@@ -32,7 +35,7 @@
     <div class="card">
         <p class="summary">共 <strong th:text="${total}">0</strong> 道菜品</p>
         <div th:if="${recipes.isEmpty()}" class="empty">
-            暂无菜品，点击右上角“新增菜品”开始添加。
+            暂无在售菜品。点击右上角“新增菜品”开始添加；已下架的菜品在“历史菜品”里查看。
         </div>
         <table th:if="${!recipes.isEmpty()}">
             <thead>
@@ -74,7 +77,8 @@
             </tbody>
         </table>
         <p class="hint">
-            菜品采用逻辑下架（不做物理删除）：已发布菜单的价格快照与历史订单的快照明细都不会被改动。
+            菜品采用逻辑下架（不做物理删除）：本页默认只列在售菜品，停用后到“历史菜品”查看；
+            已发布菜单的价格快照与历史订单的快照明细都不会被改动。
         </p>
     </div>
 </div>
