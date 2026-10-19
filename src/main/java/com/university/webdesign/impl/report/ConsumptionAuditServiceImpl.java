@@ -14,6 +14,7 @@ import com.university.webdesign.service.report.ConsumptionAuditService;
 import com.university.webdesign.service.report.MonthConverter;
 import com.university.webdesign.service.report.dto.ConsumptionDetailVO;
 import com.university.webdesign.service.report.dto.DeptConsumptionVO;
+import com.university.webdesign.service.report.dto.DeptEmployeeConsumptionVO;
 import com.university.webdesign.service.report.dto.DishSalesVO;
 import com.university.webdesign.service.report.dto.EmployeeConsumptionVO;
 import com.university.webdesign.service.user.UserService;
@@ -149,12 +150,29 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 					ignored -> new DeptAggregate(deptId,
 							brief == null ? order.getDeptName() : brief.getDeptName()));
 			aggregate.orderCount++;
-			aggregate.employeeIds.add(order.getEmployeeId());
 			aggregate.totalAmount = aggregate.totalAmount.add(order.getTotalAmount() == null
 					? BigDecimal.ZERO
 					: order.getTotalAmount());
 			for (DishSalesVO item : itemsOf(order)) {
-				aggregate.totalQuantity += item.getQuantity() == null ? 0L : item.getQuantity();
+				long quantity = item.getQuantity() == null ? 0L : item.getQuantity();
+				aggregate.totalQuantity += quantity;
+			}
+			if (order.getEmployeeId() != null) {
+				aggregate.employeeIds.add(order.getEmployeeId());
+				EmployeeAggregate employeeAggregate = aggregate.employeeStats.computeIfAbsent(
+						order.getEmployeeId(),
+						ignored -> new EmployeeAggregate(order.getEmployeeId(),
+								brief == null ? null : brief.getEmployeeNo(),
+								brief == null ? order.getEmployeeName() : brief.getName(),
+								brief == null ? null : brief.getWorkstation()));
+				employeeAggregate.orderCount++;
+				employeeAggregate.totalAmount = employeeAggregate.totalAmount.add(
+						order.getTotalAmount() == null ? BigDecimal.ZERO : order.getTotalAmount());
+				for (DishSalesVO item : itemsOf(order)) {
+					employeeAggregate.totalQuantity += item.getQuantity() == null
+							? 0L
+							: item.getQuantity();
+				}
 			}
 		}
 		List<DeptConsumptionVO> result = new ArrayList<>();
@@ -166,9 +184,31 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 			vo.setOrderCount(aggregate.orderCount);
 			vo.setTotalQuantity(aggregate.totalQuantity);
 			vo.setTotalAmount(aggregate.totalAmount);
+			vo.setEmployees(aggregate.employeeStats.values().stream()
+					.map(this::toEmployeeSummary)
+					.sorted((left, right) -> right.getTotalAmount().compareTo(left.getTotalAmount()))
+					.toList());
 			result.add(vo);
 		}
 		return result;
+	}
+
+	/**
+	 * 部门内员工聚合 → 员工汇总视图
+	 *
+	 * @param aggregate 员工聚合
+	 * @return 员工汇总
+	 */
+	private DeptEmployeeConsumptionVO toEmployeeSummary(EmployeeAggregate aggregate) {
+		DeptEmployeeConsumptionVO vo = new DeptEmployeeConsumptionVO();
+		vo.setEmployeeId(aggregate.employeeId);
+		vo.setEmployeeNo(aggregate.employeeNo);
+		vo.setEmployeeName(aggregate.employeeName);
+		vo.setWorkstation(aggregate.workstation);
+		vo.setOrderCount(aggregate.orderCount);
+		vo.setTotalQuantity(aggregate.totalQuantity);
+		vo.setTotalAmount(aggregate.totalAmount);
+		return vo;
 	}
 
 	/**
@@ -251,6 +291,11 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 		private final Set<Long> employeeIds = new LinkedHashSet<>();
 
 		/**
+		 * 该部门内按员工聚合的消费统计
+		 */
+		private final Map<Long, EmployeeAggregate> employeeStats = new LinkedHashMap<>();
+
+		/**
 		 * 订单数
 		 */
 		private long orderCount;
@@ -268,6 +313,55 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 		private DeptAggregate(Long deptId, String deptName) {
 			this.deptId = deptId;
 			this.deptName = deptName;
+		}
+	}
+
+	/**
+	 * 部门内员工聚合中间结果
+	 */
+	private static final class EmployeeAggregate
+	{
+		/**
+		 * 员工ID
+		 */
+		private final Long employeeId;
+
+		/**
+		 * 工号
+		 */
+		private final String employeeNo;
+
+		/**
+		 * 姓名
+		 */
+		private final String employeeName;
+
+		/**
+		 * 工位
+		 */
+		private final String workstation;
+
+		/**
+		 * 订单数
+		 */
+		private long orderCount;
+
+		/**
+		 * 菜品总数量
+		 */
+		private long totalQuantity;
+
+		/**
+		 * 消费总金额
+		 */
+		private BigDecimal totalAmount = BigDecimal.ZERO;
+
+		private EmployeeAggregate(Long employeeId, String employeeNo, String employeeName,
+				String workstation) {
+			this.employeeId = employeeId;
+			this.employeeNo = employeeNo;
+			this.employeeName = employeeName;
+			this.workstation = workstation;
 		}
 	}
 }

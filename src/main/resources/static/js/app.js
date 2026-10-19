@@ -677,7 +677,8 @@
 	}
 
 	async function openAuditDetail(key) {
-		// 部门汇总来自 /reports/dept-consumption；点击行后按员工逐个取 /reports/employee-consumption 明细。
+		// 部门汇总来自 /reports/dept-consumption；接口同时返回员工汇总，
+		// 因此财务仅有 audit:view 权限时也能继续下钻到个人订单快照。
 		const report = state.deptReports.find((item) => deptKey(item) === String(key));
 		if (!report) {
 			return;
@@ -687,15 +688,25 @@
 		setHtml("audit-detail-content", `<div class="empty-state">正在加载员工消费明细…</div>`);
 		openDialog("audit-dialog");
 
-		if (!can("user:manage")) {
-			setHtml("audit-detail-content", `<div class="empty-state">
-				该部门本月消费 ${money(report.totalAmount)}，共 ${Number(report.orderCount || 0)} 笔订单、${Number(report.totalQuantity || 0)} 份菜品、${Number(report.employeeCount || 0)} 名员工有消费。
-				展开到员工明细需要员工管理权限（user:manage）。
-			</div>`);
-			return;
+		let employees = (Array.isArray(report.employees) ? report.employees : [])
+			.filter((employee) => employee && employee.employeeId != null)
+			.map((employee) => ({
+				userId: employee.employeeId,
+				employeeNo: employee.employeeNo,
+				name: employee.employeeName,
+				workstation: employee.workstation
+			}));
+		if (!employees.length && can("user:manage")) {
+			// 兼容尚未升级的服务端响应：经理可从员工目录回退补齐。
+			employees = state.users
+				.filter((user) => deptKey(user) === String(key))
+				.map((user) => ({
+					userId: user.userId,
+					employeeNo: user.employeeNo,
+					name: user.name,
+					workstation: user.workstation
+				}));
 		}
-
-		const employees = state.users.filter((user) => deptKey(user) === String(key));
 		if (!employees.length) {
 			setHtml("audit-detail-content", `<div class="empty-state">该部门本月没有可展示的员工记录</div>`);
 			return;
