@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>生产单预览</title>
+    <link rel="stylesheet" th:href="@{/css/operation.css}">
+</head>
+<body>
+<div class="m3-container">
+    <div class="m3-toolbar m3-no-print">
+        <button type="button" class="m3-btn m3-btn-primary" onclick="window.print()">🖨️ 打印</button>
+        <a th:href="@{/operation/blanket-orders}" class="m3-btn m3-btn-outline">返回备料页</a>
+    </div>
+    <div class="m3-print-preview">
+        <pre th:text="${content}"></pre>
+    </div>
+</div>
+</body>
+</html>html>

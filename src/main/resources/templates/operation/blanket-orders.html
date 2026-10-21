@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>厨房备料 · 总括订单</title>
+    <link rel="stylesheet" th:href="@{/css/operation.css}">
+</head>
+<body>
+<div class="m3-container">
+    <div class="m3-header">
+        <h1>厨房备料 · <span th:text="${date}"></span></h1>
+        <a th:href="@{/portal}" class="m3-back">← 返回门户</a>
+    </div>
+
+    <div class="m3-toolbar">
+        <form method="get" th:action="@{/operation/blanket-orders}">
+            <input type="date" name="date" th:value="${date}">
+            <button type="submit" class="m3-btn m3-btn-outline">查询</button>
+        </form>
+        <form method="post" th:action="@{/operation/blanket-orders/aggregate}">
+            <input type="hidden" name="date" th:value="${date}">
+            <button type="submit" class="m3-btn m3-btn-primary">手动聚合</button>
+        </form>
+        <a th:href="@{/operation/blanket-orders/print/preview(date=${date})}" target="_blank" class="m3-btn m3-btn-success">打印生产单</a>
+        <a th:href="@{/operation/blanket-orders/history}" class="m3-btn m3-btn-outline">历史快照</a>
+    </div>
+
+    <div th:if="${message}" class="m3-alert m3-alert-success" th:text="${message}"></div>
+    <div th:if="${error}" class="m3-alert m3-alert-error" th:text="${error}"></div>
+
+    <div th:if="${!hasSnapshot}" class="m3-empty">
+        <div class="m3-empty-icon">📋</div>
+        <p>当日尚未聚合</p>
+        <p style="font-size:13px;">请等到订餐截止时间后自动聚合，或手动点击"手动聚合"。</p>
+    </div>
+
+    <th:block th:if="${hasSnapshot}">
+        <div class="m3-stats">
+            <div class="m3-stat-card">
+                <div class="m3-stat-label">菜品种类</div>
+                <div class="m3-stat-value" th:text="${totalItems}"></div>
+            </div>
+            <div class="m3-stat-card m3-stat-success">
+                <div class="m3-stat-label">分类数</div>
+                <div class="m3-stat-value" th:text="${#maps.size(groups)}"></div>
+            </div>
+        </div>
+
+        <table class="m3-table">
+            <thead>
+            <tr><th>分类</th><th>菜品</th><th>单位</th><th>需求总量</th><th>金额</th><th>涉及订单数</th></tr>
+            </thead>
+            <tbody>
+            <th:block th:each="entry : ${groups}">
+                <tr class="m3-category-row"><td colspan="6" th:text="'【' + ${entry.key} + '】'"></td></tr>
+                <tr th:each="item : ${entry.value}">
+                    <td></td>
+                    <td th:text="${item.recipeName}"></td>
+                    <td th:text="${item.unit}"></td>
+                    <td><strong th:text="${item.totalQuantity}"></strong></td>
+                    <td th:text="${item.totalAmount}"></td>
+                    <td th:text="${item.orderCount}"></td>
+                </tr>
+            </th:block>
+            </tbody>
+        </table>
+    </th:block>
+</div>
+<script th:src="@{/js/operation.js}"></script>
+</body>
+</html>

@@ -17,6 +17,13 @@
         <a th:href="@{/recipes}" th:classappend="${active == 'recipe'} ? 'active'">菜品管理</a>
         <a th:href="@{/menus}" th:classappend="${active == 'menu'} ? 'active'">菜单管理</a>
         <a th:href="@{/console}" th:classappend="${active == 'console'} ? 'active'">控制台</a>
+
+        <!-- ====== M3 运营与履约模块入口 开始 ====== -->
+        <a th:href="@{/operation/blanket-orders}" th:classappend="${active == 'blanket'} ? 'active'">厨房备料</a>
+        <a th:href="@{/operation/deliveries}" th:classappend="${active == 'delivery'} ? 'active'">配送管理</a>
+        <a th:href="@{/operation/configs/service-window}" th:classappend="${active == 'window'} ? 'active'">时间配置</a>
+        <!-- ====== M3 运营与履约模块入口 结束 ====== -->
+
     </div>
 </nav>
 
