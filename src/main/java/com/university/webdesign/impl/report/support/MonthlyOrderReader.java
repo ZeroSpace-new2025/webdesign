@@ -51,7 +51,7 @@ public class MonthlyOrderReader
 	 * @return 有效订单列表
 	 */
 	public List<OrderVO> readMonth(YearMonth month) {
-		return readMonth(month, null);
+		return readMonth(month, null, null);
 	}
 
 	/**
@@ -62,6 +62,31 @@ public class MonthlyOrderReader
 	 * @return 有效订单列表
 	 */
 	public List<OrderVO> readMonth(YearMonth month, Set<Long> employeeIds) {
+		return readMonth(month, employeeIds, null);
+	}
+
+	/**
+	 * 读取某月指定部门的有效订单
+	 * <p>
+	 * 部门过滤直接交给 {@link OrderQueryService}，避免报表模块为了解析部门员工而读取用户表。
+	 *
+	 * @param month  月份
+	 * @param deptId 部门ID
+	 * @return 有效订单列表
+	 */
+	public List<OrderVO> readMonthByDept(YearMonth month, Long deptId) {
+		return readMonth(month, null, deptId);
+	}
+
+	/**
+	 * 读取某月有效订单，可按员工集合和部门共同过滤
+	 *
+	 * @param month       月份
+	 * @param employeeIds 限定员工ID集合，{@code null} 表示不限
+	 * @param deptId      部门ID，{@code null} 表示不限
+	 * @return 有效订单列表
+	 */
+	private List<OrderVO> readMonth(YearMonth month, Set<Long> employeeIds, Long deptId) {
 		if (month == null) {
 			return List.of();
 		}
@@ -77,6 +102,7 @@ public class MonthlyOrderReader
 				OrderQuery query = new OrderQuery();
 				query.setDateFrom(date);
 				query.setDateTo(date);
+				query.setDeptId(deptId);
 				query.setPageNum(pageNum);
 				query.setPageSize(PAGE_SIZE);
 				PageResult<OrderVO> page = orderQueryService.page(query);

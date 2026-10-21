@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>业务门户 | 企业餐厅网络点餐系统</title>
+	<link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="portal-page">
+<header class="portal-topbar">
+	<a class="portal-brand" th:href="@{/portal}">
+		<span class="brand-mark">餐</span>
+		<div>
+			<strong>企业餐厅网络点餐系统</strong>
+			<small>BUSINESS PORTAL</small>
+		</div>
+	</a>
+	<div class="portal-account">
+		<div class="portal-account-info">
+			<strong th:text="${userName}">当前用户</strong>
+			<small th:text="${employeeNo}">工号</small>
+		</div>
+		<button id="portal-logout" class="button button-secondary" type="button">
+			<i data-lucide="log-out"></i><span>退出登录</span>
+		</button>
+	</div>
+</header>
+
+<main class="portal-shell">
+	<section class="portal-notice" th:if="${temporaryAdmin}">
+		<i data-lucide="triangle-alert"></i>
+		<p>当前使用临时硬编码管理员账号，仅供课程演示；上线前必须按
+			<code>TemporaryAdminAccount</code> 类注释删除。</p>
+	</section>
+
+	<section class="portal-hero">
+		<p class="eyebrow">WELCOME</p>
+		<h1 th:text="'你好，' + ${userName}">你好，当前用户</h1>
+		<p class="portal-hero-sub">
+			当前账号拥有 <strong th:text="${permissionCount}">0</strong> 个权限点，
+			可访问下列与权限匹配的业务入口。
+		</p>
+	</section>
+
+	<section class="portal-section"
+		th:if="${permCodes != null and (#lists.contains(permCodes,'user:manage')
+			or #lists.contains(permCodes,'role:manage')
+			or #lists.contains(permCodes,'report:view')
+			or #lists.contains(permCodes,'audit:view')
+			or #lists.contains(permCodes,'report:export'))}">
+		<h2 class="portal-section-title">用户与报表中心</h2>
+		<div class="portal-grid">
+			<a class="portal-card"
+				th:if="${#lists.contains(permCodes,'user:manage')}"
+				th:href="@{/console}">
+				<span class="portal-card-icon"><i data-lucide="users"></i></span>
+				<strong>员工管理</strong>
+				<p>维护工号、部门、工位、电话与账号状态，支持批量导入。</p>
+				<span class="portal-card-meta">需要权限：user:manage</span>
+			</a>
+			<a class="portal-card"
+				th:if="${#lists.contains(permCodes,'role:manage')}"
+				th:href="@{/console}">
+				<span class="portal-card-icon"><i data-lucide="shield-check"></i></span>
+				<strong>角色权限</strong>
+				<p>维护角色并配置业务权限点，预置角色不可改名或删除。</p>
+				<span class="portal-card-meta">需要权限：role:manage</span>
+			</a>
+			<a class="portal-card"
+				th:if="${#lists.contains(permCodes,'report:view')}"
+				th:href="@{/console}">
+				<span class="portal-card-icon"><i data-lucide="chart-no-axes-column"></i></span>
+				<strong>财务报表</strong>
+				<p>生成、查看、刷新并导出月度销售总报表。</p>
+				<span class="portal-card-meta">需要权限：report:view</span>
+			</a>
+			<a class="portal-card"
+				th:if="${#lists.contains(permCodes,'audit:view')
+					or (#roleNames != null and #lists.contains(roleNames,'FINANCE'))}"
+				th:href="@{/console}">
+				<span class="portal-card-icon"><i data-lucide="search-check"></i></span>
+				<strong>消费审计</strong>
+				<p>按部门与员工查看月度消费汇总和订单快照明细。</p>
+				<span class="portal-card-meta">需要权限：audit:view 或 FINANCE</span>
+			</a>
+		</div>
+	</section>
+
+	<section class="portal-section"
+		th:if="${permCodes != null and (#lists.contains(permCodes,'order:submit')
+			or #lists.contains(permCodes,'order:view:all')
+			or #lists.contains(permCodes,'menu:recipe:manage')
+			or #lists.contains(permCodes,'menu:menu:manage'))}">
+		<h2 class="portal-section-title">常用业务入口</h2>
+		<div class="portal-grid">
+			<a class="portal-card"
+				th:if="${#lists.contains(permCodes,'order:submit')}"
+				th:href="@{/order/create}">
+				<span class="portal-card-icon"><i data-lucide="utensils"></i></span>
+				<strong>今日点餐</strong>
+				<p>查看当前已发布菜单并提交当天订单。</p>
+			</a>
+			<a class="portal-card"
+				th:if="${#lists.contains(permCodes,'order:submit')
+					or #lists.contains(permCodes,'order:view:all')}"
+				th:href="@{/order/mine}">
+				<span class="portal-card-icon"><i data-lucide="receipt-text"></i></span>
+				<strong>订单中心</strong>
+				<p>查看个人历史订单、月度汇总；经理可查看全部订单。</p>
+			</a>
+			<a class="portal-card"
+				th:if="${#lists.contains(permCodes,'menu:recipe:manage')}"
+				th:href="@{/recipes}">
+				<span class="portal-card-icon"><i data-lucide="chef-hat"></i></span>
+				<strong>菜品管理</strong>
+				<p>维护菜品名称、分类、单位、价格与图片。</p>
+			</a>
+			<a class="portal-card"
+				th:if="${#lists.contains(permCodes,'menu:menu:manage')}"
+				th:href="@{/menus}">
+				<span class="portal-card-icon"><i data-lucide="clipboard-list"></i></span>
+				<strong>菜单管理</strong>
+				<p>创建待发布菜单，配置菜单价格并执行发布或下架。</p>
+			</a>
+		</div>
+	</section>
+
+	<section class="portal-empty"
+		th:if="${permCodes == null or permCodes.isEmpty()}">
+		<i data-lucide="shield-x"></i>
+		<p>当前账号尚未分配业务权限，请联系餐厅经理配置角色。</p>
+	</section>
+</main>
+
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<script>
+	(function () {
+		"use strict";
+
+		if (window.lucide) {
+			window.lucide.createIcons();
+		}
+
+		const logoutButton = document.getElementById("portal-logout");
+		if (!logoutButton) {
+			return;
+		}
+		logoutButton.addEventListener("click", async function () {
+			const token = window.localStorage.getItem("dsh_token");
+			try {
+				await fetch("/api/v1/user/auth/logout", {
+					method: "POST",
+					headers: token ? {"Authorization": "Bearer " + token} : {}
+				});
+			} catch (ignored) {
+				// 即使登出接口失败，也清理浏览器登录态并返回登录页。
+			}
+			window.localStorage.removeItem("dsh_token");
+			document.cookie = "dsh_token=; path=/; max-age=0; SameSite=Lax";
+			window.location.assign("/login");
+		});
+	})();
+</script>
+</body>
+</html>

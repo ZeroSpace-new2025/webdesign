@@ -2,8 +2,6 @@ package com.university.webdesign.impl.report;
 
 import com.university.webdesign.common.BusinessException;
 import com.university.webdesign.common.ErrorCode;
-import com.university.webdesign.common.PageQuery;
-import com.university.webdesign.common.PageResult;
 import com.university.webdesign.common.enums.PermissionEnum;
 import com.university.webdesign.common.RoleCodes;
 import com.university.webdesign.common.TabularExport;
@@ -22,9 +20,6 @@ import com.university.webdesign.service.report.MonthConverter;
 import com.university.webdesign.service.report.ReportService;
 import com.university.webdesign.service.report.dto.DishSalesVO;
 import com.university.webdesign.service.report.dto.MonthlyReportVO;
-import com.university.webdesign.service.user.UserService;
-import com.university.webdesign.service.user.dto.UserQuery;
-import com.university.webdesign.service.user.dto.UserVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
@@ -38,10 +33,8 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * 财务报表服务实现。
@@ -65,7 +58,6 @@ public class ReportServiceImpl implements ReportService
 			DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
 	private final MonthlyReportRepository monthlyReportRepository;
-	private final UserService userService;
 	private final ApplicationEventPublisher eventPublisher;
 	private final MonthlyOrderReader orderReader;
 
@@ -74,16 +66,13 @@ public class ReportServiceImpl implements ReportService
 	 *
 	 * @param monthlyReportRepository 月度报表仓库
 	 * @param orderQueryService       订单取数契约（跨模块，只读）
-	 * @param userService             员工信息契约（跨模块，只读；按部门筛明细时用 {@code page}）
 	 * @param eventPublisher          领域事件发布器
 	 */
 	public ReportServiceImpl(
 			MonthlyReportRepository monthlyReportRepository,
 			OrderQueryService orderQueryService,
-			UserService userService,
 			ApplicationEventPublisher eventPublisher) {
 		this.monthlyReportRepository = monthlyReportRepository;
-		this.userService = userService;
 		this.eventPublisher = eventPublisher;
 		this.orderReader = new MonthlyOrderReader(orderQueryService);
 	}
@@ -129,7 +118,8 @@ public class ReportServiceImpl implements ReportService
 		if (deptId == null) {
 			return toVO(report, report.getItems());
 		}
-		return toVO(report, filterItemsByDept(month, deptId, report.getItems()));
+		List<OrderVO> orders = orderReader.readMonthByDept(month, deptId);
+		return toVO(report, aggregate(orders), orders.size());
 	}
 
 	@Override
@@ -247,56 +237,6 @@ public class ReportServiceImpl implements ReportService
 	}
 
 	/**
-	 * 按部门过滤报表明细：只保留该部门员工当月点过的菜品
-	 *
-	 * @param month  月份
-	 * @param deptId 部门ID
-	 * @param items  全餐厅明细
-	 * @return 过滤后的明细
-	 */
-	private List<MonthlyReportItem> filterItemsByDept(YearMonth month, Long deptId,
-			List<MonthlyReportItem> items) {
-		// 注：UserService 目前没有“按部门列员工”的契约方法，这里按部门分页取员工（pageSize 上限 100）；
-		// 单部门员工超过 100 人时建议补 UserService.listByDept(deptId) 契约，避免漏算。
-		UserQuery employeeQuery = new UserQuery();
-		employeeQuery.setDeptId(deptId);
-		employeeQuery.setPageSize(PageQuery.MAX_PAGE_SIZE);
-		PageResult<UserVO> employeePage = userService.page(employeeQuery);
-		Set<Long> employeeIds = new LinkedHashSet<>();
-		if (employeePage != null && employeePage.getList() != null) {
-			for (UserVO employee : employeePage.getList()) {
-				if (employee != null && employee.getUserId() != null) {
-					employeeIds.add(employee.getUserId());
-				}
-			}
-		}
-		if (employeeIds.isEmpty()) {
-			return List.of();
-		}
-		Set<Long> recipeIds = new LinkedHashSet<>();
-		boolean hasUnknownRecipe = false;
-		for (OrderVO order : orderReader.readMonth(month, employeeIds)) {
-			for (DishSalesVO dish : itemsOf(order)) {
-				if (dish.getRecipeId() == null) {
-					hasUnknownRecipe = true;
-				} else {
-					recipeIds.add(dish.getRecipeId());
-				}
-			}
-		}
-		List<MonthlyReportItem> filtered = new ArrayList<>();
-		for (MonthlyReportItem item : items) {
-			if (item.getRecipeId() != null && recipeIds.contains(item.getRecipeId())) {
-				filtered.add(item);
-			} else if (item.getRecipeId() == null && hasUnknownRecipe) {
-				// 历史订单明细缺菜品ID时，以“该部门当月也有无ID菜品”为条件保留
-				filtered.add(item);
-			}
-		}
-		return filtered;
-	}
-
-	/**
 	 * 报表实体 → 视图
 	 *
 	 * @param report 报表实体
@@ -325,6 +265,46 @@ public class ReportServiceImpl implements ReportService
 				dishItems.add(dish);
 			}
 		}
+		vo.setItems(dishItems);
+		return vo;
+	}
+
+	/**
+	 * 基于实时聚合结果构造部门报表视图
+	 * <p>
+	 * {@code monthly_report} 缓存表只保存全餐厅口径；按部门查询时金额、数量与订单数
+	 * 必须重新按该部门订单计算，不能沿用全餐厅汇总值。
+	 *
+	 * @param report     报表缓存元数据
+	 * @param aggregates 菜品聚合结果
+	 * @param orderCount 部门有效订单数
+	 * @return 部门报表视图
+	 */
+	private MonthlyReportVO toVO(MonthlyReport report, Map<String, Aggregate> aggregates,
+			long orderCount) {
+		MonthlyReportVO vo = new MonthlyReportVO();
+		vo.setReportId(report.getId());
+		vo.setMonth(MonthConverter.format(report.getReportMonth()));
+		vo.setOrderCount(orderCount);
+		vo.setGeneratedAt(report.getGeneratedAt() == null
+				? null
+				: report.getGeneratedAt().format(DATE_TIME_FORMATTER));
+		long totalQuantity = 0L;
+		BigDecimal totalAmount = BigDecimal.ZERO;
+		List<DishSalesVO> dishItems = new ArrayList<>();
+		for (Aggregate item : aggregates.values()) {
+			DishSalesVO dish = new DishSalesVO();
+			dish.setRecipeId(item.recipeId);
+			dish.setRecipeName(item.recipeName);
+			dish.setCategory(item.category);
+			dish.setQuantity(item.quantity);
+			dish.setAmount(item.amount);
+			dishItems.add(dish);
+			totalQuantity += item.quantity;
+			totalAmount = totalAmount.add(item.amount);
+		}
+		vo.setTotalQuantity(totalQuantity);
+		vo.setTotalAmount(totalAmount);
 		vo.setItems(dishItems);
 		return vo;
 	}
