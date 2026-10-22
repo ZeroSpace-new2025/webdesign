@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>配送单打印预览</title>
+    <link rel="stylesheet" th:href="@{/css/operation.css}">
+</head>
+<body>
+<div class="m3-container">
+    <div class="m3-toolbar m3-no-print">
+        <div>
+            <strong>批次号：</strong><span th:text="${batch.printBatchId}"></span>
+            　<strong>本次打印：</strong><span th:text="${batch.printedCount}"></span> 张
+        </div>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+            <button type="button" class="m3-btn m3-btn-primary" onclick="window.print()">🖨️ 打印</button>
+            <a th:href="@{/operation/deliveries}" class="m3-btn m3-btn-outline">返回列表</a>
+        </div>
+    </div>
+    <div class="m3-print-preview">
+        <pre th:text="${batch.content}"></pre>
+    </div>
+</div>
+</body>
+</html>

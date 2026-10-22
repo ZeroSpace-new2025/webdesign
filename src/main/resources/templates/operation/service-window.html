@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>时间窗口配置</title>
+    <link rel="stylesheet" th:href="@{/css/operation.css}">
+</head>
+<body>
+<div class="m3-container">
+    <div class="m3-header">
+        <h1>时间窗口配置</h1>
+        <a th:href="@{/portal}" class="m3-back">← 返回门户</a>
+    </div>
+
+    <div th:if="${message}" class="m3-alert m3-alert-success" th:text="${message}"></div>
+    <div th:if="${error}" class="m3-alert m3-alert-error" th:text="${error}"></div>
+
+    <div class="m3-stats">
+        <div class="m3-stat-card">
+            <div class="m3-stat-label">当前订餐截止时间</div>
+            <div class="m3-stat-value" th:text="${window.cutoffTime}"></div>
+        </div>
+        <div class="m3-stat-card m3-stat-success">
+            <div class="m3-stat-label">当前配餐开始时间</div>
+            <div class="m3-stat-value" th:text="${window.deliveryStartTime}"></div>
+        </div>
+        <div class="m3-stat-card m3-stat-warning">
+            <div class="m3-stat-label">作用域</div>
+            <div class="m3-stat-value" style="font-size:18px;" th:text="${window.scope}"></div>
+        </div>
+    </div>
+
+    <h2>修改配置（立即生效）</h2>
+    <form method="post" th:action="@{/operation/configs/service-window}" data-m3="service-window" class="m3-toolbar" style="flex-direction:column; align-items:stretch; gap:16px;">
+        <input type="hidden" name="configId" th:value="${window.configId}">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px;">
+            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--m3-muted);">
+                订餐截止时间
+                <input type="time" name="cutoffTime" th:value="${window.cutoffTime}" required>
+            </label>
+            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--m3-muted);">
+                配餐开始时间
+                <input type="time" name="deliveryStartTime" th:value="${window.deliveryStartTime}" required>
+            </label>
+            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--m3-muted);">
+                生效起始日期
+                <input type="date" name="effectiveFrom" th:value="${window.effectiveFrom}">
+            </label>
+            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--m3-muted);">
+                作用域
+                <select name="scope">
+                    <option value="GLOBAL" th:selected="${window.scope == 'GLOBAL'}">全局（GLOBAL）</option>
+                    <option value="DEPT" th:selected="${window.scope == 'DEPT'}">部门（DEPT）</option>
+                </select>
+            </label>
+            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--m3-muted);">
+                部门ID（DEPT 时必填）
+                <input type="number" name="deptId" th:value="${window.deptId}">
+            </label>
+        </div>
+        <div style="text-align:right;">
+            <button type="submit" class="m3-btn m3-btn-primary">保存（立即生效）</button>
+        </div>
+    </form>
+</div>
+<script th:src="@{/js/operation.js}"></script>
+</body>
+</html>

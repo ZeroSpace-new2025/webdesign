@@ -2,31 +2,15 @@ package com.university.webdesign.config;
 
 import com.university.webdesign.common.RoleCodes;
 import com.university.webdesign.common.enums.PermissionEnum;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 /**
- * 临时硬编码管理员账号（课程演示用，**不落库**）。
+ * 临时硬编码管理员账号。
  * <p>
- * 用途：在空库、{@code app.storage=none} 或数据库不可用时也能登录系统，方便演示与联调。
- * 账号默认 {@code admin / admin123}，可用 {@code app.temporary-admin.employee-no} /
- * {@code app.temporary-admin.password} 覆盖；它固定拥有 {@link PermissionEnum#dictionary()}
- * 里的全部细粒度权限点，因此不受数据库角色配置影响。
- * <p>
- * 与数据库用户完全隔离：登录时 {@code AuthServiceImpl} 先比对本账号，命中后直接签发 JWT，
- * 不查 {@code users} 表；{@link #USER_ID} 使用负数，绝不与数据库自增主键冲突。
- * <p>
- * <b>上线前必须删除</b>，删除步骤：
- * <ol>
- *     <li>删除本类；</li>
- *     <li>删除 {@code AuthServiceImpl} 中对 {@code TemporaryAdminAccount} 的字段、构造参数、
- *         登录分支与 {@code temporaryAdminInfo()} 方法；</li>
- *     <li>删除 {@code web.PageController} 中对它的注入与 {@code temporaryAdmin} 模型属性，
- *         以及登录页/总门户里的“演示账号”入口；</li>
- *     <li>删除 {@code app.temporary-admin.*} 配置项。</li>
- * </ol>
+ * 用于解决开发初期数据库没初始化、或者 M4 模块还没写完时，系统能有一个兜底的管理员账号登录。
+ * 只要工号和密码匹配，就能直接签发最高权限的 Token。
  */
 @Component
 public class TemporaryAdminAccount
