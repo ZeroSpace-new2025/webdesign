@@ -10,6 +10,7 @@ import com.university.webdesign.domain.menu.RecipeStatus;
 import com.university.webdesign.event.RecipeChangedEvent;
 import com.university.webdesign.repository.menu.MenuItemRepository;
 import com.university.webdesign.repository.menu.RecipeRepository;
+import com.university.webdesign.service.menu.ImageStorage;
 import com.university.webdesign.service.menu.RecipeService;
 import com.university.webdesign.service.menu.dto.CategoryVO;
 import com.university.webdesign.service.menu.dto.RecipeCreateCmd;
@@ -53,18 +54,18 @@ public class RecipeServiceImpl implements RecipeService
 
 	private final MenuItemRepository menuItemRepository;
 
-	private final ImageStorageService imageStorageService;
+	private final ImageStorage imageStorage;
 
 	private final ApplicationEventPublisher eventPublisher;
 
 	public RecipeServiceImpl(
 			RecipeRepository recipeRepository,
 			MenuItemRepository menuItemRepository,
-			ImageStorageService imageStorageService,
+			ImageStorage imageStorage,
 			ApplicationEventPublisher eventPublisher) {
 		this.recipeRepository = recipeRepository;
 		this.menuItemRepository = menuItemRepository;
-		this.imageStorageService = imageStorageService;
+		this.imageStorage = imageStorage;
 		this.eventPublisher = eventPublisher;
 	}
 
@@ -174,7 +175,7 @@ public class RecipeServiceImpl implements RecipeService
 
 	@Override
 	public String uploadImage(MultipartFile file) {
-		return imageStorageService.store(file);
+		return imageStorage.store(file);
 	}
 
 	@Override
@@ -324,6 +325,7 @@ public class RecipeServiceImpl implements RecipeService
 		RecipeStatus status = recipe.getStatus() == null ? RecipeStatus.ACTIVE : recipe.getStatus();
 		vo.setStatus(status.name());
 		vo.setStatusText(status.getLabel());
+		vo.setOfflineReason(recipe.getOfflineReason());
 		vo.setVersion(recipe.getVersion());
 		vo.setCreatedBy(recipe.getCreatedBy());
 		vo.setCreatedAt(recipe.getCreatedAt());

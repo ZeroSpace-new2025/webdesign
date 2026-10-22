@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 菜单分页查询条件（M1-13）。
@@ -31,6 +32,12 @@ public class MenuQuery extends PageQuery
 	 * 状态编码：DRAFT / PUBLISHED / OFFLINE，为空表示不限
 	 */
 	private String status;
+
+	/**
+	 * 状态编码集合：一次查询多种状态，为空表示不限；与 {@link #status} 同时给出时取交集。
+	 * 历史菜单页用 {@code [PUBLISHED, OFFLINE]} 一次取出全部已锁定的历史版本。
+	 */
+	private List<String> statuses;
 
 	/**
 	 * 菜单ID，用于按ID精确查询单份菜单，为空表示不限

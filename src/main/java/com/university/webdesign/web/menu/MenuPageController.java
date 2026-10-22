@@ -73,6 +73,42 @@ public class MenuPageController
 	}
 
 	/**
+	 * 历史菜单列表：已发布 + 已下架（locked）菜单，带发布时冻结的菜品快照
+	 * <p>
+	 * 默认取全部历史版本；带 {@code status} 时按单一状态筛选。
+	 * 明细走 {@code MenuService.page(withItems=true)}：已发布/已下架菜单取 {@code menu_snapshot}，
+	 * 因此菜名与价格是发布当时的冻结值，不受菜品后续改名调价影响。
+	 *
+	 * @param status 状态编码（PUBLISHED / OFFLINE），为空表示全部历史
+	 * @param model  视图模型
+	 * @return 视图名
+	 */
+	@GetMapping("/history")
+	public String history(
+			@RequestParam(value = "status", required = false) String status,
+			Model model) {
+		MenuQuery query = new MenuQuery();
+		String normalized = status == null ? null : status.trim().toUpperCase();
+		boolean singleStatus = MenuStatus.PUBLISHED.name().equals(normalized)
+				|| MenuStatus.OFFLINE.name().equals(normalized);
+		if (singleStatus) {
+			query.setStatus(normalized);
+		} else {
+			// 未指定（或不合法）状态时，历史页只取已锁定版本：已发布 + 已下架，绝不混入草稿
+			normalized = null;
+			query.setStatuses(List.of(MenuStatus.PUBLISHED.name(), MenuStatus.OFFLINE.name()));
+		}
+		query.setWithItems(Boolean.TRUE);
+		query.setPageNum(1);
+		query.setPageSize(QUERY_PAGE_SIZE);
+		PageResult<MenuVO> page = menuService.page(query);
+		model.addAttribute("menus", page.getList());
+		model.addAttribute("total", page.getTotal());
+		model.addAttribute("status", normalized);
+		return "menu/history";
+	}
+
+	/**
 	 * 新建菜单表单
 	 *
 	 * @param model 视图模型
@@ -311,7 +347,10 @@ public class MenuPageController
 	}
 
 	/**
-	 * 构建“全部菜品 + 勾选状态 + 菜单售价”的编辑网格
+	 * 构建“菜品 + 勾选状态 + 菜单售价”的编辑网格
+	 * <p>
+	 * 按 demand.md“已删除的菜品在这里不显示”：已下架（DISABLED）菜品一律不出现在候选里，
+	 * 已下架菜品只能通过历史菜单/菜单订单里的快照查看。
 	 *
 	 * @param menu 正在编辑的菜单，为 null 表示新建
 	 * @return 编辑行
@@ -334,14 +373,16 @@ public class MenuPageController
 		List<MenuForm.Row> rows = new ArrayList<>();
 		for (RecipeVO recipe : recipes) {
 			boolean disabled = !RecipeStatus.ACTIVE.name().equals(recipe.getStatus());
-			MenuForm.Row chosen = selected.get(recipe.getRecipeId());
-			// 历史菜单里的菜品即使已停用也要展示出来，否则编辑时会莫名丢菜
-			MenuForm.Row row = chosen == null ? new MenuForm.Row() : chosen;
+			// 已下架菜品不再作为候选展示（历史菜单与历史订单另有快照可查）
+			if (disabled) {
+				continue;
+			}
+			MenuForm.Row row = selected.getOrDefault(recipe.getRecipeId(), new MenuForm.Row());
 			row.setRecipeId(recipe.getRecipeId());
 			row.setRecipeName(recipe.getName());
 			row.setCategory(recipe.getCategory());
 			row.setUnit(recipe.getUnit());
-			row.setDisabled(disabled);
+			row.setDisabled(false);
 			if (row.getMenuPrice() == null) {
 				row.setMenuPrice(recipe.getUnitPrice());
 			}

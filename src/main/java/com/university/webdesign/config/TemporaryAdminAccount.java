@@ -15,57 +15,90 @@ import java.util.List;
 @Component
 public class TemporaryAdminAccount
 {
-    /**
-     * 固定用户ID，避免与数据库中真实用户冲突
-     */
-    public static final Long USER_ID = -1L;
+	/**
+	 * 临时管理员的固定用户ID：负数，避免与数据库自增主键冲突
+	 */
+	public static final Long USER_ID = -1L;
 
-    /**
-     * 显示名称
-     */
-    public static final String NAME = "临时管理员";
+	/**
+	 * 临时管理员展示名
+	 */
+	public static final String NAME = "临时管理员";
 
-    /**
-     * 临时账号工号（满足组员的 record 式调用）
-     */
-    public String employeeNo() {
-        return "admin";
-    }
+	/**
+	 * 登录工号（可配置）
+	 */
+	private final String employeeNo;
 
-    /**
-     * 临时账号密码
-     */
-    public String password() {
-        return "admin123";
-    }
+	/**
+	 * 登录密码（明文比对，仅课程演示使用）
+	 */
+	private final String password;
 
-    /**
-     * 角色（直接赋予经理角色）
-     */
-    public List<String> roles() {
-        return List.of(RoleCodes.MANAGER);
-    }
+	/**
+	 * 固定权限点：全部细粒度权限点
+	 */
+	private final List<String> permCodes;
 
-    /**
-     * 权限点（赋予所有可用的权限）
-     */
-    public List<String> permCodes() {
-        return PermissionEnum.dictionary().stream()
-                .map(PermissionEnum::displayCode)
-                .toList();
-    }
+	/**
+	 * 构造器注入配置
+	 *
+	 * @param employeeNo 工号，默认 {@code admin}
+	 * @param password   密码，默认 {@code admin123}
+	 */
+	public TemporaryAdminAccount(
+			@Value("${app.temporary-admin.employee-no:admin}") String employeeNo,
+			@Value("${app.temporary-admin.password:admin123}") String password) {
+		this.employeeNo = employeeNo;
+		this.password = password;
+		this.permCodes = PermissionEnum.dictionary().stream()
+				.map(PermissionEnum::displayCode)
+				.toList();
+	}
 
-    /**
-     * 判断账号密码是否匹配（组员的 AuthServiceImpl 会调用这个）
-     */
-    public boolean matches(String inputNo, String inputPwd) {
-        return employeeNo().equalsIgnoreCase(inputNo) && password().equals(inputPwd);
-    }
+	/**
+	 * 工号 + 密码是否命中临时管理员
+	 *
+	 * @param employeeNo  登录工号（已去空白）
+	 * @param rawPassword 明文密码
+	 * @return 命中时返回 true
+	 */
+	public boolean matches(String employeeNo, String rawPassword) {
+		return employeeNo != null && rawPassword != null
+				&& this.employeeNo.equalsIgnoreCase(employeeNo.trim())
+				&& this.password.equals(rawPassword);
+	}
 
-    /**
-     * 判断是否是该临时账号
-     */
-    public boolean isAdmin(Long userId) {
-        return USER_ID.equals(userId);
-    }
+	/**
+	 * 指定用户ID是否就是临时管理员
+	 *
+	 * @param userId 用户ID
+	 * @return 是临时管理员时返回 true
+	 */
+	public boolean isAdmin(Long userId) {
+		return USER_ID.equals(userId);
+	}
+
+	/**
+	 * @return 登录工号
+	 */
+	public String employeeNo() {
+		return employeeNo;
+	}
+
+	/**
+	 * 临时管理员角色：仅用于页面展示，权限不依赖该角色
+	 *
+	 * @return 角色名称列表
+	 */
+	public List<String> roles() {
+		return List.of(RoleCodes.MANAGER);
+	}
+
+	/**
+	 * @return 全部细粒度权限点编码
+	 */
+	public List<String> permCodes() {
+		return permCodes;
+	}
 }

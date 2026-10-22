@@ -1,165 +1,123 @@
 <!DOCTYPE html>
-<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>业务门户 | 企业餐厅网络点餐系统</title>
-	<link rel="stylesheet" th:href="@{/css/app.css}">
-</head>
-<body class="portal-page">
-<header class="portal-topbar">
-	<a class="portal-brand" th:href="@{/portal}">
-		<span class="brand-mark">餐</span>
-		<div>
-			<strong>企业餐厅网络点餐系统</strong>
-			<small>BUSINESS PORTAL</small>
-		</div>
-	</a>
-	<div class="portal-account">
-		<div class="portal-account-info">
-			<strong th:text="${userName}">当前用户</strong>
-			<small th:text="${employeeNo}">工号</small>
-		</div>
-		<button id="portal-logout" class="button button-secondary" type="button">
-			<i data-lucide="log-out"></i><span>退出登录</span>
-		</button>
-	</div>
-</header>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('总门户')}"></head>
+<body>
+<div class="container">
+    <div class="page-header">
+        <div>
+            <h1>企业餐厅网络点餐系统</h1>
+            <p class="muted" style="margin:4px 0 0;">
+                欢迎，<strong th:text="${userName}">用户</strong>
+                <span th:if="${employeeNo != null}">（工号 <span th:text="${employeeNo}">-</span>）</span>
+                · 拥有 <span th:text="${permissionCount}">0</span> 个权限点
+            </p>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+            <span class="badge badge-active"
+                  th:if="${temporaryAdmin}"
+                  title="临时硬编码管理员，不落库，上线前必须删除">临时管理员</span>
+            <button class="btn" type="button" id="logout-button">退出登录</button>
+        </div>
+    </div>
 
-<main class="portal-shell">
-	<section class="portal-notice" th:if="${temporaryAdmin}">
-		<i data-lucide="triangle-alert"></i>
-		<p>当前使用临时硬编码管理员账号，仅供课程演示；上线前必须按
-			<code>TemporaryAdminAccount</code> 类注释删除。</p>
-	</section>
+    <div th:if="${temporaryAdmin}" class="alert alert-error">
+        当前登录的是<b>临时硬编码管理员</b>（不落库、拥有全部权限点），仅用于演示与空库兜底，上线前必须删除。
+    </div>
 
-	<section class="portal-hero">
-		<p class="eyebrow">WELCOME</p>
-		<h1 th:text="'你好，' + ${userName}">你好，当前用户</h1>
-		<p class="portal-hero-sub">
-			当前账号拥有 <strong th:text="${permissionCount}">0</strong> 个权限点，
-			可访问下列与权限匹配的业务入口。
-		</p>
-	</section>
+    <div th:if="${roleNames != null and !roleNames.isEmpty()}" class="card" style="margin-bottom:20px;">
+        <span class="muted">当前角色：</span>
+        <span class="badge badge-published" style="margin-right:6px;"
+              th:each="role : ${roleNames}" th:text="${role}">MANAGER</span>
+    </div>
 
-	<section class="portal-section"
-		th:if="${permCodes != null and (#lists.contains(permCodes,'user:manage')
-			or #lists.contains(permCodes,'role:manage')
-			or #lists.contains(permCodes,'report:view')
-			or #lists.contains(permCodes,'audit:view')
-			or #lists.contains(permCodes,'report:export'))}">
-		<h2 class="portal-section-title">用户与报表中心</h2>
-		<div class="portal-grid">
-			<a class="portal-card"
-				th:if="${#lists.contains(permCodes,'user:manage')}"
-				th:href="@{/console}">
-				<span class="portal-card-icon"><i data-lucide="users"></i></span>
-				<strong>员工管理</strong>
-				<p>维护工号、部门、工位、电话与账号状态，支持批量导入。</p>
-				<span class="portal-card-meta">需要权限：user:manage</span>
-			</a>
-			<a class="portal-card"
-				th:if="${#lists.contains(permCodes,'role:manage')}"
-				th:href="@{/console}">
-				<span class="portal-card-icon"><i data-lucide="shield-check"></i></span>
-				<strong>角色权限</strong>
-				<p>维护角色并配置业务权限点，预置角色不可改名或删除。</p>
-				<span class="portal-card-meta">需要权限：role:manage</span>
-			</a>
-			<a class="portal-card"
-				th:if="${#lists.contains(permCodes,'report:view')}"
-				th:href="@{/console}">
-				<span class="portal-card-icon"><i data-lucide="chart-no-axes-column"></i></span>
-				<strong>财务报表</strong>
-				<p>生成、查看、刷新并导出月度销售总报表。</p>
-				<span class="portal-card-meta">需要权限：report:view</span>
-			</a>
-			<a class="portal-card"
-				th:if="${#lists.contains(permCodes,'audit:view')
-					or (#roleNames != null and #lists.contains(roleNames,'FINANCE'))}"
-				th:href="@{/console}">
-				<span class="portal-card-icon"><i data-lucide="search-check"></i></span>
-				<strong>消费审计</strong>
-				<p>按部门与员工查看月度消费汇总和订单快照明细。</p>
-				<span class="portal-card-meta">需要权限：audit:view 或 FINANCE</span>
-			</a>
-		</div>
-	</section>
+    <!-- 功能入口：按权限点显隐，禁用卡片为“只有接口、暂无页面”的模块 -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;">
 
-	<section class="portal-section"
-		th:if="${permCodes != null and (#lists.contains(permCodes,'order:submit')
-			or #lists.contains(permCodes,'order:view:all')
-			or #lists.contains(permCodes,'menu:recipe:manage')
-			or #lists.contains(permCodes,'menu:menu:manage'))}">
-		<h2 class="portal-section-title">常用业务入口</h2>
-		<div class="portal-grid">
-			<a class="portal-card"
-				th:if="${#lists.contains(permCodes,'order:submit')}"
-				th:href="@{/order/create}">
-				<span class="portal-card-icon"><i data-lucide="utensils"></i></span>
-				<strong>今日点餐</strong>
-				<p>查看当前已发布菜单并提交当天订单。</p>
-			</a>
-			<a class="portal-card"
-				th:if="${#lists.contains(permCodes,'order:submit')
-					or #lists.contains(permCodes,'order:view:all')}"
-				th:href="@{/order/mine}">
-				<span class="portal-card-icon"><i data-lucide="receipt-text"></i></span>
-				<strong>订单中心</strong>
-				<p>查看个人历史订单、月度汇总；经理可查看全部订单。</p>
-			</a>
-			<a class="portal-card"
-				th:if="${#lists.contains(permCodes,'menu:recipe:manage')}"
-				th:href="@{/recipes}">
-				<span class="portal-card-icon"><i data-lucide="chef-hat"></i></span>
-				<strong>菜品管理</strong>
-				<p>维护菜品名称、分类、单位、价格与图片。</p>
-			</a>
-			<a class="portal-card"
-				th:if="${#lists.contains(permCodes,'menu:menu:manage')}"
-				th:href="@{/menus}">
-				<span class="portal-card-icon"><i data-lucide="clipboard-list"></i></span>
-				<strong>菜单管理</strong>
-				<p>创建待发布菜单，配置菜单价格并执行发布或下架。</p>
-			</a>
-		</div>
-	</section>
+        <div class="card"
+             th:if="${permCodes != null and #lists.contains(permCodes,'order:submit')}">
+            <h2 style="font-size:17px;margin:0 0 8px;">今日点餐</h2>
+            <p class="muted" style="margin:0 0 14px;">查看当日已发布菜单，选择菜品并提交订单（截止前可改单）。</p>
+            <a class="btn btn-primary" th:href="@{/order/create}">进入点餐</a>
+        </div>
 
-	<section class="portal-empty"
-		th:if="${permCodes == null or permCodes.isEmpty()}">
-		<i data-lucide="shield-x"></i>
-		<p>当前账号尚未分配业务权限，请联系餐厅经理配置角色。</p>
-	</section>
-</main>
+        <div class="card"
+             th:if="${permCodes != null and #lists.contains(permCodes,'order:submit')}">
+            <h2 style="font-size:17px;margin:0 0 8px;">我的订单</h2>
+            <p class="muted" style="margin:0 0 14px;">个人历史订单、月度消费汇总与订单详情，截止前可取消。</p>
+            <a class="btn btn-primary" th:href="@{/order/mine}">查看订单</a>
+        </div>
 
-<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-<script>
-	(function () {
-		"use strict";
+        <div class="card"
+             th:if="${permCodes != null and (#lists.contains(permCodes,'menu:recipe:manage')
+                    or #lists.contains(permCodes,'menu:menu:manage'))}">
+            <h2 style="font-size:17px;margin:0 0 8px;">菜品与菜单</h2>
+            <p class="muted" style="margin:0 0 14px;">维护菜品库、编排并发布菜单，查看历史菜品与历史菜单快照。</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <a class="btn btn-primary"
+                   th:if="${permCodes != null and #lists.contains(permCodes,'menu:recipe:manage')}"
+                   th:href="@{/recipes}">菜品管理</a>
+                <a class="btn"
+                   th:if="${permCodes != null and #lists.contains(permCodes,'menu:recipe:manage')}"
+                   th:href="@{/recipes/history}">历史菜品</a>
+                <a class="btn btn-primary"
+                   th:if="${permCodes != null and #lists.contains(permCodes,'menu:menu:manage')}"
+                   th:href="@{/menus}">菜单管理</a>
+                <a class="btn"
+                   th:if="${permCodes != null and #lists.contains(permCodes,'menu:menu:manage')}"
+                   th:href="@{/menus/history}">历史菜单</a>
+            </div>
+        </div>
 
-		if (window.lucide) {
-			window.lucide.createIcons();
-		}
+        <div class="card"
+             th:if="${permCodes != null and (#lists.contains(permCodes,'user:manage')
+                    or #lists.contains(permCodes,'role:manage')
+                    or #lists.contains(permCodes,'report:view')
+                    or #lists.contains(permCodes,'audit:view'))}">
+            <h2 style="font-size:17px;margin:0 0 8px;">用户与报表控制台</h2>
+            <p class="muted" style="margin:0 0 14px;">员工与角色权限维护、批量导入、月度报表与消费审计。</p>
+            <a class="btn btn-primary" th:href="@{/console}">进入控制台</a>
+        </div>
 
-		const logoutButton = document.getElementById("portal-logout");
-		if (!logoutButton) {
-			return;
-		}
-		logoutButton.addEventListener("click", async function () {
-			const token = window.localStorage.getItem("dsh_token");
-			try {
-				await fetch("/api/v1/user/auth/logout", {
-					method: "POST",
-					headers: token ? {"Authorization": "Bearer " + token} : {}
-				});
-			} catch (ignored) {
-				// 即使登出接口失败，也清理浏览器登录态并返回登录页。
-			}
-			window.localStorage.removeItem("dsh_token");
-			document.cookie = "dsh_token=; path=/; max-age=0; SameSite=Lax";
-			window.location.assign("/login");
-		});
-	})();
+        <div class="card" style="opacity:.6;">
+            <h2 style="font-size:17px;margin:0 0 8px;">厨房备料（M3）</h2>
+            <p class="muted" style="margin:0 0 14px;">截止后聚合总括订单、按分类统计产量。当前仅提供 REST 接口，暂无页面。</p>
+            <button class="btn" type="button" disabled>暂未开放</button>
+        </div>
+
+        <div class="card" style="opacity:.6;">
+            <h2 style="font-size:17px;margin:0 0 8px;">配送单打印（M3）</h2>
+            <p class="muted" style="margin:0 0 14px;">到配餐开始时间后按员工/工位批量生成配送单。当前仅提供 REST 接口，暂无页面。</p>
+            <button class="btn" type="button" disabled>暂未开放</button>
+        </div>
+    </div>
+
+    <p class="muted" style="margin-top:22px;">
+        提示：点“退出登录”会清除本地令牌并回到登录页；页面跳转依赖浏览器 Cookie 中的登录态。
+    </p>
+</div>
+
+<script th:inline="javascript">
+    (function () {
+        "use strict";
+        var button = document.getElementById("logout-button");
+        if (!button) {
+            return;
+        }
+        button.addEventListener("click", async function () {
+            var token = window.localStorage.getItem("dsh_token");
+            try {
+                await fetch("/api/v1/user/auth/logout", {
+                    method: "POST",
+                    headers: token ? {"Authorization": "Bearer " + token} : {}
+                });
+            } catch (ignored) {
+                // 令牌可能已过期，清理本地状态即可
+            }
+            window.localStorage.removeItem("dsh_token");
+            document.cookie = "dsh_token=; path=/; max-age=0; SameSite=Lax";
+            window.location.assign("/login");
+        });
+    })();
 </script>
 </body>
 </html>
