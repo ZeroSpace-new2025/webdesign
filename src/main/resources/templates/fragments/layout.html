@@ -17,8 +17,22 @@
         <a th:href="@{/recipes}" th:classappend="${active == 'recipe'} ? 'active'">菜品管理</a>
         <a th:href="@{/menus}" th:classappend="${active == 'menu'} ? 'active'">菜单管理</a>
         <a th:href="@{/console}" th:classappend="${active == 'console'} ? 'active'">控制台</a>
+
+        <!-- ====== M3 运营与履约模块入口 开始 ====== -->
+        <a th:href="@{/operation/blanket-orders}" th:classappend="${active == 'blanket'} ? 'active'">厨房备料</a>
+        <a th:href="@{/operation/deliveries}" th:classappend="${active == 'delivery'} ? 'active'">配送管理</a>
+        <a th:href="@{/operation/configs/service-window}" th:classappend="${active == 'window'} ? 'active'">时间配置</a>
+        <!-- ====== M3 运营与履约模块入口 结束 ====== -->
+
     </div>
 </nav>
+
+<!-- 时间戳片段：LocalDateTime 渲染成 yyyy-MM-dd HH:mm，空值显示占位符 -->
+<th:block th:fragment="timestamp(value)">
+    <span th:if="${value == null}">—</span>
+    <span th:if="${value != null}"
+          th:text="${#strings.substring(#strings.replace(value.toString(), 'T', ' '), 0, 16)}">2026-01-01 12:00</span>
+</th:block>
 
 </body>
 </html>

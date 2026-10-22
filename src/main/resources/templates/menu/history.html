@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('历史菜单')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('menu')}"></nav>
+
+<div class="container">
+    <div class="page-header">
+        <h1>历史菜单</h1>
+        <a class="btn" th:href="@{/menus}">返回菜单管理</a>
+    </div>
+
+    <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+    <div class="card">
+        <!-- 状态筛选：默认“全部历史”由服务端按 PUBLISHED + OFFLINE 查询，页面不拼状态逻辑 -->
+        <form style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;"
+              th:action="@{/menus/history}" method="get">
+            <div class="form-group" style="margin:0;">
+                <label for="status">菜单状态</label>
+                <select id="status" name="status" class="form-control">
+                    <option value="">全部历史（已发布 + 已下架）</option>
+                    <option value="PUBLISHED" th:selected="${status == 'PUBLISHED'}">已发布</option>
+                    <option value="OFFLINE" th:selected="${status == 'OFFLINE'}">已下架</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" type="submit">查询</button>
+            <a class="btn" th:href="@{/menus/history}">重置</a>
+        </form>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+        <p class="summary">共 <strong th:text="${total}">0</strong> 份历史菜单</p>
+        <div th:if="${menus.isEmpty()}" class="empty">
+            暂无历史菜单。菜单发布后即锁定成为历史版本，这里能看到发布当时的菜品与价格快照，并可“复制”成新草稿。
+        </div>
+        <table th:if="${!menus.isEmpty()}">
+            <thead>
+            <tr>
+                <th>菜单</th>
+                <th style="width:100px;">生效日期</th>
+                <th style="width:70px;">菜项数</th>
+                <th style="width:60px;">版本</th>
+                <th style="width:80px;">状态</th>
+                <th style="width:130px;">发布时间</th>
+                <th style="width:130px;">下架时间</th>
+                <th style="width:150px;">下架原因</th>
+                <th style="width:100px;">操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            <!-- 一个菜单两块：头信息一行，明细一行（快照只读） -->
+            <th:block th:each="m : ${menus}">
+                <tr>
+                    <td>
+                        <strong th:text="${m.name}">菜单名</strong>
+                        <div class="muted" th:if="${m.description != null}" th:text="${m.description}"></div>
+                    </td>
+                    <td th:text="${m.effectiveDate}">-</td>
+                    <td th:text="${m.items != null ? m.items.size() : 0}">0</td>
+                    <td th:text="${m.version}">0</td>
+                    <td>
+                        <span class="badge"
+                              th:classappend="${m.status == 'PUBLISHED'} ? 'badge-published' : 'badge-offline'"
+                              th:text="${m.statusText}">已发布</span>
+                    </td>
+                    <td><th:block th:replace="~{fragments/layout :: timestamp(${m.publishedAt})}"></th:block></td>
+                    <td><th:block th:replace="~{fragments/layout :: timestamp(${m.offlineAt})}"></th:block></td>
+                    <td th:text="${m.offlineReason != null ? m.offlineReason : '—'}">—</td>
+                    <td>
+                        <form th:action="@{/menus/{id}/copy(id=${m.menuId})}" method="post">
+                            <button class="btn btn-sm" type="submit">复制为草稿</button>
+                        </form>
+                    </td>
+                </tr>
+                <tr th:if="${m.items != null and !m.items.isEmpty()}">
+                    <td colspan="9" style="background:#fafbfc;">
+                        <div class="muted" style="margin-bottom:6px;">
+                            菜品明细：发布时冻结的快照（菜名、分类、单位、价格均取自 menu_snapshot）
+                        </div>
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>菜品</th>
+                                <th>分类</th>
+                                <th>单位</th>
+                                <th>标准单价</th>
+                                <th>菜单售价</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="item : ${m.items}">
+                                <td th:text="${item.recipeName}">菜名</td>
+                                <td th:text="${item.category != null ? item.category : '未分类'}">分类</td>
+                                <td th:text="${item.unit != null ? item.unit : '—'}">单位</td>
+                                <td>¥<span th:text="${item.unitPrice != null ? #numbers.formatDecimal(item.unitPrice, 1, 2) : '—'}">0.00</span></td>
+                                <td>¥<span th:text="${item.menuPrice != null ? #numbers.formatDecimal(item.menuPrice, 1, 2) : '—'}">0.00</span></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
+            </th:block>
+            </tbody>
+        </table>
+        <p class="hint">
+            历史菜单只读：已发布/已下架的菜单都已锁定，明细取自发布时冻结的快照，菜品后续改名调价不会改变这里；
+            需要调整时用“复制为草稿”生成一份新的可编辑菜单。
+        </p>
+    </div>
+</div>
+</body>
+</html>

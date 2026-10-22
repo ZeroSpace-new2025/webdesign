@@ -314,6 +314,18 @@ public class MenuServiceImpl implements MenuService
 			if (q.getStatus() != null && !q.getStatus().isBlank()) {
 				predicates.add(cb.equal(root.get("status"), parseStatus(q.getStatus())));
 			}
+			if (q.getStatuses() != null && !q.getStatuses().isEmpty()) {
+				List<MenuStatus> statuses = new ArrayList<>();
+				for (String status : q.getStatuses()) {
+					MenuStatus parsed = parseStatus(status);
+					if (parsed != null) {
+						statuses.add(parsed);
+					}
+				}
+				if (!statuses.isEmpty()) {
+					predicates.add(root.get("status").in(statuses));
+				}
+			}
 			if (q.getDateFrom() != null) {
 				predicates.add(cb.greaterThanOrEqualTo(root.get("effectiveDate"), q.getDateFrom()));
 			}

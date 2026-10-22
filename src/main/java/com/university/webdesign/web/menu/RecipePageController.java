@@ -40,9 +40,12 @@ public class RecipePageController
 
 	/**
 	 * 菜品列表
+	 * <p>
+	 * 默认只列可售（ACTIVE）菜品：已下架菜品不在本页显示，改到“历史菜品”页查看；
+	 * 需要临时查看全部时可在筛选里显式选“全部”。
 	 *
 	 * @param keyword 名称关键字，可选
-	 * @param status  状态筛选，可选
+	 * @param status  状态筛选，可选；不传时默认 ACTIVE
 	 * @param model   视图模型
 	 * @return 视图名
 	 */
@@ -51,17 +54,49 @@ public class RecipePageController
 			@RequestParam(value = "keyword", required = false) String keyword,
 			@RequestParam(value = "status", required = false) String status,
 			Model model) {
+		String effectiveStatus = status == null ? RecipeStatus.ACTIVE.name() : status;
 		RecipeQuery query = new RecipeQuery();
 		query.setKeyword(keyword);
-		query.setStatus(status);
+		query.setStatus(effectiveStatus);
 		query.setPageNum(1);
 		query.setPageSize(100);
 		PageResult<RecipeVO> page = recipeService.page(query);
 		model.addAttribute("recipes", page.getList());
 		model.addAttribute("total", page.getTotal());
 		model.addAttribute("keyword", keyword);
-		model.addAttribute("status", status);
+		model.addAttribute("status", effectiveStatus);
 		return "recipe/list";
+	}
+
+	/**
+	 * 历史菜品列表：只展示已下架（DISABLED）菜品
+	 * <p>
+	 * 菜品采用逻辑下架，停用后仍保留在本页，作为历史菜单与历史订单里菜品的来源说明；
+	 * 名称/分类过滤与分页全部交给 {@link RecipeService#page}，页面不自行拼业务规则。
+	 *
+	 * @param keyword  名称关键字，可选
+	 * @param category 分类名，可选
+	 * @param model    视图模型
+	 * @return 视图名
+	 */
+	@GetMapping("/history")
+	public String history(
+			@RequestParam(value = "keyword", required = false) String keyword,
+			@RequestParam(value = "category", required = false) String category,
+			Model model) {
+		RecipeQuery query = new RecipeQuery();
+		query.setStatus(RecipeStatus.DISABLED.name());
+		query.setKeyword(keyword);
+		query.setCategory(category);
+		query.setPageNum(1);
+		query.setPageSize(100);
+		PageResult<RecipeVO> page = recipeService.page(query);
+		model.addAttribute("recipes", page.getList());
+		model.addAttribute("total", page.getTotal());
+		model.addAttribute("keyword", keyword);
+		model.addAttribute("category", category);
+		model.addAttribute("categories", categoryNames());
+		return "recipe/history";
 	}
 
 	/**

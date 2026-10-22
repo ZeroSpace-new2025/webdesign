@@ -2,6 +2,7 @@ package com.university.webdesign.impl.menu;
 
 import com.university.webdesign.common.BusinessException;
 import com.university.webdesign.common.ErrorCode;
+import com.university.webdesign.service.menu.ImageStorage;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,7 +17,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 菜品图片本地存储服务（M1-06 的落盘实现）。
+ * 菜品图片本地存储实现（{@link ImageStorage} 的落盘版，M1-06）。
  * <p>
  * 课程项目用本地磁盘模拟对象存储：文件写入 {@code app.upload.dir}（默认 {@code uploads}），
  * 由 {@code WebConfig} 把 {@code /uploads/**} 映射到该目录，因此返回的相对地址
@@ -25,9 +26,12 @@ import java.util.UUID;
  * 校验规则：只接受 jpg/jpeg/png/webp/gif；大小不超过 {@code app.upload.max-size}
  * （默认 5MB，字节）；文件名用 UUID 重写，只保留白名单扩展名，避免路径穿越与重名覆盖。
  * 任何失败（空文件/类型不支持/超限/读写异常）都抛 40001，图片属于入参。
+ * <p>
+ * 切换对象存储时新增一个 {@link ImageStorage} 实现（如 OSS/MinIO/S3）并让其生效即可，
+ * 本类与业务层都不用改。
  */
 @Service
-public class ImageStorageService
+public class ImageStorageService implements ImageStorage
 {
 	/**
 	 * 允许的图片扩展名
@@ -71,6 +75,7 @@ public class ImageStorageService
 	 * @param file 上传的图片文件
 	 * @return 形如 {@code /uploads/xxx.png} 的可访问地址
 	 */
+	@Override
 	public String store(MultipartFile file) {
 		validate(file);
 		String extension = resolveExtension(file);
