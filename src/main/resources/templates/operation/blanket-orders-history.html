@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>历史快照 - 厨房备料</title>
+    <link rel="stylesheet" th:href="@{/css/operation.css}">
+</head>
+<body>
+<div class="m3-container">
+    <div class="m3-header">
+        <h1>历史汇总快照</h1>
+        <a th:href="@{/operation/blanket-orders}" class="m3-back">← 返回今日备料</a>
+    </div>
+
+    <div class="m3-toolbar">
+        <form method="get" th:action="@{/operation/blanket-orders/history}">
+            <label>起始日期：<input type="date" name="dateFrom" th:value="${dateFrom}"></label>
+            <label>结束日期：<input type="date" name="dateTo" th:value="${dateTo}"></label>
+            <button type="submit" class="m3-btn m3-btn-primary">查询</button>
+        </form>
+    </div>
+
+    <div th:if="${page.list.isEmpty()}" class="m3-empty">
+        <div class="m3-empty-icon">📅</div>
+        <p>该时间段内没有任何历史聚合快照。</p>
+    </div>
+
+    <table th:if="${!page.list.isEmpty()}" class="m3-table">
+        <thead>
+        <tr>
+            <th>汇总日期</th>
+            <th>有效订单数</th>
+            <th>总金额(元)</th>
+            <th>快照状态</th>
+            <th>生成时间</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="stat : ${page.list}">
+            <td th:text="${stat.statisticsDate}"></td>
+            <td th:text="${stat.totalOrders}"></td>
+            <td th:text="${stat.totalAmount}"></td>
+            <td><span class="badge badge-published" th:text="${stat.status}"></span></td>
+            <td th:text="${#dates.format(stat.generatedTime, 'yyyy-MM-dd HH:mm:ss')}"></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>
