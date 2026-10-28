@@ -3,16 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <title>厨房备料 · 总括订单</title>
+    <!-- 必须引入组员的全局样式 -->
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <!-- 引入你的样式 -->
     <link rel="stylesheet" th:href="@{/css/operation.css}">
 </head>
 <body>
-<div class="m3-container">
-    <div class="m3-header">
+<!-- 引入公共导航栏 -->
+<nav th:replace="~{fragments/layout :: navbar('blanket')}"></nav>
+
+<div class="container">
+    <div class="page-header" style="margin-top: 20px;">
         <h1>厨房备料 · <span th:text="${date}"></span></h1>
-        <a th:href="@{/portal}" class="m3-back">← 返回门户</a>
+        <p class="muted">截止后聚合总括订单、按分类统计产量。</p>
     </div>
 
-    <div class="m3-toolbar">
+    <div class="m3-toolbar" style="margin-top: 20px;">
         <form method="get" th:action="@{/operation/blanket-orders}">
             <input type="date" name="date" th:value="${date}">
             <button type="submit" class="m3-btn m3-btn-outline">查询</button>
@@ -28,14 +34,14 @@
     <div th:if="${message}" class="m3-alert m3-alert-success" th:text="${message}"></div>
     <div th:if="${error}" class="m3-alert m3-alert-error" th:text="${error}"></div>
 
-    <div th:if="${!hasSnapshot}" class="m3-empty">
+    <div th:if="${!hasSnapshot}" class="m3-empty" style="margin-top: 20px;">
         <div class="m3-empty-icon">📋</div>
         <p>当日尚未聚合</p>
         <p style="font-size:13px;">请等到订餐截止时间后自动聚合，或手动点击"手动聚合"。</p>
     </div>
 
     <th:block th:if="${hasSnapshot}">
-        <div class="m3-stats">
+        <div class="m3-stats" style="margin-top: 20px;">
             <div class="m3-stat-card">
                 <div class="m3-stat-label">菜品种类</div>
                 <div class="m3-stat-value" th:text="${totalItems}"></div>
@@ -46,7 +52,7 @@
             </div>
         </div>
 
-        <table class="m3-table">
+        <table class="m3-table" style="margin-top: 20px;">
             <thead>
             <tr><th>分类</th><th>菜品</th><th>单位</th><th>需求总量</th><th>金额</th><th>涉及订单数</th></tr>
             </thead>
@@ -66,6 +72,5 @@
         </table>
     </th:block>
 </div>
-<script th:src="@{/js/operation.js}"></script>
 </body>
 </html>

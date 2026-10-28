@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/layout :: head('总门户')}"></head>
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>总门户 - 企业餐厅网络点餐系统</title>
+    <!-- 直接引入 CSS，避开 fragments 解析报错的坑 -->
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
 <body>
 <div class="container">
     <div class="page-header">
@@ -30,65 +36,65 @@
               th:each="role : ${roleNames}" th:text="${role}">MANAGER</span>
     </div>
 
-    <!-- 功能入口：按权限点显隐，禁用卡片为“只有接口、暂无页面”的模块 -->
+    <!-- 功能入口 -->
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;">
 
-        <div class="card"
-             th:if="${permCodes != null and #lists.contains(permCodes,'order:submit')}">
+        <!-- 组员：今日点餐 -->
+        <div class="card" th:if="${permCodes != null and #lists.contains(permCodes,'order:submit')}">
             <h2 style="font-size:17px;margin:0 0 8px;">今日点餐</h2>
             <p class="muted" style="margin:0 0 14px;">查看当日已发布菜单，选择菜品并提交订单（截止前可改单）。</p>
             <a class="btn btn-primary" th:href="@{/order/create}">进入点餐</a>
         </div>
 
-        <div class="card"
-             th:if="${permCodes != null and #lists.contains(permCodes,'order:submit')}">
+        <!-- 组员：我的订单 -->
+        <div class="card" th:if="${permCodes != null and #lists.contains(permCodes,'order:submit')}">
             <h2 style="font-size:17px;margin:0 0 8px;">我的订单</h2>
             <p class="muted" style="margin:0 0 14px;">个人历史订单、月度消费汇总与订单详情，截止前可取消。</p>
             <a class="btn btn-primary" th:href="@{/order/mine}">查看订单</a>
         </div>
 
-        <div class="card"
-             th:if="${permCodes != null and (#lists.contains(permCodes,'menu:recipe:manage')
-                    or #lists.contains(permCodes,'menu:menu:manage'))}">
+        <!-- 组员：菜品与菜单 -->
+        <div class="card" th:if="${permCodes != null and (#lists.contains(permCodes,'menu:recipe:manage') or #lists.contains(permCodes,'menu:menu:manage'))}">
             <h2 style="font-size:17px;margin:0 0 8px;">菜品与菜单</h2>
             <p class="muted" style="margin:0 0 14px;">维护菜品库、编排并发布菜单，查看历史菜品与历史菜单快照。</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <a class="btn btn-primary"
-                   th:if="${permCodes != null and #lists.contains(permCodes,'menu:recipe:manage')}"
-                   th:href="@{/recipes}">菜品管理</a>
-                <a class="btn"
-                   th:if="${permCodes != null and #lists.contains(permCodes,'menu:recipe:manage')}"
-                   th:href="@{/recipes/history}">历史菜品</a>
-                <a class="btn btn-primary"
-                   th:if="${permCodes != null and #lists.contains(permCodes,'menu:menu:manage')}"
-                   th:href="@{/menus}">菜单管理</a>
-                <a class="btn"
-                   th:if="${permCodes != null and #lists.contains(permCodes,'menu:menu:manage')}"
-                   th:href="@{/menus/history}">历史菜单</a>
+                <a class="btn btn-primary" th:if="${permCodes != null and #lists.contains(permCodes,'menu:recipe:manage')}" th:href="@{/recipes}">菜品管理</a>
+                <a class="btn btn-primary" th:if="${permCodes != null and #lists.contains(permCodes,'menu:menu:manage')}" th:href="@{/menus}">菜单管理</a>
             </div>
         </div>
 
-        <div class="card"
-             th:if="${permCodes != null and (#lists.contains(permCodes,'user:manage')
-                    or #lists.contains(permCodes,'role:manage')
-                    or #lists.contains(permCodes,'report:view')
-                    or #lists.contains(permCodes,'audit:view'))}">
+        <!-- 组员：用户与报表 -->
+        <div class="card" th:if="${permCodes != null and (#lists.contains(permCodes,'user:manage') or #lists.contains(permCodes,'report:view'))}">
             <h2 style="font-size:17px;margin:0 0 8px;">用户与报表控制台</h2>
             <p class="muted" style="margin:0 0 14px;">员工与角色权限维护、批量导入、月度报表与消费审计。</p>
             <a class="btn btn-primary" th:href="@{/console}">进入控制台</a>
         </div>
 
-        <div class="card" style="opacity:.6;">
+        <!-- ================= 你的模块 M3 开始 ================= -->
+
+        <!-- 厨房备料 -->
+        <div class="card">
             <h2 style="font-size:17px;margin:0 0 8px;">厨房备料（M3）</h2>
-            <p class="muted" style="margin:0 0 14px;">截止后聚合总括订单、按分类统计产量。当前仅提供 REST 接口，暂无页面。</p>
-            <button class="btn" type="button" disabled>暂未开放</button>
+            <p class="muted" style="margin:0 0 14px;">截止后聚合总括订单、按分类统计产量，打印后厨生产单。</p>
+            <a class="btn btn-primary" th:href="@{/operation/blanket-orders}">进入备料页</a>
         </div>
 
-        <div class="card" style="opacity:.6;">
-            <h2 style="font-size:17px;margin:0 0 8px;">配送单打印（M3）</h2>
-            <p class="muted" style="margin:0 0 14px;">到配餐开始时间后按员工/工位批量生成配送单。当前仅提供 REST 接口，暂无页面。</p>
-            <button class="btn" type="button" disabled>暂未开放</button>
+        <!-- 配送管理 -->
+        <div class="card">
+            <h2 style="font-size:17px;margin:0 0 8px;">配送管理（M3）</h2>
+            <p class="muted" style="margin:0 0 14px;">到配餐时间后按员工/工位批量生成配送单，并支持批量打印。</p>
+            <a class="btn btn-primary" th:href="@{/operation/deliveries}">进入配送页</a>
         </div>
+
+        <!-- 时间配置 -->
+        <div class="card">
+            <h2 style="font-size:17px;margin:0 0 8px;">时间配置（M3）</h2>
+            <p class="muted" style="margin:0 0 14px;">配置订餐截止时间与配餐开始时间，修改后定时任务立即生效。</p>
+            <a class="btn btn-primary" th:href="@{/operation/configs/service-window}">修改时间</a>
+        </div>
+
+        <!-- ================= 你的模块 M3 结束 ================= -->
+
     </div>
 
     <p class="muted" style="margin-top:22px;">
@@ -100,9 +106,7 @@
     (function () {
         "use strict";
         var button = document.getElementById("logout-button");
-        if (!button) {
-            return;
-        }
+        if (!button) return;
         button.addEventListener("click", async function () {
             var token = window.localStorage.getItem("dsh_token");
             try {
@@ -110,9 +114,7 @@
                     method: "POST",
                     headers: token ? {"Authorization": "Bearer " + token} : {}
                 });
-            } catch (ignored) {
-                // 令牌可能已过期，清理本地状态即可
-            }
+            } catch (ignored) {}
             window.localStorage.removeItem("dsh_token");
             document.cookie = "dsh_token=; path=/; max-age=0; SameSite=Lax";
             window.location.assign("/login");
