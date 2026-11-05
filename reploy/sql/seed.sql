@@ -1,8 +1,8 @@
 -- =============================================================================
 -- 企业餐厅网络点餐系统 · 初始化数据（PostgreSQL）
--- 文件：sql/seed.sql
--- 前置：先执行 sql/schema.sql 建表
--- 用法：psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f sql/seed.sql
+-- 文件：reploy/sql/seed.sql
+-- 前置：先执行 reploy/sql/schema.sql 建表
+-- 用法：psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/seed.sql
 --
 -- 内容：
 --   1) 5 个预置角色及其权限位图（位号见 common/enums/PermissionEnum）；

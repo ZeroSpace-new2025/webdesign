@@ -1,18 +1,18 @@
 -- =============================================================================
 -- 企业餐厅网络点餐系统 · PostgreSQL 建表脚本
--- 文件：sql/schema.sql
+-- 文件：reploy/sql/schema.sql
 -- 适用：PostgreSQL 14+（生产）；H2 2.x 的 PostgreSQL 兼容模式可用于自测
 --
 -- 用法：
 --   createdb -U postgres webdesign
---   psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f sql/schema.sql
+--   psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/schema.sql
 --
 -- 说明：
 --   1) 表结构与 domain/ 下的实体完全一致（列名、类型、精度、枚举 CHECK 均由
 --      Hibernate 元数据导出后整理），因此 prod profile 里
 --      spring.jpa.hibernate.ddl-auto 可以安全地设为 validate；
 --   2) 脚本可重复执行（CREATE ... IF NOT EXISTS），不会破坏既有数据；
---   3) 本脚本只建表；演示数据见 sql/seed.sql，反安装见 sql/drop.sql；
+--   3) 本脚本只建表；演示数据见 reploy/sql/seed.sql，反安装见 reploy/sql/drop.sql；
 --   4) 表名、列名一律使用 demand.md / REFACTOR_SPEC.md 第 3 节确定的下划线命名，
 --      不使用 Hibernate 的隐式命名策略。
 -- =============================================================================

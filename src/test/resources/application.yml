@@ -1,0 +1,18 @@
+# =============================================================================
+# 测试环境配置（src/test/resources 优先级高于主配置，整份测试配置以本文件为准）
+#
+# 用 H2 内存库替代 PostgreSQL：没有安装数据库的机器也能跑通 @SpringBootTest。
+# 与主配置 application.yml 的 dev 段保持一致（H2 + PostgreSQL 兼容模式 + create-drop），
+# 区别只是内存库名不同、不开 H2 控制台、不用固定端口。
+# =============================================================================
+spring:
+  datasource:
+    url: "jdbc:h2:mem:webdesign;DB_CLOSE_DELAY=-1;MODE=PostgreSQL"
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  jpa:
+    hibernate:
+      # 测试上下文每次重建表结构，跑完即丢
+      ddl-auto: create-drop

@@ -142,19 +142,23 @@ com.university.webdesign
 
 提交前**至少跑一次 `./gradlew build`**（或 `compileJava` + `test`），确认能编过再提交。
 
-数据库脚本（部署用，详见 `sql/README.md`）：
+数据库脚本（部署用，详见 `reploy/sql/README.md`）：
 
 ```bash
-psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f sql/schema.sql   # 建表（16 张表 + 索引 + CHECK + 注释）
-psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f sql/seed.sql     # 预置角色 / 演示账号 / 默认时间窗口
-psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f sql/drop.sql     # 反安装（仅本地/演示）
+psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/schema.sql   # 建表（16 张表 + 索引 + CHECK + 注释）
+psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/seed.sql     # 预置角色 / 演示账号 / 默认时间窗口
+psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # 反安装（仅本地/演示）
 ```
 
 `prod` / `postgres` 两个 profile 的 `spring.jpa.hibernate.ddl-auto` 都是 **`validate`**：
-表结构只认 `sql/schema.sql`，Hibernate 不再改表；没有建表就启动会直接报
+表结构只认 `reploy/sql/schema.sql`，Hibernate 不再改表；没有建表就启动会直接报
 `Schema-validation: missing table`。改实体字段时必须同步改脚本。
 
-测试约定：`src/test/resources/application.properties` 用 **H2 内存库**替代 PostgreSQL。
+**配置文件只有一个**：`src/main/resources/application.yml`（YAML 多文档，
+第 1 段是公共配置，后面 `spring.config.activate.on-profile: dev|prod|postgres` 三段是 profile 覆盖）。
+不要再新增 `application-<profile>.properties`；改配置前先确认自己改的是哪一段。
+
+测试约定：`src/test/resources/application.yml` 用 **H2 内存库**替代 PostgreSQL。
 测试目录镜像主代码分层：实现类测试放 `src/test/java/com/university/webdesign/impl/<模块>/`，
 公共设施（`PermissionEnum`、`PermissionList`、`RoleListConverter` 等）的测试放
 `src/test/java/com/university/webdesign/common/<子包>/`。
@@ -189,9 +193,9 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f sql/drop.sql     # 反安装
    另有**临时硬编码管理员账号** `config.TemporaryAdminAccount`（默认 `admin` / `admin123`，
    可用 `app.temporary-admin.*` 覆盖）：**不落库**、拥有全部 13 个权限点，
    因此 `app.storage=none` 或空库时也能进系统。**上线前必须删除**，删除步骤见该类的类注释。
-8. **数据库脚本已就绪（部署基线）**：`sql/schema.sql`（16 张表 + 索引 + 枚举 CHECK + 表/列注释，
-   列名与类型由实体元数据导出后整理）、`sql/seed.sql`（5 个预置角色、8 个演示账号、默认时间窗口，
-   幂等可重复执行）、`sql/drop.sql`、`sql/README.md`。`prod`/`postgres` 的 `ddl-auto` 已改为 `validate`。
+8. **数据库脚本已就绪（部署基线）**：`reploy/sql/schema.sql`（16 张表 + 索引 + 枚举 CHECK + 表/列注释，
+   列名与类型由实体元数据导出后整理）、`reploy/sql/seed.sql`（5 个预置角色、8 个演示账号、默认时间窗口，
+   幂等可重复执行）、`reploy/sql/drop.sql`、`reploy/sql/README.md`。`prod`/`postgres` 的 `ddl-auto` 已改为 `validate`。
    `DatabaseDataInitializer` 同时做了幂等修正：时间窗口只在“没有任何生效全局配置”时插入
    （否则同一生效日期会撞 40901 让启动失败），演示菜品按名称复用（否则菜单被清空后重启会撞重名）。
    已验证：脚本可在 PostgreSQL 语法解析器下全量通过；在 H2 文件库上执行 `schema.sql` + `seed.sql` 后
@@ -208,7 +212,7 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f sql/drop.sql     # 反安装
 4. **分类字典由 `recipe.category` 去重派生**，`CategoryVO.categoryId` 是分类名的稳定哈希；
    若将来要独立建分类表，需要迁移 `RecipeService.listCategories` 与相关页面。
 5. **`order_form` 的 `(employee_id, order_date)` 唯一约束对有效订单生效**：服务层校验 + `Idempotency-Key`
-   唯一索引兜底；取消/作废不占名额。数据库级强约束已在 `sql/schema.sql` 里用**部分唯一索引**
+   唯一索引兜底；取消/作废不占名额。数据库级强约束已在 `reploy/sql/schema.sql` 里用**部分唯一索引**
    `uk_order_form_employee_date_active ... where status in ('PENDING','VALID')` 落地
    （H2 不支持部分索引，因此 `dev`/测试库仍只有服务层校验；并发撞索引时接口会返回 50000）。
 6. **`order_no` 发号**为 `yyyyMMdd + 4 位当日流水`，取当日最大单号 +1；极高并发下仍可能撞号，

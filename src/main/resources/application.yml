@@ -1,0 +1,161 @@
+# =============================================================================
+# 企业餐厅网络点餐系统 · 应用配置（全项目唯一的配置文件）
+#
+# 用 YAML 多文档 + spring.config.activate.on-profile，把原来分散的
+#   application.properties / application-dev.properties /
+#   application-prod.properties / application-postgres.properties
+# 收进一个文件：第 1 段是基础配置（所有 profile 生效），后 3 段分别是 dev / prod / postgres。
+#
+# 激活方式（默认 dev，用 H2 内存库，无需安装数据库）：
+#   ./gradlew bootRun                                          # dev（H2）
+#   ./gradlew bootRun --args="--spring.profiles.active=prod"   # PostgreSQL
+#   java -jar build/libs/webdesign-0.0.1-SNAPSHOT.jar --spring.profiles.active=postgres
+#
+# 改这个文件之前先看 AGENTS.md 第 5 节：prod / postgres 的 ddl-auto=validate，
+# 表结构由 sql/schema.sql 负责，改实体必须同步改脚本。
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 基础配置：所有 profile 都生效
+# -----------------------------------------------------------------------------
+spring:
+  application:
+    name: webdesign
+
+  # 不指定 profile 时默认本地开发（H2 内存库）
+  profiles:
+    active: dev
+
+  jpa:
+    show-sql: true
+    # 关闭 open-in-view：页面控制器一律在 service 事务内取完数据，避免延迟加载越界
+    open-in-view: false
+    properties:
+      # Hibernate 属性用「扁平点号」写法：map 的 key 不走宽松绑定，
+      # 写成 hibernate.format-sql 会被当成另一个 Hibernate 不认识的属性名
+      hibernate.format_sql: true
+
+  # 文件上传
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+server:
+  port: 8080
+
+app:
+  # ===== 菜品图片存储（M1-06 图片上传服务）=====
+  # local：写本地磁盘（默认）。由 app.upload.dir 指定目录、/uploads/** 静态映射对外。
+  # oss  ：对象存储。接入时新增一个 service.menu.ImageStorage 的 OSS 实现并使其生效，
+  #        下列占位配置按所选云厂商的 SDK 读取（密钥一律走环境变量，不写进仓库）。
+  upload:
+    mode: local
+    dir: uploads
+    # oss:
+    #   endpoint: ""
+    #   bucket: ""
+    #   access-key-id: "${OSS_ACCESS_KEY_ID:}"
+    #   access-key-secret: "${OSS_ACCESS_KEY_SECRET:}"
+
+  # ===== 认证（JWT）=====
+  # 生产环境请通过环境变量覆盖密钥
+  jwt:
+    secret: university-restaurant-ordering-demo-secret-2026
+    # token 有效期（分钟），默认 12 小时
+    expire-minutes: 720
+
+  # ===== 时间窗口兜底默认值 =====
+  # 对应 demand.md：订餐截止时间默认 9:00，配餐开始时间默认 11:30。
+  # 运行期以 service_window 表的配置为准，这两项只在数据库无配置时回退使用。
+  # 注意加引号：不加引号时 09:00 这类写法在 YAML 里可能被当成数字/时间处理。
+  service-window:
+    default-cutoff-time: "09:00"
+    default-delivery-start-time: "11:30"
+
+  # ===== 定时任务 =====
+  # 订餐截止时间到达时聚合总括订单；配餐开始时间到达时预生成配送任务（cron 见 OperationScheduleConfig）
+  schedule:
+    enabled: true
+
+  # ===== 临时硬编码管理员（课程演示用，上线前必须删除）=====
+  # 删除步骤见 config/TemporaryAdminAccount 的类注释
+  # temporary-admin:
+  #   employee-no: admin
+  #   password: admin123
+
+# =============================================================================
+# 本地开发：H2 内存数据库（PostgreSQL 兼容模式）
+# 对应原 application-dev.properties
+# =============================================================================
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    # 用引号包住：URL 里的分号与冒号在 YAML 里容易被误解析
+    url: "jdbc:h2:mem:webdesign;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      # 每次启动重建表结构，由 DatabaseDataInitializer 写入预置角色、演示账号与演示菜单
+      ddl-auto: create-drop
+
+  # H2 控制台：http://localhost:8080/h2-console
+  # 注意：控制台路径已在 WebConfig 的认证白名单中放行，仅限本地开发使用
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# =============================================================================
+# 生产环境：PostgreSQL
+# 对应原 application-prod.properties
+# 连接信息全部走环境变量，禁止把真实密码提交到仓库（AGENTS.md 第 6 节）
+# =============================================================================
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: "${DB_URL:jdbc:postgresql://localhost:5432/webdesign}"
+    username: "${DB_USERNAME:postgres}"
+    password: "${DB_PASSWORD:}"
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      # 表结构由 sql/schema.sql 建立，应用只校验不改表（部署步骤见 sql/README.md）；
+      # 首次部署请先执行建表脚本，没建表就启动会报 Schema-validation: missing table。
+      # 临时环境想让它自动建表，可改成 update。
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.lob.non_contextual_creation: true
+
+# =============================================================================
+# postgres：与 prod 完全等价的别名 profile
+# 对应原 application-postgres.properties（老文档与脚本里用 --spring.profiles.active=postgres）
+# =============================================================================
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+
+  datasource:
+    url: "${DB_URL:jdbc:postgresql://localhost:5432/webdesign}"
+    username: "${DB_USERNAME:postgres}"
+    password: "${DB_PASSWORD:}"
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate

@@ -4,7 +4,7 @@
 应用侧已改为 `ddl-auto=validate`：**表结构由脚本负责，Hibernate 只校验、不改表**。
 
 ```
-sql/
+reploy/sql/
 ├── schema.sql   建表脚本（16 张表 + 索引 + CHECK 约束 + 表/列注释）
 ├── seed.sql     初始化数据（5 个预置角色、8 个演示账号、默认时间窗口；幂等可重复执行）
 ├── drop.sql     反安装（删除全部业务表，仅限本地/演示环境）
@@ -39,8 +39,8 @@ sql/
 createdb -h localhost -U postgres webdesign
 
 # 2) 建表 + 初始化数据（ON_ERROR_STOP 保证出错即停，不会留下半套表）
-psql -h localhost -U postgres -d webdesign -v ON_ERROR_STOP=1 -f sql/schema.sql
-psql -h localhost -U postgres -d webdesign -v ON_ERROR_STOP=1 -f sql/seed.sql
+psql -h localhost -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/schema.sql
+psql -h localhost -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/seed.sql
 
 # 3) 打包
 ./gradlew build            # Windows: .\gradlew.bat build
@@ -128,8 +128,8 @@ select indexname from pg_indexes where tablename = 'order_form';
 
 | 现象 | 原因与处理 |
 | :--- | :--- |
-| 启动报 `Schema validation: missing table [xxx]` | 没执行 `sql/schema.sql`，或执行到了别的库/别的 schema。先建表，或临时把 `ddl-auto` 改回 `update` |
-| 启动报 `Schema validation: missing column [xxx]` | 库里的表是旧版本，重新执行 `sql/schema.sql` 不会补列，需手工 `alter table` 或按 `drop.sql` + `schema.sql` 重建 |
+| 启动报 `Schema validation: missing table [xxx]` | 没执行 `reploy/sql/schema.sql`，或执行到了别的库/别的 schema。先建表，或临时把 `ddl-auto` 改回 `update` |
+| 启动报 `Schema validation: missing column [xxx]` | 库里的表是旧版本，重新执行 `reploy/sql/schema.sql` 不会补列，需手工 `alter table` 或按 `drop.sql` + `schema.sql` 重建 |
 | 重复执行 `seed.sql` 报唯一键冲突 | 正常行为会被 `where not exists` 判断挡掉；若仍冲突说明手工改过角色名或工号，先清理 `role` / `users` 表 |
 | 下单偶发 50000 | 并发下撞到 `uk_order_form_employee_date_active`（部分唯一索引）。这是设计内的最后防线，接口应提示“今日已有有效订单” |
 
@@ -159,7 +159,7 @@ java -jar build/libs/webdesign-0.0.1-SNAPSHOT.jar \
 
 ```bash
 diff <(grep -o 'create table [a-z_]*' build/ddl-pg.sql | sort) \
-     <(grep -o 'create table if not exists [a-z_]*' sql/schema.sql | sed 's/if not exists //' | sort)
+     <(grep -o 'create table if not exists [a-z_]*' reploy/sql/schema.sql | sed 's/if not exists //' | sort)
 ```
 
 本地验证的完整做法（不需要安装 PostgreSQL）：用 H2 文件库模拟持久化库，

@@ -1,12 +1,12 @@
 -- =============================================================================
 -- 企业餐厅网络点餐系统 · 反安装脚本（PostgreSQL）
--- 文件：sql/drop.sql
+-- 文件：reploy/sql/drop.sql
 --
 -- ⚠ 危险：会删除本系统全部业务表与其中的数据，且不可恢复。
 --    仅限本地开发、演示环境重建时使用；生产环境禁止执行。
 --
--- 用法：psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f sql/drop.sql
--- 重建：先执行本脚本，再依次执行 sql/schema.sql、sql/seed.sql。
+-- 用法：psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql
+-- 重建：先执行本脚本，再依次执行 reploy/sql/schema.sql、reploy/sql/seed.sql。
 -- =============================================================================
 
 -- 子表（含外键、@ElementCollection 与关联表）在前，父表在后；
