@@ -142,6 +142,18 @@ com.university.webdesign
 
 提交前**至少跑一次 `./gradlew build`**（或 `compileJava` + `test`），确认能编过再提交。
 
+数据库脚本（部署用，详见 `sql/README.md`）：
+
+```bash
+psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f sql/schema.sql   # 建表（16 张表 + 索引 + CHECK + 注释）
+psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f sql/seed.sql     # 预置角色 / 演示账号 / 默认时间窗口
+psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f sql/drop.sql     # 反安装（仅本地/演示）
+```
+
+`prod` / `postgres` 两个 profile 的 `spring.jpa.hibernate.ddl-auto` 都是 **`validate`**：
+表结构只认 `sql/schema.sql`，Hibernate 不再改表；没有建表就启动会直接报
+`Schema-validation: missing table`。改实体字段时必须同步改脚本。
+
 测试约定：`src/test/resources/application.properties` 用 **H2 内存库**替代 PostgreSQL。
 测试目录镜像主代码分层：实现类测试放 `src/test/java/com/university/webdesign/impl/<模块>/`，
 公共设施（`PermissionEnum`、`PermissionList`、`RoleListConverter` 等）的测试放
@@ -162,9 +174,11 @@ com.university.webdesign
    `SecurityConfig` 为唯一安全配置。
 4. **数据库表按需求原文命名**：`recipe` / `menu` / `menu_item` / `menu_snapshot` /
    `order_form` / `order_detail` / `service_window` / `daily_statistics` / `delivery_task` /
-   `users` / `role` / `monthly_report`。角色权限不再建权限点表：`role` 只有 `id` / `name`(唯一) /
-   `permission_list`（权限位图，逗号分隔位号字符串），权限点由 `common/enums/PermissionEnum` 表达，
-   权限字典即该枚举中 `permCode` 非空的取值（13 个细粒度权限点，`PermissionEnum` 范围 13~25）。
+   `users` / `role` / `monthly_report`，另有 4 张子表 `statistics_item` / `delivery_task_item` /
+   `user_role` / `monthly_report_item`（`@ElementCollection` 与 `@ManyToMany` 生成），物理共 16 张表。
+   角色权限不再建权限点表：`role` 只有 `id` / `name`(唯一) / `permission_list`（权限位图，逗号分隔位号字符串），
+   权限点由 `common/enums/PermissionEnum` 表达，权限字典即该枚举中 `permCode` 非空的取值
+   （13 个细粒度权限点，`PermissionEnum` 范围 13~25）。
 5. **定时任务与事件**：`OrderWindowCloseJob`（09:00 发 `OrderWindowClosedEvent`）、
    `DeliveryOpenJob`（11:30 预生成配送任务）+ `event/listener` 下的监听器。
 6. **`DatabaseDataInitializer`** 在 `app.storage=database`（默认）时写入 5 个预置角色
@@ -175,6 +189,13 @@ com.university.webdesign
    另有**临时硬编码管理员账号** `config.TemporaryAdminAccount`（默认 `admin` / `admin123`，
    可用 `app.temporary-admin.*` 覆盖）：**不落库**、拥有全部 13 个权限点，
    因此 `app.storage=none` 或空库时也能进系统。**上线前必须删除**，删除步骤见该类的类注释。
+8. **数据库脚本已就绪（部署基线）**：`sql/schema.sql`（16 张表 + 索引 + 枚举 CHECK + 表/列注释，
+   列名与类型由实体元数据导出后整理）、`sql/seed.sql`（5 个预置角色、8 个演示账号、默认时间窗口，
+   幂等可重复执行）、`sql/drop.sql`、`sql/README.md`。`prod`/`postgres` 的 `ddl-auto` 已改为 `validate`。
+   `DatabaseDataInitializer` 同时做了幂等修正：时间窗口只在“没有任何生效全局配置”时插入
+   （否则同一生效日期会撞 40901 让启动失败），演示菜品按名称复用（否则菜单被清空后重启会撞重名）。
+   已验证：脚本可在 PostgreSQL 语法解析器下全量通过；在 H2 文件库上执行 `schema.sql` + `seed.sql` 后
+   以 `validate` 连续启动 3 次（含清空菜单再启动）均正常且数据不重复。
 
 仍待补齐 / 需要确认：
 
@@ -186,8 +207,10 @@ com.university.webdesign
 3. **JWT 黑名单与改密失效时间戳是进程内 Map**，单实例够用，多实例部署必须换 Redis。
 4. **分类字典由 `recipe.category` 去重派生**，`CategoryVO.categoryId` 是分类名的稳定哈希；
    若将来要独立建分类表，需要迁移 `RecipeService.listCategories` 与相关页面。
-5. **`order_form` 的 `(employee_id, order_date)` 唯一约束对有效订单生效**：当前用服务层校验 +
-   `Idempotency-Key` 唯一索引兜底；取消/作废不占名额，如需数据库级强约束要配合部分索引。
+5. **`order_form` 的 `(employee_id, order_date)` 唯一约束对有效订单生效**：服务层校验 + `Idempotency-Key`
+   唯一索引兜底；取消/作废不占名额。数据库级强约束已在 `sql/schema.sql` 里用**部分唯一索引**
+   `uk_order_form_employee_date_active ... where status in ('PENDING','VALID')` 落地
+   （H2 不支持部分索引，因此 `dev`/测试库仍只有服务层校验；并发撞索引时接口会返回 50000）。
 6. **`order_no` 发号**为 `yyyyMMdd + 4 位当日流水`，取当日最大单号 +1；极高并发下仍可能撞号，
    唯一约束会拒绝，需要重试或改用数据库序列/Redis 发号。
 7. **事件监听器目前只覆盖 M3 的聚合与重算**；M4 报表缓存失效、菜单缓存预热尚未接监听器
