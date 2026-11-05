@@ -140,7 +140,34 @@ select indexname from pg_indexes where tablename = 'order_form';
   因此不要在 H2 上直接跑 `schema.sql`；
 - 切换 PostgreSQL 用 `--spring.profiles.active=prod`（或 `postgres`），连接串与账号密码只走环境变量。
 
-## 8. 变更记录
+## 8. 改了实体之后怎么同步脚本
+
+`ddl-auto=validate` 之后，实体与脚本必须保持一致。改了 `domain/` 下的实体，可以先用下面的命令
+让 Hibernate 导出它认为的 DDL，再和 `schema.sql` 逐列比对（注意表名/列名要与脚本一致）：
+
+```bash
+java -jar build/libs/webdesign-0.0.1-SNAPSHOT.jar \
+  --spring.main.banner-mode=off --server.port=0 --app.storage=none \
+  --spring.jpa.hibernate.ddl-auto=none \
+  --spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect \
+  --spring.jpa.properties.jakarta.persistence.schema-generation.scripts.action=create \
+  --spring.jpa.properties.jakarta.persistence.schema-generation.create-source=metadata \
+  --spring.jpa.properties.jakarta.persistence.schema-generation.scripts.create-target=build/ddl-pg.sql
+```
+
+`build/ddl-pg.sql` 生成后即可停止进程，然后：
+
+```bash
+diff <(grep -o 'create table [a-z_]*' build/ddl-pg.sql | sort) \
+     <(grep -o 'create table if not exists [a-z_]*' sql/schema.sql | sed 's/if not exists //' | sort)
+```
+
+本地验证的完整做法（不需要安装 PostgreSQL）：用 H2 文件库模拟持久化库，
+先执行 `schema.sql`（H2 不支持末尾那条部分唯一索引，验证时去掉）+ `seed.sql`，
+再用 `--spring.jpa.hibernate.ddl-auto=validate --spring.jpa.database-platform=PostgreSQLDialect`
+连续启动两次应用，确认 `Started Init` 且各表数量不变。
+
+## 9. 变更记录
 
 - 建表脚本首次整理：表结构由实体元数据导出后加索引、CHECK 与注释，作为部署基线；
 - `prod` / `postgres` 的 `ddl-auto` 从 `update` 改为 `validate`，避免 Hibernate 在线上改表；
