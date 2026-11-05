@@ -35,3 +35,12 @@ out/
 
 ### VS Code ###
 .vscode/
+
+
+/uml
+
+### 部署环境变量 ###
+# 只提交 reploy/.env.example，真实密码写在 reploy/.env 里，不进版本库
+.env
+.env.*
+!.env.example

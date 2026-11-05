@@ -1,3 +1,5 @@
 /gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary
+# 部署脚本必须保持 LF：CRLF 会让 Linux 上出现 "bad interpreter: /usr/bin/env bash^M"
+*.sh text eol=lf

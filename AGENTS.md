@@ -158,6 +158,11 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
 第 1 段是公共配置，后面 `spring.config.activate.on-profile: dev|prod|postgres` 三段是 profile 覆盖）。
 不要再新增 `application-<profile>.properties`；改配置前先确认自己改的是哪一段。
 
+部署启动统一走 `reploy/`：`reploy\start.ps1`（Windows）/ `reploy/start.sh`（Linux）会读
+`reploy/.env` 再 `java -jar`，默认 `prod`；变量模板是 `reploy/.env.example`，
+真实密码只写 `.env`（已被 `.gitignore` 忽略），**不要写回 `application.yml`**。
+部署细节见 `reploy/README.md`。
+
 测试约定：`src/test/resources/application.yml` 用 **H2 内存库**替代 PostgreSQL。
 测试目录镜像主代码分层：实现类测试放 `src/test/java/com/university/webdesign/impl/<模块>/`，
 公共设施（`PermissionEnum`、`PermissionList`、`RoleListConverter` 等）的测试放
