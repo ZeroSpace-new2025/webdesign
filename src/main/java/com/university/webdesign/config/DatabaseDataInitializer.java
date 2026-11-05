@@ -3,10 +3,13 @@ package com.university.webdesign.config;
 import com.university.webdesign.common.RoleCodes;
 import com.university.webdesign.common.enums.PermissionEnum;
 import com.university.webdesign.common.model.PermissionList;
+import com.university.webdesign.domain.menu.Recipe;
 import com.university.webdesign.domain.menu.RecipeStatus;
+import com.university.webdesign.domain.operation.WindowScope;
 import com.university.webdesign.domain.user.Role;
 import com.university.webdesign.domain.user.User;
 import com.university.webdesign.domain.user.UserStatus;
+import com.university.webdesign.repository.menu.RecipeRepository;
 import com.university.webdesign.repository.user.RoleRepository;
 import com.university.webdesign.repository.user.UserRepository;
 import com.university.webdesign.service.menu.MenuService;
@@ -17,6 +20,7 @@ import com.university.webdesign.service.menu.dto.RecipeCreateCmd;
 import com.university.webdesign.service.menu.dto.RecipeVO;
 import com.university.webdesign.service.operation.ServiceWindowService;
 import com.university.webdesign.service.operation.dto.ServiceWindowCmd;
+import com.university.webdesign.service.operation.dto.ServiceWindowVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -31,6 +35,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 首次启动时的演示数据初始化。
@@ -56,6 +61,7 @@ public class DatabaseDataInitializer implements CommandLineRunner
 {
 	private final RoleRepository roleRepository;
 	private final UserRepository userRepository;
+	private final RecipeRepository recipeRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final RecipeService recipeService;
 	private final MenuService menuService;
@@ -64,12 +70,14 @@ public class DatabaseDataInitializer implements CommandLineRunner
 	public DatabaseDataInitializer(
 			RoleRepository roleRepository,
 			UserRepository userRepository,
+			RecipeRepository recipeRepository,
 			PasswordEncoder passwordEncoder,
 			RecipeService recipeService,
 			MenuService menuService,
 			ServiceWindowService serviceWindowService) {
 		this.roleRepository = roleRepository;
 		this.userRepository = userRepository;
+		this.recipeRepository = recipeRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.recipeService = recipeService;
 		this.menuService = menuService;
@@ -126,8 +134,18 @@ public class DatabaseDataInitializer implements CommandLineRunner
 
 	/**
 	 * 写入默认时间窗口（09:00 截止 / 11:30 开始配餐）
+	 * <p>
+	 * <b>必须先判断是否已有生效的全局配置</b>：{@code ServiceWindowService.create} 对
+	 * “同一作用域 + 同一生效日期”做了重复校验，而本类的 {@code effectiveFrom} 是按启动当天计算的，
+	 * 于是同一天内第二次启动会撞上 40901，把 CommandLineRunner 抛出到启动流程，
+	 * 直接表现为“重启后应用起不来”。部署到 PostgreSQL（数据不随重启丢失）时这是必现问题，
+	 * 因此改为“已能解析到全局配置就跳过”。
 	 */
 	private void seedServiceWindow() {
+		ServiceWindowVO effective = serviceWindowService.get(LocalDate.now(), WindowScope.GLOBAL.name(), null);
+		if (effective != null && effective.getConfigId() != null) {
+			return;
+		}
 		ServiceWindowCmd cmd = new ServiceWindowCmd();
 		cmd.setCutoffTime(LocalTime.of(9, 0));
 		cmd.setDeliveryStartTime(LocalTime.of(11, 30));
@@ -137,6 +155,9 @@ public class DatabaseDataInitializer implements CommandLineRunner
 
 	/**
 	 * 写入演示菜品并发布当日菜单，让点餐页与下单链路开箱可用
+	 * <p>
+	 * 幂等：菜品名全局唯一，已存在的同名菜品直接复用，不再重复创建
+	 * （否则演示菜单被下架后重启会撞 40901 而中断启动）；当日没有任何可用菜品时不建空菜单。
 	 */
 	private void seedMenu() {
 		if (menuService.getCurrent(LocalDate.now()) != null) {
@@ -158,14 +179,7 @@ public class DatabaseDataInitializer implements CommandLineRunner
 		menu.setEffectiveDate(LocalDate.now());
 		List<MenuCreateItem> items = new ArrayList<>();
 		for (Map.Entry<String, String[]> entry : dishes.entrySet()) {
-			String[] meta = entry.getValue();
-			RecipeCreateCmd recipe = new RecipeCreateCmd();
-			recipe.setName(entry.getKey());
-			recipe.setCategory(meta[0]);
-			recipe.setUnit(meta[1]);
-			recipe.setUnitPrice(new BigDecimal(meta[2]));
-			recipe.setDescription("演示菜品：" + entry.getKey());
-			Long recipeId = recipeService.create(recipe);
+			Long recipeId = ensureRecipe(entry.getKey(), entry.getValue());
 			RecipeVO saved = recipeService.getById(recipeId);
 			if (!RecipeStatus.ACTIVE.name().equals(saved.getStatus())) {
 				continue;
@@ -174,10 +188,35 @@ public class DatabaseDataInitializer implements CommandLineRunner
 			item.setRecipeId(recipeId);
 			items.add(item);
 		}
+		if (items.isEmpty()) {
+			log.warn("没有可用的演示菜品（可能已全部下架），跳过演示菜单初始化");
+			return;
+		}
 		menu.setItems(items);
 		Long menuId = menuService.createDraft(menu);
 		menuService.publish(menuId);
 		log.info("已初始化演示菜单（菜单ID={}，菜品 {} 道）", menuId, items.size());
+	}
+
+	/**
+	 * 取菜品ID：已存在同名菜品时直接复用，不存在才创建
+	 *
+	 * @param name 菜品名称（全局唯一）
+	 * @param meta 分类 / 单位 / 单价
+	 * @return 菜品ID
+	 */
+	private Long ensureRecipe(String name, String[] meta) {
+		Optional<Recipe> existing = recipeRepository.findByRecipeName(name);
+		if (existing.isPresent()) {
+			return existing.get().getRecipeId();
+		}
+		RecipeCreateCmd recipe = new RecipeCreateCmd();
+		recipe.setName(name);
+		recipe.setCategory(meta[0]);
+		recipe.setUnit(meta[1]);
+		recipe.setUnitPrice(new BigDecimal(meta[2]));
+		recipe.setDescription("演示菜品：" + name);
+		return recipeService.create(recipe);
 	}
 
 	/**

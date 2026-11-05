@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 菜品（食谱）数据访问接口，对应表 {@code recipe}。
@@ -22,6 +23,17 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long>, JpaSpecif
 	 * @return 是否存在
 	 */
 	boolean existsByRecipeName(String recipeName);
+
+	/**
+	 * 按菜品名精确查询（菜品名业务上唯一）
+	 * <p>
+	 * 供 {@code config.DatabaseDataInitializer} 做演示数据幂等初始化：已存在同名菜品时复用，
+	 * 不重复创建。服务层校验重名仍走 {@link #existsByRecipeName(String)}。
+	 *
+	 * @param recipeName 菜品名称
+	 * @return 菜品
+	 */
+	Optional<Recipe> findByRecipeName(String recipeName);
 
 	/**
 	 * 判断菜品名是否被其他菜品占用（更新时排除自身）
