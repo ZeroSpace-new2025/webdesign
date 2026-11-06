@@ -142,7 +142,30 @@ com.university.webdesign
 
 提交前**至少跑一次 `./gradlew build`**（或 `compileJava` + `test`），确认能编过再提交。
 
-测试约定：`src/test/resources/application.properties` 用 **H2 内存库**替代 PostgreSQL。
+数据库脚本（部署用，详见 `reploy/sql/README.md`）：
+
+```bash
+psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/schema.sql   # 建表（16 张表 + 索引 + CHECK + 注释）
+psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/seed.sql     # 预置角色 / 演示账号 / 默认时间窗口
+psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # 反安装（仅本地/演示）
+```
+
+`prod` / `postgres` 两个 profile 的 `spring.jpa.hibernate.ddl-auto` 都是 **`validate`**：
+表结构只认 `reploy/sql/schema.sql`，Hibernate 不再改表；没有建表就启动会直接报
+`Schema-validation: missing table`。改实体字段时必须同步改脚本。
+
+**配置文件只有一个**：`src/main/resources/application.yml`（YAML 多文档，
+第 1 段是公共配置，后面 `spring.config.activate.on-profile: dev|prod|postgres` 三段是 profile 覆盖）。
+不要再新增 `application-<profile>.properties`；改配置前先确认自己改的是哪一段。
+
+部署启动统一走 `reploy/`：`reploy\start.ps1`（Windows）/ `reploy/start.sh`（Linux）会读
+`reploy/.env` 再 `java -jar`，默认 `prod`；变量模板是 `reploy/.env.example`，
+真实密码只写 `.env`（已被 `.gitignore` 忽略），**不要写回 `application.yml`**。
+另有一键脚本 `reploy/pugin/`：`start.bat`（建库 + 启动）、`run.bat`（仅启动）、
+`test.bat`（dev 模式启动），内容是 cmd 批处理（CRLF、UTF-8 无 BOM）。
+部署细节见 `reploy/README.md`。
+
+测试约定：`src/test/resources/application.yml` 用 **H2 内存库**替代 PostgreSQL。
 测试目录镜像主代码分层：实现类测试放 `src/test/java/com/university/webdesign/impl/<模块>/`，
 公共设施（`PermissionEnum`、`PermissionList`、`RoleListConverter` 等）的测试放
 `src/test/java/com/university/webdesign/common/<子包>/`。
@@ -162,19 +185,32 @@ com.university.webdesign
    `SecurityConfig` 为唯一安全配置。
 4. **数据库表按需求原文命名**：`recipe` / `menu` / `menu_item` / `menu_snapshot` /
    `order_form` / `order_detail` / `service_window` / `daily_statistics` / `delivery_task` /
-   `users` / `role` / `monthly_report`。角色权限不再建权限点表：`role` 只有 `id` / `name`(唯一) /
-   `permission_list`（权限位图，逗号分隔位号字符串），权限点由 `common/enums/PermissionEnum` 表达，
-   权限字典即该枚举中 `permCode` 非空的取值（13 个细粒度权限点，`PermissionEnum` 范围 13~25）。
+   `users` / `role` / `monthly_report`，另有 4 张子表 `statistics_item` / `delivery_task_item` /
+   `user_role` / `monthly_report_item`（`@ElementCollection` 与 `@ManyToMany` 生成），物理共 16 张表。
+   角色权限不再建权限点表：`role` 只有 `id` / `name`(唯一) / `permission_list`（权限位图，逗号分隔位号字符串），
+   权限点由 `common/enums/PermissionEnum` 表达，权限字典即该枚举中 `permCode` 非空的取值
+   （13 个细粒度权限点，`PermissionEnum` 范围 13~25）。
 5. **定时任务与事件**：`OrderWindowCloseJob`（09:00 发 `OrderWindowClosedEvent`）、
    `DeliveryOpenJob`（11:30 预生成配送任务）+ `event/listener` 下的监听器。
-6. **`DatabaseDataInitializer`** 在 `app.storage=database`（默认）时写入 5 个预置角色
-   （名称取 `common.RoleCodes`，授权为该角色的细粒度权限点集合）与演示账号；
-   权限点字典由 `PermissionEnum` 提供，不需要初始化数据。
-7. **总门户 + 临时硬编码管理员**：登录成功后落到总门户 `/portal`（按当前账号的权限点列出各功能入口，
+6. **预置数据全部走 SQL 种子，不在代码里**：预置角色（名称 + 权限位图）、演示账号、默认时间窗口的
+   **唯一来源是 `reploy/sql/seed.sql`**。`dev` 与测试由 `spring.sql.init` 在建表后自动执行
+   （`application.yml` 的 dev 段：`sql.init.mode=always` + `data-locations=classpath:db/seed.sql`
+   + `jpa.defer-datasource-initialization=true`；该文件由 `build.gradle` 的 `processResources`
+   从 `reploy/sql/` 拷进 `classpath:db/`）。PostgreSQL 部署不自动执行，由 DBA 手工 `psql -f`。
+   改角色/权限/演示账号改 SQL 即可，**不要再往 Java 里加种子数据**。
+   `config.DatabaseDataInitializer` 只保留一件事：演示菜品 + 当日已发布菜单
+   （必须走 `MenuService.publish` 冻结 `menu_snapshot`，纯 INSERT 保证不了这个不变量）。
+7. **总门户 + 登录入口**：登录成功后落到总门户 `/portal`（按当前账号的权限点列出各功能入口，
    M3 尚无页面的功能以禁用卡片明确标注），`/console` 仍是用户与报表控制台。
-   另有**临时硬编码管理员账号** `config.TemporaryAdminAccount`（默认 `admin` / `admin123`，
-   可用 `app.temporary-admin.*` 覆盖）：**不落库**、拥有全部 13 个权限点，
-   因此 `app.storage=none` 或空库时也能进系统。**上线前必须删除**，删除步骤见该类的类注释。
+   认证只有一条路径：`users` 表 + BCrypt 密码 + JWT —— **临时硬编码管理员（`admin` / `admin123`）
+   已删除**，登录必须先有账号（账号来自 `reploy/sql/seed.sql`）。
+   因此 `app.storage=none` 或空库时**无法登录**，本地跑通请用默认 dev（会自动执行种子脚本）。
+8. **数据库脚本已就绪（部署基线）**：`reploy/sql/schema.sql`（16 张表 + 索引 + 枚举 CHECK + 表/列注释，
+   列名与类型由实体元数据导出后整理）、`reploy/sql/seed.sql`（5 个预置角色、8 个演示账号、默认时间窗口，
+   幂等可重复执行，dev/测试与生产共用）、`reploy/sql/drop.sql`、`reploy/sql/README.md`。
+   `prod`/`postgres` 的 `ddl-auto` 已改为 `validate`。
+   已验证：脚本可在 PostgreSQL 语法解析器下全量通过；在 H2 文件库上执行 `schema.sql` + `seed.sql` 后
+   以 `validate` 连续启动 3 次（含清空菜单再启动）均正常且数据不重复。
 
 仍待补齐 / 需要确认：
 
@@ -186,8 +222,10 @@ com.university.webdesign
 3. **JWT 黑名单与改密失效时间戳是进程内 Map**，单实例够用，多实例部署必须换 Redis。
 4. **分类字典由 `recipe.category` 去重派生**，`CategoryVO.categoryId` 是分类名的稳定哈希；
    若将来要独立建分类表，需要迁移 `RecipeService.listCategories` 与相关页面。
-5. **`order_form` 的 `(employee_id, order_date)` 唯一约束对有效订单生效**：当前用服务层校验 +
-   `Idempotency-Key` 唯一索引兜底；取消/作废不占名额，如需数据库级强约束要配合部分索引。
+5. **`order_form` 的 `(employee_id, order_date)` 唯一约束对有效订单生效**：服务层校验 + `Idempotency-Key`
+   唯一索引兜底；取消/作废不占名额。数据库级强约束已在 `reploy/sql/schema.sql` 里用**部分唯一索引**
+   `uk_order_form_employee_date_active ... where status in ('PENDING','VALID')` 落地
+   （H2 不支持部分索引，因此 `dev`/测试库仍只有服务层校验；并发撞索引时接口会返回 50000）。
 6. **`order_no` 发号**为 `yyyyMMdd + 4 位当日流水`，取当日最大单号 +1；极高并发下仍可能撞号，
    唯一约束会拒绝，需要重试或改用数据库序列/Redis 发号。
 7. **事件监听器目前只覆盖 M3 的聚合与重算**；M4 报表缓存失效、菜单缓存预热尚未接监听器

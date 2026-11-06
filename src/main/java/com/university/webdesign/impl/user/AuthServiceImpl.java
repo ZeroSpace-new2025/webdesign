@@ -6,7 +6,6 @@ import com.university.webdesign.common.RoleCodes;
 import com.university.webdesign.common.UserContext;
 import com.university.webdesign.common.UserContextHolder;
 import com.university.webdesign.common.enums.PermissionEnum;
-import com.university.webdesign.config.TemporaryAdminAccount;
 import com.university.webdesign.domain.user.Role;
 import com.university.webdesign.domain.user.User;
 import com.university.webdesign.domain.user.UserStatus;
@@ -45,14 +44,12 @@ public class AuthServiceImpl implements AuthService
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtCodec jwtCodec;
-	private final TemporaryAdminAccount temporaryAdmin;
 
 	public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder,
-	                       JwtCodec jwtCodec, TemporaryAdminAccount temporaryAdmin) {
+	                       JwtCodec jwtCodec) {
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.jwtCodec = jwtCodec;
-		this.temporaryAdmin = temporaryAdmin;
 	}
 
 	@Override
@@ -61,16 +58,6 @@ public class AuthServiceImpl implements AuthService
 		String normalized = trimToNull(employeeNo);
 		if (normalized == null || rawPassword == null || rawPassword.isEmpty()) {
 			throw new BusinessException(ErrorCode.PARAM_INVALID, "工号与密码不能为空");
-		}
-		// 临时硬编码管理员：不查库，直接签发全权限令牌（app.storage=none 时也能登录）
-		if (temporaryAdmin.matches(normalized, rawPassword)) {
-			CurrentUserVO adminInfo = temporaryAdminInfo();
-			String adminToken = jwtCodec.sign(TemporaryAdminAccount.USER_ID, temporaryAdmin.employeeNo(),
-					adminInfo.getName(), null, adminInfo.getRoles(), adminInfo.getPermCodes());
-			long adminExpiresIn = jwtCodec.expireSeconds();
-			log.warn("临时硬编码管理员登录：工号={}", temporaryAdmin.employeeNo());
-			return LoginVO.of(adminToken, adminExpiresIn,
-					Instant.now().plusSeconds(adminExpiresIn).toEpochMilli(), adminInfo);
 		}
 
 		User user = userRepository.findWithRolesByEmployeeNoIgnoreCase(normalized)
@@ -109,9 +96,6 @@ public class AuthServiceImpl implements AuthService
 		if (userId == null) {
 			throw new BusinessException(ErrorCode.PARAM_INVALID, "用户ID不能为空");
 		}
-		if (temporaryAdmin.isAdmin(userId)) {
-			return temporaryAdminInfo();
-		}
 		UserContext context = UserContextHolder.get();
 		if (context != null && context.userId() != null && !context.userId().equals(userId)
 				&& !context.hasAnyRole(RoleCodes.MANAGER)) {
@@ -127,10 +111,6 @@ public class AuthServiceImpl implements AuthService
 	public void changePassword(Long userId, String oldPwd, String newPwd) {
 		if (userId == null) {
 			throw new BusinessException(ErrorCode.PARAM_INVALID, "用户ID不能为空");
-		}
-		if (temporaryAdmin.isAdmin(userId)) {
-			throw new BusinessException(ErrorCode.PARAM_INVALID,
-					"临时硬编码管理员账号不支持修改密码");
 		}
 		if (oldPwd == null || oldPwd.isEmpty()) {
 			throw new BusinessException(ErrorCode.PARAM_INVALID, "旧密码不能为空");
@@ -177,10 +157,6 @@ public class AuthServiceImpl implements AuthService
 	public boolean checkPermission(Long userId, PermissionEnum permCode) {
 		if (userId == null || permCode == null || permCode == PermissionEnum.None) {
 			return false;
-		}
-		if (temporaryAdmin.isAdmin(userId)) {
-			return temporaryAdmin.permCodes().stream()
-					.anyMatch(code -> code.equalsIgnoreCase(permCode.displayCode()));
 		}
 		User user = userRepository.findWithRolesById(userId).orElse(null);
 		if (user == null || !user.isActive()) {
@@ -229,18 +205,6 @@ public class AuthServiceImpl implements AuthService
 		}
 		vo.setRoles(roles);
 		vo.setPermCodes(new ArrayList<>(permCodes));
-		return vo;
-	}
-
-	private CurrentUserVO temporaryAdminInfo() {
-		CurrentUserVO vo = new CurrentUserVO();
-		vo.setUserId(TemporaryAdminAccount.USER_ID);
-		vo.setEmployeeNo(temporaryAdmin.employeeNo());
-		vo.setName(TemporaryAdminAccount.NAME);
-		vo.setStatus(UserStatus.ACTIVE.name());
-		vo.setStatusText(UserStatus.ACTIVE.getText());
-		vo.setRoles(temporaryAdmin.roles());
-		vo.setPermCodes(temporaryAdmin.permCodes());
 		return vo;
 	}
 

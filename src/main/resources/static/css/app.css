@@ -1679,12 +1679,3 @@ svg {
 		padding: 20px;
 	}
 }
-/* 登录页的临时管理员账号按钮：琥珀色边框提示“非正式账号” */
-.account-option-temp {
-	border: 1px dashed var(--amber);
-	background: var(--amber-soft);
-}
-
-.account-option-temp:hover {
-	border-color: var(--amber);
-}

@@ -19,15 +19,8 @@
             </p>
         </div>
         <div style="display:flex;gap:10px;align-items:center;">
-            <span class="badge badge-active"
-                  th:if="${temporaryAdmin}"
-                  title="临时硬编码管理员，不落库，上线前必须删除">临时管理员</span>
             <button class="btn" type="button" id="logout-button">退出登录</button>
         </div>
-    </div>
-
-    <div th:if="${temporaryAdmin}" class="alert alert-error">
-        当前登录的是<b>临时硬编码管理员</b>（不落库、拥有全部权限点），仅用于演示与空库兜底，上线前必须删除。
     </div>
 
     <div th:if="${roleNames != null and !roleNames.isEmpty()}" class="card" style="margin-bottom:20px;">

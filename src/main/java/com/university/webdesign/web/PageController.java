@@ -3,7 +3,6 @@ package com.university.webdesign.web;
 import com.university.webdesign.common.BusinessException;
 import com.university.webdesign.common.UserContext;
 import com.university.webdesign.common.UserContextHolder;
-import com.university.webdesign.config.TemporaryAdminAccount;
 import com.university.webdesign.service.user.AuthService;
 import com.university.webdesign.service.user.UserService;
 import com.university.webdesign.service.user.dto.CurrentUserVO;
@@ -29,13 +28,10 @@ public class PageController
 {
 	private final UserService userService;
 	private final AuthService authService;
-	private final TemporaryAdminAccount temporaryAdmin;
 
-	public PageController(UserService userService, AuthService authService,
-			TemporaryAdminAccount temporaryAdmin) {
+	public PageController(UserService userService, AuthService authService) {
 		this.userService = userService;
 		this.authService = authService;
-		this.temporaryAdmin = temporaryAdmin;
 	}
 
 	/**
@@ -61,8 +57,7 @@ public class PageController
 	/**
 	 * 总门户：登录后的落地页，按权限点展示各功能入口
 	 * <p>
-	 * 只依赖 token 里的角色与权限点（{@link UserContext}），因此临时硬编码管理员
-	 * （不落库）也能正常打开；具体页面的数据仍由各页自己的控制器加载。
+	 * 只依赖 token 里的角色与权限点（{@link UserContext}），具体页面的数据仍由各页自己的控制器加载。
 	 *
 	 * @param model 视图模型
 	 * @return 视图名或重定向
@@ -79,16 +74,11 @@ public class PageController
 		model.addAttribute("employeeNo", context.employeeNo());
 		model.addAttribute("userName", context.name());
 		model.addAttribute("permissionCount", permCodes.size());
-		// 临时硬编码管理员：页面上明确提示，避免误当成正式账号
-		model.addAttribute("temporaryAdmin", temporaryAdmin.isAdmin(context.userId()));
 		return "portal";
 	}
 
 	/**
 	 * 控制台页面：注入当前登录用户的角色与权限点概览，业务数据由前端 JS 调 /api/v1/** 加载
-	 * <p>
-	 * 临时硬编码管理员不落库，{@code UserService.getById} 查不到时不报错，
-	 * 改为用 token 里的身份信息兜底，保证控制台页面仍可打开。
 	 *
 	 * @param model 视图模型
 	 * @return 视图名或重定向
@@ -102,12 +92,11 @@ public class PageController
 		CurrentUserVO current = authService.currentUser(context.userId());
 		model.addAttribute("currentUser", resolveCurrentUser(context, current));
 		model.addAttribute("permCodes", current.getPermCodes());
-		model.addAttribute("temporaryAdmin", temporaryAdmin.isAdmin(context.userId()));
 		return "console";
 	}
 
 	/**
-	 * 取控制台页面用的用户视图：优先查库，查不到（临时管理员）时用 token 信息兜底
+	 * 取控制台页面用的用户视图：优先查库，查不到（例如账号刚被删除、token 还没过期）时用 token 信息兜底
 	 *
 	 * @param context token 里的登录上下文
 	 * @param current 当前用户视图
