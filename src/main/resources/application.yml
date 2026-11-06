@@ -79,12 +79,6 @@ app:
   schedule:
     enabled: true
 
-  # ===== 临时硬编码管理员（课程演示用，上线前必须删除）=====
-  # 删除步骤见 config/TemporaryAdminAccount 的类注释
-  # temporary-admin:
-  #   employee-no: admin
-  #   password: admin123
-
 # =============================================================================
 # 本地开发：H2 内存数据库（PostgreSQL 兼容模式）
 # 对应原 application-dev.properties

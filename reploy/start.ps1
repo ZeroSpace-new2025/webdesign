@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	读取 reploy/.env 里的环境变量并启动应用（Windows / PowerShell）。
 
@@ -83,12 +83,15 @@ if (-not $java) {
 }
 
 # ---------------------------------------------------------------- 3. 基本检查
-if ($Profile -ne 'dev' -and [string]::IsNullOrEmpty($env:DB_PASSWORD)) {
-	Write-Warning 'DB_PASSWORD 为空：连 PostgreSQL 会认证失败，请在 reploy\.env 里填写。'
-}
-if (-not $env:DB_URL) {
-	Write-Warning ("DB_URL 未设置，将使用 application.yml 的默认值 " +
-		'(jdbc:postgresql://localhost:5432/webdesign)')
+# dev 用 H2 内存库，不读 DB_*，因此这些提示只在 prod/postgres 下出现
+if ($Profile -ne 'dev') {
+	if ([string]::IsNullOrEmpty($env:DB_PASSWORD)) {
+		Write-Warning 'DB_PASSWORD 为空：连 PostgreSQL 会认证失败，请在 reploy\.env 里填写。'
+	}
+	if (-not $env:DB_URL) {
+		Write-Warning ("DB_URL 未设置，将使用 application.yml 的默认值 " +
+			'(jdbc:postgresql://localhost:5432/webdesign)')
+	}
 }
 
 # ---------------------------------------------------------------- 4. 启动

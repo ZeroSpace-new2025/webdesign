@@ -161,6 +161,8 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
 部署启动统一走 `reploy/`：`reploy\start.ps1`（Windows）/ `reploy/start.sh`（Linux）会读
 `reploy/.env` 再 `java -jar`，默认 `prod`；变量模板是 `reploy/.env.example`，
 真实密码只写 `.env`（已被 `.gitignore` 忽略），**不要写回 `application.yml`**。
+另有一键脚本 `reploy/pugin/`：`start.bat`（建库 + 启动）、`run.bat`（仅启动）、
+`test.bat`（dev 模式启动），内容是 cmd 批处理（CRLF、UTF-8 无 BOM）。
 部署细节见 `reploy/README.md`。
 
 测试约定：`src/test/resources/application.yml` 用 **H2 内存库**替代 PostgreSQL。
@@ -193,11 +195,11 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
 6. **`DatabaseDataInitializer`** 在 `app.storage=database`（默认）时写入 5 个预置角色
    （名称取 `common.RoleCodes`，授权为该角色的细粒度权限点集合）与演示账号；
    权限点字典由 `PermissionEnum` 提供，不需要初始化数据。
-7. **总门户 + 临时硬编码管理员**：登录成功后落到总门户 `/portal`（按当前账号的权限点列出各功能入口，
+7. **总门户 + 登录入口**：登录成功后落到总门户 `/portal`（按当前账号的权限点列出各功能入口，
    M3 尚无页面的功能以禁用卡片明确标注），`/console` 仍是用户与报表控制台。
-   另有**临时硬编码管理员账号** `config.TemporaryAdminAccount`（默认 `admin` / `admin123`，
-   可用 `app.temporary-admin.*` 覆盖）：**不落库**、拥有全部 13 个权限点，
-   因此 `app.storage=none` 或空库时也能进系统。**上线前必须删除**，删除步骤见该类的类注释。
+   认证只有一条路径：`users` 表 + BCrypt 密码 + JWT —— **临时硬编码管理员（`admin` / `admin123`）
+   已删除**，登录必须先有账号（`DatabaseDataInitializer` 或 `reploy/sql/seed.sql` 会建演示账号）。
+   因此 `app.storage=none` 或空库时**无法登录**，本地跑通请用默认 dev（会初始化演示数据）。
 8. **数据库脚本已就绪（部署基线）**：`reploy/sql/schema.sql`（16 张表 + 索引 + 枚举 CHECK + 表/列注释，
    列名与类型由实体元数据导出后整理）、`reploy/sql/seed.sql`（5 个预置角色、8 个演示账号、默认时间窗口，
    幂等可重复执行）、`reploy/sql/drop.sql`、`reploy/sql/README.md`。`prod`/`postgres` 的 `ddl-auto` 已改为 `validate`。

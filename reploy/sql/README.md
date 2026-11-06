@@ -69,9 +69,9 @@ java -jar build/libs/webdesign-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
 | `delivery` | `delivery123` | 赵配餐 | `DELIVERY_STAFF` | `operation:delivery:print` |
 | `zhangsan`/`lisi`/`wangwu`/`sunliu` | `123456` | 张三/李四/王五/孙六 | `EMPLOYEE` | `order:submit` |
 
-密码在库里是 BCrypt 哈希（`$2a$10$…`），**上线前请删除演示账号或全部改密**；
-另外 `config.TemporaryAdminAccount` 的硬编码管理员（默认 `admin` / `admin123`，不落库）也必须在正式上线前删除，
-删除步骤见该类的类注释。
+密码在库里是 BCrypt 哈希（`$2a$10$…`），**上线前请删除演示账号或全部改密**。
+系统只认本表里的账号登录（硬编码的临时管理员 `admin` / `admin123` 已从代码中删除），
+因此**空库无法登录**：要么执行本脚本的演示账号，要么先由经理在“用户管理”里建账号。
 
 ## 4. 设计要点（与实体/业务的对应关系）
 

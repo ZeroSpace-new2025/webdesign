@@ -67,11 +67,14 @@ if [ -z "$JAR" ] || [ ! -f "$JAR" ]; then
 fi
 
 # ---------------------------------------------------------------- 3. 基本检查
-if [ "$PROFILE" != "dev" ] && [ -z "${DB_PASSWORD:-}" ]; then
-	echo "[warn] DB_PASSWORD 为空：连 PostgreSQL 会认证失败，请在 reploy/.env 里填写。" >&2
-fi
-if [ -z "${DB_URL:-}" ]; then
-	echo "[warn] DB_URL 未设置，将使用 application.yml 的默认值（jdbc:postgresql://localhost:5432/webdesign）" >&2
+# dev 用 H2 内存库，不读 DB_*，因此这些提示只在 prod/postgres 下出现
+if [ "$PROFILE" != "dev" ]; then
+	if [ -z "${DB_PASSWORD:-}" ]; then
+		echo "[warn] DB_PASSWORD 为空：连 PostgreSQL 会认证失败，请在 reploy/.env 里填写。" >&2
+	fi
+	if [ -z "${DB_URL:-}" ]; then
+		echo "[warn] DB_URL 未设置，将使用 application.yml 的默认值（jdbc:postgresql://localhost:5432/webdesign）" >&2
+	fi
 fi
 if ! command -v java >/dev/null 2>&1; then
 	echo "未找到 java，请先安装 JDK 21 并加入 PATH" >&2

@@ -9,9 +9,34 @@ reploy/
 ├── .env.example   环境变量模板（复制成 .env 后填写，.env 不进版本库）
 ├── start.ps1      Windows 启动脚本（读 .env → 校验 → java -jar）
 ├── start.sh       Linux / macOS 启动脚本
-├── pugin/         预留目录
+├── pugin/         三个一键脚本：start.bat / run.bat / test.bat
 └── sql/           建库 / 初始化 / 反安装脚本（详见 sql/README.md）
 ```
+
+## 0. 三个 .bat 一键脚本
+
+`pugin/` 下的 `.bat` 是 **cmd 批处理脚本**，三者都只是 `start.ps1` 的薄封装
+（环境变量与 jar 解析只维护在 `start.ps1` 一处）：
+
+| 文件 | 作用 |
+| :--- | :--- |
+| `start.bat` | **一键部署**：读 `.env` → `psql` 建表 + 初始化数据 → 以 `prod` 启动 |
+| `run.bat` | **仅启动**服务（默认 `prod`，不做建库；可 `-Profile postgres` / `-AppArgs ...`） |
+| `test.bat` | 以 **dev 模式启动**（H2 内存库 + 演示数据，不读 `.env`、不需要 PostgreSQL） |
+
+```bat
+reploy\pugin\start.bat                   :: 首次部署
+reploy\pugin\run.bat                     :: 日常启动
+reploy\pugin\run.bat -Profile postgres   :: 换 profile
+reploy\pugin\test.bat                    :: 本地 dev（http://localhost:8080）
+```
+
+注意：
+
+- `start.bat` 找不到 `psql` 时只打印手工命令并继续启动（库可能已经建好）；`schema.sql` / `seed.sql` 都可重复执行。
+- 编码约定：`.bat` 必须 **CRLF + UTF-8 无 BOM**（`.gitattributes` 已固定 `*.bat eol=crlf`）；
+  `start.ps1` 反过来必须 **UTF-8 带 BOM** —— 否则 Windows PowerShell 5.1 会按 ANSI 解码中文注释，
+  报 `Missing closing '}'` 之类看起来完全不相干的语法错误。
 
 ## 1. 三步部署
 
@@ -89,5 +114,5 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/seed.sql
 ## 5. 安全约定
 
 - `.env` 已被 `.gitignore` 忽略，**禁止提交真实密码**；仓库里只保留 `.env.example`。
-- 上线前删除 `config.TemporaryAdminAccount` 的硬编码管理员（默认 `admin` / `admin123`），
-  并修改 `reploy/sql/seed.sql` 里的演示账号密码。
+- 上线前删除演示账号，或把 `reploy/sql/seed.sql` 里的演示密码全部改掉。
+  硬编码的临时管理员（`admin` / `admin123`）**已从代码中删除**，系统只认 `users` 表里的真实账号。
