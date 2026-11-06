@@ -98,8 +98,18 @@ spring:
 
   jpa:
     hibernate:
-      # 每次启动重建表结构，由 DatabaseDataInitializer 写入预置角色、演示账号与演示菜单
+      # 每次启动重建表结构；演示菜单由 DatabaseDataInitializer 写入（列表数据见下一步）
       ddl-auto: create-drop
+    # SQL 种子要等 Hibernate 把表建好之后再执行（create-drop 场景下必须打开）
+    defer-datasource-initialization: true
+
+  # 预置角色 / 演示账号 / 默认时间窗口的**唯一来源**是 reploy/sql/seed.sql：
+  # dev 启动时自动执行（未打包进 jar 前由 processResources 拷到 classpath:db/seed.sql）；
+  # prod / postgres 不自动执行，由 DBA 手工 psql -f，避免误把演示账号写进生产库。
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:db/seed.sql
 
   # H2 控制台：http://localhost:8080/h2-console
   # 注意：控制台路径已在 WebConfig 的认证白名单中放行，仅限本地开发使用

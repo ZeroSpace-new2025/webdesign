@@ -192,19 +192,23 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
    （13 个细粒度权限点，`PermissionEnum` 范围 13~25）。
 5. **定时任务与事件**：`OrderWindowCloseJob`（09:00 发 `OrderWindowClosedEvent`）、
    `DeliveryOpenJob`（11:30 预生成配送任务）+ `event/listener` 下的监听器。
-6. **`DatabaseDataInitializer`** 在 `app.storage=database`（默认）时写入 5 个预置角色
-   （名称取 `common.RoleCodes`，授权为该角色的细粒度权限点集合）与演示账号；
-   权限点字典由 `PermissionEnum` 提供，不需要初始化数据。
+6. **预置数据全部走 SQL 种子，不在代码里**：预置角色（名称 + 权限位图）、演示账号、默认时间窗口的
+   **唯一来源是 `reploy/sql/seed.sql`**。`dev` 与测试由 `spring.sql.init` 在建表后自动执行
+   （`application.yml` 的 dev 段：`sql.init.mode=always` + `data-locations=classpath:db/seed.sql`
+   + `jpa.defer-datasource-initialization=true`；该文件由 `build.gradle` 的 `processResources`
+   从 `reploy/sql/` 拷进 `classpath:db/`）。PostgreSQL 部署不自动执行，由 DBA 手工 `psql -f`。
+   改角色/权限/演示账号改 SQL 即可，**不要再往 Java 里加种子数据**。
+   `config.DatabaseDataInitializer` 只保留一件事：演示菜品 + 当日已发布菜单
+   （必须走 `MenuService.publish` 冻结 `menu_snapshot`，纯 INSERT 保证不了这个不变量）。
 7. **总门户 + 登录入口**：登录成功后落到总门户 `/portal`（按当前账号的权限点列出各功能入口，
    M3 尚无页面的功能以禁用卡片明确标注），`/console` 仍是用户与报表控制台。
    认证只有一条路径：`users` 表 + BCrypt 密码 + JWT —— **临时硬编码管理员（`admin` / `admin123`）
-   已删除**，登录必须先有账号（`DatabaseDataInitializer` 或 `reploy/sql/seed.sql` 会建演示账号）。
-   因此 `app.storage=none` 或空库时**无法登录**，本地跑通请用默认 dev（会初始化演示数据）。
+   已删除**，登录必须先有账号（账号来自 `reploy/sql/seed.sql`）。
+   因此 `app.storage=none` 或空库时**无法登录**，本地跑通请用默认 dev（会自动执行种子脚本）。
 8. **数据库脚本已就绪（部署基线）**：`reploy/sql/schema.sql`（16 张表 + 索引 + 枚举 CHECK + 表/列注释，
    列名与类型由实体元数据导出后整理）、`reploy/sql/seed.sql`（5 个预置角色、8 个演示账号、默认时间窗口，
-   幂等可重复执行）、`reploy/sql/drop.sql`、`reploy/sql/README.md`。`prod`/`postgres` 的 `ddl-auto` 已改为 `validate`。
-   `DatabaseDataInitializer` 同时做了幂等修正：时间窗口只在“没有任何生效全局配置”时插入
-   （否则同一生效日期会撞 40901 让启动失败），演示菜品按名称复用（否则菜单被清空后重启会撞重名）。
+   幂等可重复执行，dev/测试与生产共用）、`reploy/sql/drop.sql`、`reploy/sql/README.md`。
+   `prod`/`postgres` 的 `ddl-auto` 已改为 `validate`。
    已验证：脚本可在 PostgreSQL 语法解析器下全量通过；在 H2 文件库上执行 `schema.sql` + `seed.sql` 后
    以 `validate` 连续启动 3 次（含清空菜单再启动）均正常且数据不重复。
 

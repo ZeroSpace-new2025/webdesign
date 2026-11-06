@@ -26,6 +26,7 @@ dependencies {
 	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'org.postgresql:postgresql'
+
 	// H2：仅用于本地开发（dev profile），无需安装数据库和密码
 	runtimeOnly 'com.h2database:h2'
 	annotationProcessor 'org.projectlombok:lombok'
@@ -43,3 +44,14 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// 预置角色 / 演示账号 / 默认时间窗口的唯一来源是 reploy/sql/seed.sql。
+// dev（H2 内存库）与测试由 spring.sql.init 执行它，因此把这个文件打进 classpath 的 db/ 目录，
+// 这样不依赖启动时的工作目录（file: 相对路径在 IDE 里容易踩坑），内容也仍然只维护在一处。
+tasks.named('processResources') {
+	from('reploy/sql') {
+		include 'seed.sql'
+		into 'db'
+	}
+}
+

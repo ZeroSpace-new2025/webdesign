@@ -16,3 +16,12 @@ spring:
     hibernate:
       # 测试上下文每次重建表结构，跑完即丢
       ddl-auto: create-drop
+    # 表建好之后再灌种子数据
+    defer-datasource-initialization: true
+
+  # 预置角色 / 演示账号 / 时间窗口来自 reploy/sql/seed.sql（processResources 拷到 classpath:db/），
+  # 与 dev、生产部署共用同一份种子，避免测试用的是“代码里另写一套”的角色。
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:db/seed.sql

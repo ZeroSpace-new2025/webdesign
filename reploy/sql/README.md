@@ -135,9 +135,16 @@ select indexname from pg_indexes where tablename = 'order_form';
 
 ## 7. 与开发环境的关系
 
-- `dev` / 测试沿用 H2 内存库 + `ddl-auto=create-drop`，**不需要**执行本目录脚本，也没有数据库依赖；
+- `dev` / 测试沿用 H2 内存库 + `ddl-auto=create-drop`，**不需要手工执行**本目录脚本；
+- 但 `seed.sql` 会被自动执行：`application.yml` 的 dev 段配了
+  `spring.sql.init.mode=always` + `data-locations=classpath:db/seed.sql`
+  + `jpa.defer-datasource-initialization=true`（等 Hibernate 建完表再灌数据），
+  测试的 `src/test/resources/application.yml` 同理。`seed.sql` 由 `build.gradle` 的
+  `processResources` 从本目录拷到 `classpath:db/`，所以**内容仍然只维护在这一处**；
+- 也就是说：预置角色 / 演示账号 / 时间窗口**只存在于 `seed.sql`**，代码里不再有种子数据，
+  改角色或权限改这个文件即可（dev 重启生效，生产重跑脚本生效）；
 - H2 的 PostgreSQL 兼容模式支持本脚本的绝大部分语法，但**不支持部分唯一索引**（`CREATE UNIQUE INDEX … WHERE`），
-  因此不要在 H2 上直接跑 `schema.sql`；
+  因此不要在 H2 上直接跑 `schema.sql`（`seed.sql` 没有这个问题，两边都能跑）；
 - 切换 PostgreSQL 用 `--spring.profiles.active=prod`（或 `postgres`），连接串与账号密码只走环境变量。
 
 ## 8. 改了实体之后怎么同步脚本

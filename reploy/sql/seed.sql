@@ -4,14 +4,19 @@
 -- 前置：先执行 reploy/sql/schema.sql 建表
 -- 用法：psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/seed.sql
 --
+-- **本文件是预置角色、演示账号、默认时间窗口的唯一来源**（代码里不再硬编码这些数据）：
+--   * dev profile：Hibernate 建表后由 spring.sql.init 自动执行（classpath:db/seed.sql）；
+--   * 测试：同上，src/test/resources/application.yml 指向同一份文件；
+--   * PostgreSQL 部署：手工执行本脚本（应用启动时不会自动写数据）。
+--
 -- 内容：
 --   1) 5 个预置角色及其权限位图（位号见 common/enums/PermissionEnum）；
 --   2) 8 个演示账号（密码为 BCrypt 哈希，明文见下表）；
 --   3) 用户-角色关联；
 --   4) 默认时间窗口（09:00 截止 / 11:30 开始配餐）。
 --
--- 幂等：每段都带“不存在才插入”的判断，重复执行不会写重复数据；
---       与 config/DatabaseDataInitializer 的预置数据保持一致，两者先执行谁都不会冲突。
+-- 幂等：每段都带“不存在才插入”的判断，重复执行不会写重复数据。
+-- 注意：脚本在 H2（PostgreSQL 兼容模式）与 PostgreSQL 上都要能跑，因此只用两者都支持的语法。
 --
 -- 演示账号（明文密码仅用于课程演示）：
 --   manager  / admin123     餐厅经理（全部 13 个权限点）
