@@ -34,6 +34,10 @@ public class ServiceWindowPageController
         ServiceWindowVO window = serviceWindowService.get(target, null, null);
         model.addAttribute("window", window);
         model.addAttribute("date", target);
+
+        // 👇 【新增】通知导航栏高亮“时间配置”
+        model.addAttribute("active", "window");
+
         return "operation/service-window";
     }
 

@@ -12,18 +12,18 @@
 <nav th:fragment="navbar(active)" class="navbar">
     <a class="brand" th:href="@{/}">🍽️ 企业餐厅点餐</a>
     <div class="nav-links">
+        <!-- 组员原有的导航 -->
         <a th:href="@{/order/create}" th:classappend="${active == 'order'} ? 'active'">今日点餐</a>
         <a th:href="@{/order/mine}" th:classappend="${active == 'mine'} ? 'active'">我的订单</a>
         <a th:href="@{/recipes}" th:classappend="${active == 'recipe'} ? 'active'">菜品管理</a>
         <a th:href="@{/menus}" th:classappend="${active == 'menu'} ? 'active'">菜单管理</a>
         <a th:href="@{/console}" th:classappend="${active == 'console'} ? 'active'">控制台</a>
 
-        <!-- ====== M3 运营与履约模块入口 开始 ====== -->
+        <!-- ====== M3 运营与履约模块入口 ====== -->
         <a th:href="@{/operation/blanket-orders}" th:classappend="${active == 'blanket'} ? 'active'">厨房备料</a>
         <a th:href="@{/operation/deliveries}" th:classappend="${active == 'delivery'} ? 'active'">配送管理</a>
         <a th:href="@{/operation/configs/service-window}" th:classappend="${active == 'window'} ? 'active'">时间配置</a>
-        <!-- ====== M3 运营与履约模块入口 结束 ====== -->
-
+        <!-- ===================================== -->
     </div>
 </nav>
 

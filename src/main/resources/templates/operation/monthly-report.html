@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>员工月度菜品统计表</title>
+    <style>
+        body { font-family: "SimSun", "宋体", sans-serif; background: #f9f9f9; padding: 20px; }
+        .paper { max-width: 900px; margin: 0 auto; background: #fff; padding: 30px; border: 1px solid #000; }
+        .title { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; }
+        .meta { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 15px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #000; padding: 8px; text-align: center; font-size: 15px; }
+        .text-left { text-align: left; }
+        .text-right { text-align: right; }
+        .footer { display: flex; justify-content: space-between; margin-top: 8px; border-top: 1px solid #000; padding-top: 8px; font-size: 15px; }
+        .print-btn { text-align: center; margin-bottom: 20px; }
+        .print-btn button { padding: 8px 20px; font-size: 16px; cursor: pointer; }
+        @media print {
+            body { background: #fff; padding: 0; }
+            .paper { border: none; padding: 0; }
+            .print-btn { display: none; }
+        }
+    </style>
+</head>
+<body>
+<div class="print-btn">
+    <button onclick="window.print()">🖨️ 打印报表</button>
+</div>
+
+<div class="paper">
+    <div class="title">员工月度菜品统计表</div>
+    <div class="meta">
+        <span>员工：<span th:text="${employeeName}"></span></span>
+        <span>联系电话：<span th:text="${phone}"></span></span>
+        <span>统计月份：<span th:text="${month}"></span></span>
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th width="40%">菜名</th>
+            <th width="15%">单位</th>
+            <th width="15%">分量</th>
+            <th width="15%">单价</th>
+            <th width="15%">合计</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="item : ${items}">
+            <td class="text-left" th:text="${item.name}"></td>
+            <td th:text="${item.unit}"></td>
+            <td th:text="${item.qty}"></td>
+            <td>￥<span th:text="${#numbers.formatDecimal(item.price, 1, 2)}"></span></td>
+            <td>￥<span th:text="${#numbers.formatDecimal(item.total, 1, 2)}"></span></td>
+        </tr>
+        <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+        </tbody>
+        <tfoot>
+        <tr>
+            <td colspan="4" class="text-right"><strong>合计金额：</strong></td>
+            <td><strong>￥<span th:text="${#numbers.formatDecimal(totalAmount, 1, 2)}"></span></strong></td>
+        </tr>
+        </tfoot>
+    </table>
+    <div class="footer">
+        <span>操作员：XXX(餐厅经理)</span>
+        <span>操作时间：<span th:text="${#dates.format(#dates.createNewDate(), 'yyyy-MM-dd HH:mm:ss')}"></span></span>
+    </div>
+</div>
+</body>
+</html>

@@ -7,7 +7,6 @@ import com.university.webdesign.service.operation.BlanketOrderService;
 import com.university.webdesign.service.operation.dto.CategoryStatVO;
 import com.university.webdesign.service.operation.dto.CategorySumVO;
 import com.university.webdesign.service.operation.dto.DailyStatVO;
-import com.university.webdesign.service.operation.dto.PrintFormat;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -17,8 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -53,6 +51,7 @@ public class BlanketOrderPageController
         model.addAttribute("categorySums", categorySums);
         model.addAttribute("totalItems", items.size());
         model.addAttribute("hasSnapshot", !items.isEmpty());
+        model.addAttribute("active", "blanket");
         return "operation/blanket-orders";
     }
 
@@ -78,15 +77,23 @@ public class BlanketOrderPageController
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             Model model) {
         LocalDate target = date == null ? LocalDate.now() : date;
-        String content;
-        try {
-            var resource = blanketOrderService.printProductionOrder(target, null, PrintFormat.TXT);
-            content = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        } catch (IOException | RuntimeException e) {
-            content = "生成生产单失败：" + e.getMessage();
+
+        // 查出当天的汇总列表
+        List<CategoryStatVO> items = blanketOrderService.listAggregated(target, null);
+
+        // 👇 算出总计金额
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        if (items != null) {
+            for (CategoryStatVO item : items) {
+                if (item.getTotalAmount() != null) {
+                    totalAmount = totalAmount.add(item.getTotalAmount());
+                }
+            }
         }
+
         model.addAttribute("date", target);
-        model.addAttribute("content", content);
+        model.addAttribute("items", items);
+        model.addAttribute("totalAmount", totalAmount); // 传给前端
         return "operation/blanket-orders-print";
     }
 
@@ -107,6 +114,7 @@ public class BlanketOrderPageController
         model.addAttribute("page", result);
         model.addAttribute("dateFrom", dateFrom);
         model.addAttribute("dateTo", dateTo);
+        model.addAttribute("active", "blanket");
         return "operation/blanket-orders-history";
     }
 }
