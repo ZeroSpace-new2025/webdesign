@@ -17,6 +17,10 @@
 	<div th:replace="~{ordertransaction/fragments/common :: flash}"></div>
 	<section th:replace="~{ordertransaction/fragments/common :: identity(${data.userId}, ${data.userName})}"></section>
 
+	<div class="actions">
+		<a class="button primary" th:href="@{/reports/employee-monthly}">查看并打印本月消费报表</a>
+	</div>
+
 	<p class="notice" th:if="${data.userId == null}">
 		尚未登录，无法查看订单。历史订单只能查看自己的；经理与财务查询他人消费走报表中心的入口。
 	</p>

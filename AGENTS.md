@@ -230,7 +230,8 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
    唯一约束会拒绝，需要重试或改用数据库序列/Redis 发号。
 7. **事件监听器目前只覆盖 M3 的聚合与重算**；M4 报表缓存失效、菜单缓存预热尚未接监听器
    （`ReportService.getMonthly` 是“读缓存、缺失即同步生成”，因此暂无正确性风险，只是少了主动失效）。
-8. **页面覆盖**：总门户（`/portal`）、订单（`/order/**`）、菜品（`/recipes/**`）、菜单（`/menus/**`）
+8. **页面覆盖**：总门户（`/portal`）、订单（`/order/**`）、员工月度消费/订单汇总报表
+   （`/reports/employee-monthly`）、菜品（`/recipes/**`）、菜单（`/menus/**`）
    与控制台（`/console`）已可用；
    M3 的聚合/配送/时间窗口目前只有 REST 接口，尚无专门的 Thymeleaf 页面（总门户里以禁用卡片占位）。
 9. **`items` 在列表类响应里**由 Jackson 正常序列化为数组；用 PowerShell `ConvertTo-Json` 查看时

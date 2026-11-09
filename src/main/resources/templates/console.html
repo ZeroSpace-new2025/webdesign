@@ -323,6 +323,37 @@
 					</table>
 				</div>
 			</section>
+
+			<section class="flat-panel audit-employee-panel">
+				<header class="panel-header panel-header-wrap">
+					<div>
+						<p class="eyebrow">EMPLOYEE STATEMENT</p>
+						<h2>员工月度订单汇总</h2>
+					</div>
+					<div class="toolbar-actions">
+						<select id="audit-employee-month" aria-label="员工报表月份"></select>
+						<label class="search-field compact-search">
+							<i data-lucide="search"></i>
+							<input id="audit-employee-search" type="search" placeholder="搜索姓名、工号、部门或工位">
+						</label>
+					</div>
+				</header>
+				<div class="table-wrap">
+					<table class="data-table">
+						<thead>
+						<tr>
+							<th>员工</th>
+							<th>部门 / 工位</th>
+							<th>订单数</th>
+							<th>菜品数量</th>
+							<th class="align-right">消费金额</th>
+							<th class="align-right">月度报表</th>
+						</tr>
+						</thead>
+						<tbody id="audit-employee-table-body"></tbody>
+					</table>
+				</div>
+			</section>
 		</section>
 	</main>
 </div>

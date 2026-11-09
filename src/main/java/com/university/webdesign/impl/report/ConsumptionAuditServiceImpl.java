@@ -2,7 +2,6 @@ package com.university.webdesign.impl.report;
 
 import com.university.webdesign.common.BusinessException;
 import com.university.webdesign.common.ErrorCode;
-import com.university.webdesign.common.enums.PermissionEnum;
 import com.university.webdesign.common.RoleCodes;
 import com.university.webdesign.common.UserContext;
 import com.university.webdesign.common.UserContextHolder;
@@ -14,6 +13,7 @@ import com.university.webdesign.service.report.ConsumptionAuditService;
 import com.university.webdesign.service.report.MonthConverter;
 import com.university.webdesign.service.report.dto.ConsumptionDetailVO;
 import com.university.webdesign.service.report.dto.DeptConsumptionVO;
+import com.university.webdesign.service.report.dto.DeptEmployeeConsumptionVO;
 import com.university.webdesign.service.report.dto.DishSalesVO;
 import com.university.webdesign.service.report.dto.EmployeeConsumptionVO;
 import com.university.webdesign.service.user.UserService;
@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -68,13 +69,13 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 	@Override
 	@Transactional
 	public EmployeeConsumptionVO auditEmployee(Long employeeId, YearMonth month, boolean withDetails) {
-		assertAuditPermission("员工消费审计");
 		if (employeeId == null) {
 			throw new BusinessException(ErrorCode.PARAM_INVALID, "员工ID不能为空");
 		}
 		if (month == null) {
 			throw new BusinessException(ErrorCode.PARAM_INVALID, "月份不能为空");
 		}
+		assertEmployeeAuditPermission(employeeId, "员工消费审计");
 		UserBriefVO brief = userService.getBrief(employeeId);
 		if (brief == null) {
 			throw new BusinessException(ErrorCode.NOT_FOUND, "员工不存在：" + employeeId);
@@ -117,7 +118,7 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 	@Override
 	@Transactional
 	public List<DeptConsumptionVO> sumByDept(YearMonth month, List<Long> deptIds) {
-		assertAuditPermission("部门消费汇总");
+		assertManagerOrFinance("部门消费汇总");
 		if (month == null) {
 			throw new BusinessException(ErrorCode.PARAM_INVALID, "月份不能为空");
 		}
@@ -149,12 +150,29 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 					ignored -> new DeptAggregate(deptId,
 							brief == null ? order.getDeptName() : brief.getDeptName()));
 			aggregate.orderCount++;
-			aggregate.employeeIds.add(order.getEmployeeId());
 			aggregate.totalAmount = aggregate.totalAmount.add(order.getTotalAmount() == null
 					? BigDecimal.ZERO
 					: order.getTotalAmount());
 			for (DishSalesVO item : itemsOf(order)) {
-				aggregate.totalQuantity += item.getQuantity() == null ? 0L : item.getQuantity();
+				long quantity = item.getQuantity() == null ? 0L : item.getQuantity();
+				aggregate.totalQuantity += quantity;
+			}
+			if (order.getEmployeeId() != null) {
+				aggregate.employeeIds.add(order.getEmployeeId());
+				EmployeeAggregate employeeAggregate = aggregate.employeeStats.computeIfAbsent(
+						order.getEmployeeId(),
+						ignored -> new EmployeeAggregate(order.getEmployeeId(),
+								brief == null ? null : brief.getEmployeeNo(),
+								brief == null ? order.getEmployeeName() : brief.getName(),
+								brief == null ? null : brief.getWorkstation()));
+				employeeAggregate.orderCount++;
+				employeeAggregate.totalAmount = employeeAggregate.totalAmount.add(
+						order.getTotalAmount() == null ? BigDecimal.ZERO : order.getTotalAmount());
+				for (DishSalesVO item : itemsOf(order)) {
+					employeeAggregate.totalQuantity += item.getQuantity() == null
+							? 0L
+							: item.getQuantity();
+				}
 			}
 		}
 		List<DeptConsumptionVO> result = new ArrayList<>();
@@ -166,9 +184,31 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 			vo.setOrderCount(aggregate.orderCount);
 			vo.setTotalQuantity(aggregate.totalQuantity);
 			vo.setTotalAmount(aggregate.totalAmount);
+			vo.setEmployees(aggregate.employeeStats.values().stream()
+					.map(this::toEmployeeSummary)
+					.sorted((left, right) -> right.getTotalAmount().compareTo(left.getTotalAmount()))
+					.toList());
 			result.add(vo);
 		}
 		return result;
+	}
+
+	/**
+	 * 部门内员工聚合 → 员工汇总视图
+	 *
+	 * @param aggregate 员工聚合
+	 * @return 员工汇总
+	 */
+	private DeptEmployeeConsumptionVO toEmployeeSummary(EmployeeAggregate aggregate) {
+		DeptEmployeeConsumptionVO vo = new DeptEmployeeConsumptionVO();
+		vo.setEmployeeId(aggregate.employeeId);
+		vo.setEmployeeNo(aggregate.employeeNo);
+		vo.setEmployeeName(aggregate.employeeName);
+		vo.setWorkstation(aggregate.workstation);
+		vo.setOrderCount(aggregate.orderCount);
+		vo.setTotalQuantity(aggregate.totalQuantity);
+		vo.setTotalAmount(aggregate.totalAmount);
+		return vo;
 	}
 
 	/**
@@ -215,19 +255,30 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 	}
 
 	/**
-	 * 校验审计权限：财务管理或餐厅经理（或持有审计/报表权限点）
+	 * 校验审计权限：财务管理或餐厅经理
 	 *
 	 * @param action 动作名称，用于中文提示
 	 */
-	private void assertAuditPermission(String action) {
+	private void assertManagerOrFinance(String action) {
 		UserContext context = UserContextHolder.require();
 		if (context.hasAnyRole(RoleCodes.FINANCE, RoleCodes.MANAGER)) {
 			return;
 		}
-		if (context.hasPermission(PermissionEnum.AUDIT_VIEW) || context.hasPermission(PermissionEnum.REPORT_VIEW)) {
+		throw new BusinessException(ErrorCode.FORBIDDEN, "无权执行该操作：" + action);
+	}
+
+	/**
+	 * 校验员工月度消费访问权限：员工本人可查看自己的报表，经理/财务可查看他人
+	 *
+	 * @param employeeId 目标员工ID
+	 * @param action     动作名称，用于中文提示
+	 */
+	private void assertEmployeeAuditPermission(Long employeeId, String action) {
+		UserContext context = UserContextHolder.require();
+		if (Objects.equals(employeeId, context.userId())) {
 			return;
 		}
-		throw new BusinessException(ErrorCode.FORBIDDEN, "无权执行该操作：" + action);
+		assertManagerOrFinance(action);
 	}
 
 	/**
@@ -251,6 +302,11 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 		private final Set<Long> employeeIds = new LinkedHashSet<>();
 
 		/**
+		 * 该部门内按员工聚合的消费统计
+		 */
+		private final Map<Long, EmployeeAggregate> employeeStats = new LinkedHashMap<>();
+
+		/**
 		 * 订单数
 		 */
 		private long orderCount;
@@ -268,6 +324,55 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 		private DeptAggregate(Long deptId, String deptName) {
 			this.deptId = deptId;
 			this.deptName = deptName;
+		}
+	}
+
+	/**
+	 * 部门内员工聚合中间结果
+	 */
+	private static final class EmployeeAggregate
+	{
+		/**
+		 * 员工ID
+		 */
+		private final Long employeeId;
+
+		/**
+		 * 工号
+		 */
+		private final String employeeNo;
+
+		/**
+		 * 姓名
+		 */
+		private final String employeeName;
+
+		/**
+		 * 工位
+		 */
+		private final String workstation;
+
+		/**
+		 * 订单数
+		 */
+		private long orderCount;
+
+		/**
+		 * 菜品总数量
+		 */
+		private long totalQuantity;
+
+		/**
+		 * 消费总金额
+		 */
+		private BigDecimal totalAmount = BigDecimal.ZERO;
+
+		private EmployeeAggregate(Long employeeId, String employeeNo, String employeeName,
+				String workstation) {
+			this.employeeId = employeeId;
+			this.employeeNo = employeeNo;
+			this.employeeName = employeeName;
+			this.workstation = workstation;
 		}
 	}
 }
