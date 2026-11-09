@@ -100,6 +100,17 @@ public interface OrderFormRepository extends JpaRepository<OrderForm, Long>, Jpa
 			Long employeeId, LocalDateTime start, LocalDateTime end);
 
 	/**
+	 * 查询某员工在就餐日期区间内的订单（个人月度消费统计）
+	 *
+	 * @param employeeId 员工ID
+	 * @param start      起始就餐日期（含）
+	 * @param end        结束就餐日期（不含）
+	 * @return 按就餐日期、下单时间升序的订单列表
+	 */
+	List<OrderForm> findByEmployeeIdAndOrderDateGreaterThanEqualAndOrderDateLessThanOrderByOrderDateAscCreatedAtAsc(
+			Long employeeId, LocalDate start, LocalDate end);
+
+	/**
 	 * 查询时间区间内的全部订单（报表）
 	 *
 	 * @param start 起点（含）

@@ -372,6 +372,7 @@
 		const reports = await api(`/api/v1/user/reports/dept-consumption?month=${encodeURIComponent(state.selectedMonth)}`);
 		state.deptReports = Array.isArray(reports) ? reports : [];
 		renderDeptReports();
+		renderAuditEmployees();
 	}
 
 	function populateSelections() {
@@ -428,11 +429,21 @@
 		const monthOptions = months
 			.map((month) => `<option value="${escapeHtml(month)}">${monthLabel(month)}</option>`)
 			.join("");
-		["report-month", "audit-month"].forEach((id) => {
+		["report-month", "audit-month", "audit-employee-month"].forEach((id) => {
 			const node = byId(id);
 			if (node) {
 				node.innerHTML = monthOptions;
 				node.value = state.selectedMonth;
+			}
+		});
+	}
+
+	function syncMonthSelections(value, sourceId) {
+		state.selectedMonth = value;
+		["report-month", "audit-month", "audit-employee-month"].forEach((id) => {
+			const node = byId(id);
+			if (node && id !== sourceId) {
+				node.value = value;
 			}
 		});
 	}
@@ -676,8 +687,85 @@
 		refreshIcons();
 	}
 
+	function auditEmployees() {
+		const employees = new Map();
+		state.deptReports.forEach((report) => {
+			(Array.isArray(report.employees) ? report.employees : []).forEach((employee) => {
+				if (!employee || employee.employeeId == null) {
+					return;
+				}
+				const key = String(employee.employeeId);
+				if (!employees.has(key)) {
+					employees.set(key, Object.assign({}, employee, {
+						deptId: report.deptId,
+						deptName: report.deptName
+					}));
+				}
+			});
+		});
+		return [...employees.values()].sort((left, right) =>
+			String(left.employeeName || "").localeCompare(String(right.employeeName || ""), "zh-CN"));
+	}
+
+	function filteredAuditEmployees() {
+		const keyword = valueOf("audit-employee-search").trim().toLowerCase();
+		const employees = auditEmployees();
+		if (!keyword) {
+			return employees;
+		}
+		return employees.filter((employee) =>
+			[
+				employee.employeeName,
+				employee.employeeNo,
+				employee.deptName,
+				employee.workstation
+			].filter((value) => value != null && value !== "")
+				.join(" ").toLowerCase().includes(keyword));
+	}
+
+	function renderAuditEmployees() {
+		const tableBody = byId("audit-employee-table-body");
+		if (!tableBody) {
+			return;
+		}
+		const employees = filteredAuditEmployees();
+		tableBody.innerHTML = employees.length
+			? employees.map((employee) => {
+				const reportUrl = `/reports/employee-monthly?employeeId=${encodeURIComponent(employee.employeeId)}`
+					+ `&month=${encodeURIComponent(state.selectedMonth)}`;
+				return `
+					<tr>
+						<td>
+							<div class="employee-cell">
+								<span class="avatar">${escapeHtml((employee.employeeName || "?").slice(0, 1))}</span>
+								<div>
+									<strong>${escapeHtml(employee.employeeName || "--")}</strong>
+									<small>${escapeHtml(employee.employeeNo || "--")}</small>
+								</div>
+							</div>
+						</td>
+						<td>${escapeHtml(employee.deptName || "未分配部门")}
+							<span class="secondary-line">${escapeHtml(employee.workstation || "--")}</span>
+						</td>
+						<td>${Number(employee.orderCount || 0)}</td>
+						<td>${Number(employee.totalQuantity || 0)}</td>
+						<td class="align-right"><strong>${money(employee.totalAmount)}</strong></td>
+						<td>
+							<div class="row-actions">
+								<a class="button button-secondary" href="${escapeHtml(reportUrl)}">
+									<i data-lucide="file-text"></i><span>查看 / 打印</span>
+								</a>
+							</div>
+						</td>
+					</tr>`;
+			}).join("")
+			: `<tr><td colspan="6"><div class="empty-state">该月份没有可汇总的员工消费记录</div></td></tr>`;
+		refreshIcons();
+	}
+
 	async function openAuditDetail(key) {
-		// 部门汇总来自 /reports/dept-consumption；点击行后按员工逐个取 /reports/employee-consumption 明细。
+		// 部门汇总来自 /reports/dept-consumption；接口同时返回员工汇总，
+		// 因此财务仅有 audit:view 权限时也能继续下钻到个人订单快照。
 		const report = state.deptReports.find((item) => deptKey(item) === String(key));
 		if (!report) {
 			return;
@@ -687,15 +775,25 @@
 		setHtml("audit-detail-content", `<div class="empty-state">正在加载员工消费明细…</div>`);
 		openDialog("audit-dialog");
 
-		if (!can("user:manage")) {
-			setHtml("audit-detail-content", `<div class="empty-state">
-				该部门本月消费 ${money(report.totalAmount)}，共 ${Number(report.orderCount || 0)} 笔订单、${Number(report.totalQuantity || 0)} 份菜品、${Number(report.employeeCount || 0)} 名员工有消费。
-				展开到员工明细需要员工管理权限（user:manage）。
-			</div>`);
-			return;
+		let employees = (Array.isArray(report.employees) ? report.employees : [])
+			.filter((employee) => employee && employee.employeeId != null)
+			.map((employee) => ({
+				userId: employee.employeeId,
+				employeeNo: employee.employeeNo,
+				name: employee.employeeName,
+				workstation: employee.workstation
+			}));
+		if (!employees.length && can("user:manage")) {
+			// 兼容尚未升级的服务端响应：经理可从员工目录回退补齐。
+			employees = state.users
+				.filter((user) => deptKey(user) === String(key))
+				.map((user) => ({
+					userId: user.userId,
+					employeeNo: user.employeeNo,
+					name: user.name,
+					workstation: user.workstation
+				}));
 		}
-
-		const employees = state.users.filter((user) => deptKey(user) === String(key));
 		if (!employees.length) {
 			setHtml("audit-detail-content", `<div class="empty-state">该部门本月没有可展示的员工记录</div>`);
 			return;
@@ -719,9 +817,15 @@
 				return `
 				<article class="audit-order">
 					<header>
-						<strong>${escapeHtml(report.employeeName || "--")}</strong>
-						<span>${escapeHtml(report.employeeNo || "--")} · 订单 ${Number(report.orderCount || 0)} 笔
-							· 菜品 ${Number(report.totalQuantity || 0)} 份 · ${money(report.totalAmount)}</span>
+						<div>
+							<strong>${escapeHtml(report.employeeName || "--")}</strong>
+							<span>${escapeHtml(report.employeeNo || "--")} · 订单 ${Number(report.orderCount || 0)} 笔
+								· 菜品 ${Number(report.totalQuantity || 0)} 份 · ${money(report.totalAmount)}</span>
+						</div>
+						<a class="button button-secondary"
+							href="/reports/employee-monthly?employeeId=${encodeURIComponent(report.employeeId)}&month=${encodeURIComponent(state.selectedMonth)}">
+							打开完整报表
+						</a>
 					</header>
 					${orders.length
 						? `<ul>${ordersOf(report)}</ul>`
@@ -1132,21 +1236,26 @@
 		});
 
 		on("report-month", "change", async (event) => {
-			state.selectedMonth = event.target.value;
+			syncMonthSelections(event.target.value, "report-month");
 			await guard(loadMonthlyReport);
 		});
 		on("audit-month", "change", async (event) => {
-			state.selectedMonth = event.target.value;
-			const reportMonth = byId("report-month");
-			if (reportMonth) {
-				reportMonth.value = state.selectedMonth;
-			}
+			syncMonthSelections(event.target.value, "audit-month");
 			const tasks = [guard(loadDeptReports)];
 			if (can("report:view")) {
 				tasks.push(guard(loadMonthlyReport));
 			}
 			await Promise.all(tasks);
 		});
+		on("audit-employee-month", "change", async (event) => {
+			syncMonthSelections(event.target.value, "audit-employee-month");
+			const tasks = [guard(loadDeptReports)];
+			if (can("report:view")) {
+				tasks.push(guard(loadMonthlyReport));
+			}
+			await Promise.all(tasks);
+		});
+		on("audit-employee-search", "input", renderAuditEmployees);
 		on("generate-report", "click", async () => {
 			await guard(async () => {
 				const result = await api(`/api/v1/user/reports/monthly/generate?month=${encodeURIComponent(state.selectedMonth)}`, {method: "POST"});

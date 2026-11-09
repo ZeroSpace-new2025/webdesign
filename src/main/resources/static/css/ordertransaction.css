@@ -16,6 +16,7 @@
 	--success-text: #22694a;
 	--error-bg: #fdeceb;
 	--error-text: #a3341f;
+	--report-accent: #315f52;
 }
 
 * {
@@ -236,6 +237,7 @@ h3 {
 
 input[type="number"],
 input[type="date"],
+input[type="month"],
 input[type="text"] {
 	border: 1px solid var(--line);
 	border-radius: 6px;
@@ -327,6 +329,16 @@ button:disabled {
 	margin-top: 8px;
 }
 
+.button.primary {
+	background: var(--brand);
+	border-color: var(--brand);
+	color: #fff;
+}
+
+.button.primary:hover {
+	background: var(--brand-dark);
+}
+
 .inline-form {
 	display: inline;
 	margin: 0;
@@ -367,6 +379,180 @@ button:disabled {
 	font-size: 15px;
 }
 
+/* ---------------------------------------------------------------- 月度报表 */
+
+.print-only {
+	display: none;
+}
+
+.report-page-header {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 20px;
+	margin-bottom: 18px;
+}
+
+.report-page-header h1 {
+	margin-bottom: 4px;
+}
+
+.eyebrow {
+	margin: 0 0 4px;
+	color: var(--report-accent);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .12em;
+}
+
+.report-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.report-actions .button,
+.report-actions button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.report-actions svg {
+	width: 16px;
+	height: 16px;
+}
+
+.report-month-form {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--surface);
+}
+
+.report-month-form label {
+	color: var(--muted);
+	font-size: 13px;
+}
+
+.report-month-form input {
+	width: 150px;
+}
+
+.report-profile {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 18px;
+}
+
+.report-profile > div {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.report-profile span,
+.report-metric-grid span,
+.report-metric-grid small {
+	color: var(--muted);
+	font-size: 12px;
+}
+
+.report-profile strong {
+	overflow-wrap: anywhere;
+}
+
+.report-profile small {
+	color: var(--muted);
+}
+
+.report-metric-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 14px;
+	margin-bottom: 18px;
+}
+
+.report-metric-grid article {
+	display: grid;
+	gap: 2px;
+	padding: 18px 20px;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	background: var(--surface);
+}
+
+.report-metric-grid strong {
+	color: var(--report-accent);
+	font-size: 28px;
+	line-height: 1.2;
+}
+
+.report-breakdown-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 18px;
+}
+
+.report-breakdown-grid .card {
+	min-width: 0;
+}
+
+.report-orders {
+	overflow-x: auto;
+}
+
+.report-order-table {
+	min-width: 760px;
+}
+
+.report-section-title {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 12px;
+}
+
+.report-section-title h2 {
+	margin-bottom: 3px;
+}
+
+.report-total {
+	flex: none;
+	padding: 6px 10px;
+	border-radius: 7px;
+	background: var(--success-bg);
+	color: var(--success-text);
+	font-weight: 700;
+}
+
+.report-order-table tfoot td {
+	border-top: 2px solid var(--line);
+	border-bottom: 0;
+	font-weight: 700;
+}
+
+.report-item-line {
+	display: inline-block;
+	margin: 2px 12px 2px 0;
+	color: var(--text);
+}
+
+.report-footnote {
+	margin: 0;
+	color: var(--muted);
+	font-size: 12px;
+	line-height: 1.7;
+}
+
 /* ---------------------------------------------------------------- 小屏适配 */
 
 @media (max-width: 720px) {
@@ -383,8 +569,134 @@ button:disabled {
 		display: none;
 	}
 
+	.report-page-header,
+	.report-section-title {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.report-actions {
+		width: 100%;
+		justify-content: flex-start;
+	}
+
+	.report-month-form {
+		width: 100%;
+		flex-wrap: wrap;
+	}
+
+	.report-month-form input {
+		flex: 1 1 140px;
+	}
+
+	.report-profile,
+	.report-metric-grid,
+	.report-breakdown-grid {
+		grid-template-columns: 1fr;
+	}
+
 	.data-table th,
 	.data-table td {
 		padding: 6px;
+	}
+}
+
+@media print {
+	@page {
+		size: A4;
+		margin: 12mm;
+	}
+
+	body {
+		background: #fff;
+		font-size: 11px;
+	}
+
+	.topbar,
+	.identity,
+	.flash,
+	.no-print,
+	.report-actions,
+	.report-footnote {
+		display: none !important;
+	}
+
+	.print-only {
+		display: flex !important;
+	}
+
+	.page {
+		max-width: none;
+		padding: 0;
+	}
+
+	.print-report-heading {
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 20px;
+		margin-bottom: 10mm;
+		padding-bottom: 4mm;
+		border-bottom: 2px solid #1f2937;
+	}
+
+	.print-report-heading > div {
+		display: grid;
+	}
+
+	.print-report-heading strong {
+		font-size: 17px;
+	}
+
+	.card {
+		padding: 10px 12px;
+		margin-bottom: 10px;
+		border-radius: 0;
+		break-inside: avoid;
+	}
+
+	.report-metric-grid {
+		gap: 8px;
+		margin-bottom: 10px;
+	}
+
+	.report-metric-grid article {
+		padding: 8px 10px;
+		border-radius: 0;
+	}
+
+	.report-metric-grid strong {
+		font-size: 20px;
+	}
+
+	.report-breakdown-grid {
+		gap: 10px;
+	}
+
+	.report-profile {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 8px;
+	}
+
+	.report-orders {
+		overflow: visible;
+	}
+
+	.report-order-table {
+		min-width: 0;
+		font-size: 10px;
+	}
+
+	.report-order-table th,
+	.report-order-table td {
+		padding: 4px 5px;
+	}
+
+	.report-order-table tr {
+		break-inside: avoid;
+	}
+
+	.badge {
+		margin: 0;
+		padding: 0 5px;
 	}
 }

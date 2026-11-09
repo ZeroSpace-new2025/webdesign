@@ -5,6 +5,8 @@ import com.university.webdesign.api.order.view.OrderPageView;
 import com.university.webdesign.common.PageResult;
 import com.university.webdesign.common.UserContext;
 import com.university.webdesign.common.UserContextHolder;
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.domain.order.OrderStatus;
 import com.university.webdesign.service.menu.MenuService;
 import com.university.webdesign.service.menu.dto.MenuItemVO;
@@ -58,11 +60,14 @@ public class OrderPageController
 
 	/**
 	 * 今日点餐页：展示时间窗口、今日菜单与当前员工今日已有订单
+	 * <p>
+	 * 需要点餐权限（与 {@code ApiOrderController.submit} 一致），未登录用户不再能打开该页。
 	 *
 	 * @param model 视图模型
 	 * @return 视图名
 	 */
 	@GetMapping("/create")
+	@RequiresPerm(PermissionEnum.ORDER_SUBMIT)
 	public String createPage(Model model) {
 		UserContext context = UserContextHolder.get();
 		OrderPageView view = new OrderPageView();
@@ -121,6 +126,7 @@ public class OrderPageController
 	 * @return 重定向到点餐页
 	 */
 	@PostMapping("/submit")
+	@RequiresPerm(PermissionEnum.ORDER_SUBMIT)
 	public String submitOrder(
 			@RequestParam(value = "menuId", required = false) Long menuId,
 			@RequestParam Map<String, String> params,
@@ -170,15 +176,12 @@ public class OrderPageController
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
 			@RequestParam(value = "all", required = false, defaultValue = "false") boolean all,
 			Model model) {
-		UserContext context = UserContextHolder.get();
+		// 必须已登录：未登录不再渲染空页面，直接走 40100（由全局异常处理器转错误页）
+		UserContext context = UserContextHolder.require();
 		OrderHistoryPageView view = new OrderHistoryPageView();
 		ServiceWindowVO window = orderService.getWindow(LocalDate.now());
 		view.setCutoffTime(window.getCutoffTime() == null ? "09:00" : window.getCutoffTime().toString());
 		view.setShowAll(all);
-		if (context == null || context.userId() == null) {
-			model.addAttribute("data", view);
-			return "ordertransaction/my-orders";
-		}
 		view.setUserId(context.userId());
 		view.setUserName(context.name());
 		view.setCanModify(window.isCanOrder());

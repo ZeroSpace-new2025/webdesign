@@ -226,13 +226,17 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
    唯一索引兜底；取消/作废不占名额。数据库级强约束已在 `reploy/sql/schema.sql` 里用**部分唯一索引**
    `uk_order_form_employee_date_active ... where status in ('PENDING','VALID')` 落地
    （H2 不支持部分索引，因此 `dev`/测试库仍只有服务层校验；并发撞索引时接口会返回 50000）。
-6. **`order_no` 发号**为 `yyyyMMdd + 4 位当日流水`，取当日最大单号 +1；极高并发下仍可能撞号，
-   唯一约束会拒绝，需要重试或改用数据库序列/Redis 发号。
+6. **`order_no` 发号**为 `yyyyMMdd + 当日流水`（至少 4 位，超过 9999 自动加位），取当日最大单号 +1；
+   极高并发下仍可能撞号，唯一约束会拒绝，需要重试或改用数据库序列/Redis 发号。
+   （历史实现里对流水取模 10000，会把第 10000 单单号算回 `0000` 而与当日既有单号冲突，已修正。）
 7. **事件监听器目前只覆盖 M3 的聚合与重算**；M4 报表缓存失效、菜单缓存预热尚未接监听器
    （`ReportService.getMonthly` 是“读缓存、缺失即同步生成”，因此暂无正确性风险，只是少了主动失效）。
-8. **页面覆盖**：总门户（`/portal`）、订单（`/order/**`）、菜品（`/recipes/**`）、菜单（`/menus/**`）
-   与控制台（`/console`）已可用；
-   M3 的聚合/配送/时间窗口目前只有 REST 接口，尚无专门的 Thymeleaf 页面（总门户里以禁用卡片占位）。
+8. **页面覆盖**：总门户（`/portal`）、订单（`/order/**`）、员工月度消费/订单汇总报表
+   （`/reports/employee-monthly`）、菜品（`/recipes/**`）、菜单（`/menus/**`）、
+   控制台（`/console`）与 M3 的厨房备料（`/operation/blanket-orders`）、配送（`/operation/deliveries`）、
+   时间窗口（`/operation/configs/service-window`）均已可用，M3 入口在 `fragments/layout.html` 的导航栏。
+   这些页面控制器与对应 REST 控制器使用**同一套 `@RequiresPerm` 权限声明**，
+   未登录用户不能通过表单入口读数据或改数据（曾出现过匿名可直接 POST 修改订餐截止时间的问题）。
 9. **`items` 在列表类响应里**由 Jackson 正常序列化为数组；用 PowerShell `ConvertTo-Json` 查看时
    空集合会显示成空字符串，这是查看工具的假象，不要据此判断接口有问题。
 

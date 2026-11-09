@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -155,10 +155,10 @@ public class OrderStatisticsServiceImpl implements OrderStatisticsService
 	// ------------------------------------------------------------------ 内部方法
 
 	private List<OrderForm> loadMonthlyOrders(Long employeeId, YearMonth month) {
-		LocalDateTime start = month.atDay(1).atStartOfDay();
-		LocalDateTime end = month.plusMonths(1).atDay(1).atStartOfDay();
+		LocalDate start = month.atDay(1);
+		LocalDate end = month.plusMonths(1).atDay(1);
 		return orderFormRepository
-				.findByEmployeeIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAsc(
+				.findByEmployeeIdAndOrderDateGreaterThanEqualAndOrderDateLessThanOrderByOrderDateAscCreatedAtAsc(
 						employeeId, start, end)
 				.stream()
 				.filter(order -> order.getStatus() != null && ACTIVE_STATUSES.contains(order.getStatus()))

@@ -51,7 +51,7 @@ public class MonthlyOrderReader
 	 * @return 有效订单列表
 	 */
 	public List<OrderVO> readMonth(YearMonth month) {
-		return readMonth(month, null);
+		return readMonth(month, null, null);
 	}
 
 	/**
@@ -62,6 +62,31 @@ public class MonthlyOrderReader
 	 * @return 有效订单列表
 	 */
 	public List<OrderVO> readMonth(YearMonth month, Set<Long> employeeIds) {
+		return readMonth(month, employeeIds, null);
+	}
+
+	/**
+	 * 读取某月指定部门的有效订单
+	 * <p>
+	 * 部门过滤直接交给 {@link OrderQueryService}，避免报表模块为了解析部门员工而读取用户表。
+	 *
+	 * @param month  月份
+	 * @param deptId 部门ID
+	 * @return 有效订单列表
+	 */
+	public List<OrderVO> readMonthByDept(YearMonth month, Long deptId) {
+		return readMonth(month, null, deptId);
+	}
+
+	/**
+	 * 读取某月有效订单，可按员工集合和部门共同过滤
+	 *
+	 * @param month       月份
+	 * @param employeeIds 限定员工ID集合，{@code null} 表示不限
+	 * @param deptId      部门ID，{@code null} 表示不限
+	 * @return 有效订单列表
+	 */
+	private List<OrderVO> readMonth(YearMonth month, Set<Long> employeeIds, Long deptId) {
 		if (month == null) {
 			return List.of();
 		}
@@ -70,6 +95,10 @@ public class MonthlyOrderReader
 		if (month.equals(YearMonth.from(today))) {
 			end = today;
 		}
+		// 只有一个员工时把过滤条件下推到查询：否则订单量大的日子（一天一页 100 单）第一页
+		// 全是别人的订单时，按“本页无新增即结束”会提前退出，漏掉目标员工后面的订单。
+		Long singleEmployeeId = employeeIds != null && employeeIds.size() == 1
+				? employeeIds.iterator().next() : null;
 		List<OrderVO> orders = new ArrayList<>();
 		for (LocalDate date = month.atDay(1); !date.isAfter(end); date = date.plusDays(1)) {
 			Set<Long> known = new LinkedHashSet<>();
@@ -77,13 +106,14 @@ public class MonthlyOrderReader
 				OrderQuery query = new OrderQuery();
 				query.setDateFrom(date);
 				query.setDateTo(date);
+				query.setDeptId(deptId);
+				query.setEmployeeId(singleEmployeeId);
 				query.setPageNum(pageNum);
 				query.setPageSize(PAGE_SIZE);
 				PageResult<OrderVO> page = orderQueryService.page(query);
 				if (page == null || page.getList() == null || page.getList().isEmpty()) {
 					break;
 				}
-				boolean added = false;
 				for (OrderVO order : page.getList()) {
 					if (order == null || order.getOrderId() == null || !known.add(order.getOrderId())) {
 						continue;
@@ -92,9 +122,9 @@ public class MonthlyOrderReader
 						continue;
 					}
 					orders.add(fulfilItems(order));
-					added = true;
 				}
-				if (page.getList().size() < PAGE_SIZE || !added) {
+				// 只有“整页”才可能存在下一页；用“本页有无命中”判断会在过滤时提前结束
+				if (page.getList().size() < PAGE_SIZE) {
 					break;
 				}
 			}

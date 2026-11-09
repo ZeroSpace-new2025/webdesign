@@ -21,6 +21,7 @@
 		<nav class="nav">
 			<a th:href="@{/order/create}" th:classappend="${active == 'create'} ? 'active'">今日点餐</a>
 			<a th:href="@{/order/mine}" th:classappend="${active == 'mine'} ? 'active'">我的订单</a>
+			<a th:href="@{/reports/employee-monthly}" th:classappend="${active == 'report'} ? 'active'">月度报表</a>
 		</nav>
 		<span class="module-hint">订单与交易核心</span>
 	</div>

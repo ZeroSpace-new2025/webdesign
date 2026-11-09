@@ -1,6 +1,9 @@
 package com.university.webdesign.web.menu;
 
 import com.university.webdesign.common.PageResult;
+import com.university.webdesign.common.RoleCodes;
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.domain.menu.RecipeStatus;
 import com.university.webdesign.service.menu.RecipeService;
 import com.university.webdesign.service.menu.dto.CategoryVO;
@@ -27,9 +30,13 @@ import java.util.List;
  * 与 REST 控制器 {@code api.menu.ApiRecipeController} 分开写：本类只组装视图，
  * 业务规则（重名 40901、被已发布菜单引用 42203、乐观锁 40902）全部由 {@link RecipeService} 判定，
  * 页面只负责把失败原因回显。
+ * <p>
+ * 权限：与 {@code api.menu.ApiRecipeController} 保持一致（菜品维护或经理/厨房主管）。
+ * 页面控制器同样会被 {@code AuthInterceptor} 拦截，未登录用户不能通过表单入口改数据。
  */
 @Controller
 @RequestMapping("/recipes")
+@RequiresPerm(value = PermissionEnum.MENU_RECIPE_MANAGE, roles = {RoleCodes.MANAGER, RoleCodes.KITCHEN_SUPERVISOR})
 public class RecipePageController
 {
 	private final RecipeService recipeService;
@@ -40,12 +47,9 @@ public class RecipePageController
 
 	/**
 	 * 菜品列表
-	 * <p>
-	 * 默认只列可售（ACTIVE）菜品：已下架菜品不在本页显示，改到“历史菜品”页查看；
-	 * 需要临时查看全部时可在筛选里显式选“全部”。
 	 *
 	 * @param keyword 名称关键字，可选
-	 * @param status  状态筛选，可选；不传时默认 ACTIVE
+	 * @param status  状态筛选，可选
 	 * @param model   视图模型
 	 * @return 视图名
 	 */
@@ -54,49 +58,17 @@ public class RecipePageController
 			@RequestParam(value = "keyword", required = false) String keyword,
 			@RequestParam(value = "status", required = false) String status,
 			Model model) {
-		String effectiveStatus = status == null ? RecipeStatus.ACTIVE.name() : status;
 		RecipeQuery query = new RecipeQuery();
 		query.setKeyword(keyword);
-		query.setStatus(effectiveStatus);
+		query.setStatus(status);
 		query.setPageNum(1);
 		query.setPageSize(100);
 		PageResult<RecipeVO> page = recipeService.page(query);
 		model.addAttribute("recipes", page.getList());
 		model.addAttribute("total", page.getTotal());
 		model.addAttribute("keyword", keyword);
-		model.addAttribute("status", effectiveStatus);
+		model.addAttribute("status", status);
 		return "recipe/list";
-	}
-
-	/**
-	 * 历史菜品列表：只展示已下架（DISABLED）菜品
-	 * <p>
-	 * 菜品采用逻辑下架，停用后仍保留在本页，作为历史菜单与历史订单里菜品的来源说明；
-	 * 名称/分类过滤与分页全部交给 {@link RecipeService#page}，页面不自行拼业务规则。
-	 *
-	 * @param keyword  名称关键字，可选
-	 * @param category 分类名，可选
-	 * @param model    视图模型
-	 * @return 视图名
-	 */
-	@GetMapping("/history")
-	public String history(
-			@RequestParam(value = "keyword", required = false) String keyword,
-			@RequestParam(value = "category", required = false) String category,
-			Model model) {
-		RecipeQuery query = new RecipeQuery();
-		query.setStatus(RecipeStatus.DISABLED.name());
-		query.setKeyword(keyword);
-		query.setCategory(category);
-		query.setPageNum(1);
-		query.setPageSize(100);
-		PageResult<RecipeVO> page = recipeService.page(query);
-		model.addAttribute("recipes", page.getList());
-		model.addAttribute("total", page.getTotal());
-		model.addAttribute("keyword", keyword);
-		model.addAttribute("category", category);
-		model.addAttribute("categories", categoryNames());
-		return "recipe/history";
 	}
 
 	/**
