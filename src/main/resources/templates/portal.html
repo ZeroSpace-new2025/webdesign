@@ -29,12 +29,6 @@
     </div>
 
 <main class="portal-shell">
-	<section class="portal-notice" th:if="${temporaryAdmin}">
-		<i data-lucide="triangle-alert"></i>
-		<p>当前使用临时硬编码管理员账号，仅供课程演示；上线前必须按
-			<code>TemporaryAdminAccount</code> 类注释删除。</p>
-	</section>
-
 	<section class="portal-hero">
 		<p class="eyebrow">WELCOME</p>
 		<h1 th:text="'你好，' + ${userName}">你好，当前用户</h1>
@@ -150,7 +144,7 @@
 			window.lucide.createIcons();
 		}
 
-		const logoutButton = document.getElementById("portal-logout");
+		const logoutButton = document.getElementById("logout-button");
 		if (!logoutButton) {
 			return;
 		}
