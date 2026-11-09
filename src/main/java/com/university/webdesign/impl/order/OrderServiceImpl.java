@@ -408,7 +408,11 @@ public class OrderServiceImpl implements OrderService
 	}
 
 	/**
-	 * 生成订单号：{@code yyyyMMdd} + 4 位当日流水
+	 * 生成订单号：{@code yyyyMMdd} + 当日流水（至少 4 位）
+	 * <p>
+	 * 流水溢出 9999 时继续增加位数（{@code 10000}），**不再对 10000 取模**：
+	 * 取模会把 10000 号重新算成 {@code 0000}，与当日既有单号撞上唯一约束。
+	 * 极端并发下的撞号仍需数据库唯一约束兜底（见 AGENTS.md 第 6 节）。
 	 *
 	 * @param date 就餐日期
 	 * @return 订单号
@@ -424,7 +428,7 @@ public class OrderServiceImpl implements OrderService
 				sequence = orderFormRepository.countByOrderDate(date) + 1L;
 			}
 		}
-		return prefix + String.format("%04d", sequence % 10_000L);
+		return prefix + String.format("%04d", sequence);
 	}
 
 	/**
