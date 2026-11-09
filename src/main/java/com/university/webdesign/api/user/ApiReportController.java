@@ -152,6 +152,13 @@ public class ApiReportController extends ApiUserSupport
 
 	/**
 	 * M4-25 员工消费审计
+	 * <p>
+	 * 这里**不加 {@code @RequiresPerm}**：本接口既要给财务管理/餐厅经理查他人，也要给员工查自己。
+	 * 归属校验（本人 or 经理/财务，越权 40300）在
+	 * {@code ConsumptionAuditService.auditEmployee} 内完成，并由
+	 * {@code UserContextHolder.require()} 保证必须登录。
+	 * 之前注解写成 {@code AUDIT_VIEW + FINANCE}，结果员工连自己的报表都拿不到（40300），
+	 * 与页面 {@code /reports/employee-monthly}（直接调 service）行为不一致。
 	 *
 	 * @param employeeId  员工ID
 	 * @param month       月份（yyyy-MM）
@@ -159,7 +166,6 @@ public class ApiReportController extends ApiUserSupport
 	 * @return 员工月度消费汇总
 	 */
 	@GetMapping("/reports/employee-consumption")
-	@RequiresPerm(value = PermissionEnum.AUDIT_VIEW, roles = RoleCodes.FINANCE)
 	public Result<EmployeeConsumptionVO> employeeConsumption(
 			@RequestParam("employeeId") Long employeeId,
 			@RequestParam("month") String month,
