@@ -1,5 +1,8 @@
 package com.university.webdesign.web.operation;
 
+import com.university.webdesign.common.RoleCodes;
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.operation.ServiceWindowService;
 import com.university.webdesign.service.operation.dto.ServiceWindowCmd;
 import com.university.webdesign.service.operation.dto.ServiceWindowVO;
@@ -17,6 +20,8 @@ import java.time.LocalTime;
 
 @Controller
 @RequestMapping("/operation/configs/service-window")
+@RequiresPerm(value = PermissionEnum.OPERATION_WINDOW_MANAGE,
+        roles = {RoleCodes.MANAGER, RoleCodes.KITCHEN_SUPERVISOR})
 public class ServiceWindowPageController
 {
     private final ServiceWindowService serviceWindowService;

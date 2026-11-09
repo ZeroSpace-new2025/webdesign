@@ -1,6 +1,9 @@
 package com.university.webdesign.web.operation;
 
 import com.university.webdesign.common.PageResult;
+import com.university.webdesign.common.RoleCodes;
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.operation.DeliveryService;
 import com.university.webdesign.service.operation.dto.DeliveryQuery;
 import com.university.webdesign.service.operation.dto.DeliveryTaskVO;
@@ -22,6 +25,8 @@ import java.util.List;
 
 @Controller
 @RequestMapping("/operation/deliveries")
+@RequiresPerm(value = PermissionEnum.OPERATION_DELIVERY_PRINT,
+        roles = {RoleCodes.DELIVERY_STAFF, RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.MANAGER})
 public class DeliveryPageController
 {
     private final DeliveryService deliveryService;

@@ -3,6 +3,9 @@ package com.university.webdesign.web.operation;
 import com.university.webdesign.common.DateRange;
 import com.university.webdesign.common.PageQuery;
 import com.university.webdesign.common.PageResult;
+import com.university.webdesign.common.RoleCodes;
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.operation.BlanketOrderService;
 import com.university.webdesign.service.operation.dto.CategoryStatVO;
 import com.university.webdesign.service.operation.dto.CategorySumVO;
@@ -25,6 +28,8 @@ import java.util.Map;
 
 @Controller
 @RequestMapping("/operation/blanket-orders")
+@RequiresPerm(value = PermissionEnum.OPERATION_AGGREGATE,
+        roles = {RoleCodes.KITCHEN_SUPERVISOR, RoleCodes.MANAGER})
 public class BlanketOrderPageController
 {
     private final BlanketOrderService blanketOrderService;

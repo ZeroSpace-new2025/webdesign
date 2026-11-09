@@ -1,6 +1,9 @@
 package com.university.webdesign.web.menu;
 
 import com.university.webdesign.common.PageResult;
+import com.university.webdesign.common.RoleCodes;
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.domain.menu.RecipeStatus;
 import com.university.webdesign.service.menu.RecipeService;
 import com.university.webdesign.service.menu.dto.CategoryVO;
@@ -27,9 +30,13 @@ import java.util.List;
  * 与 REST 控制器 {@code api.menu.ApiRecipeController} 分开写：本类只组装视图，
  * 业务规则（重名 40901、被已发布菜单引用 42203、乐观锁 40902）全部由 {@link RecipeService} 判定，
  * 页面只负责把失败原因回显。
+ * <p>
+ * 权限：与 {@code api.menu.ApiRecipeController} 保持一致（菜品维护或经理/厨房主管）。
+ * 页面控制器同样会被 {@code AuthInterceptor} 拦截，未登录用户不能通过表单入口改数据。
  */
 @Controller
 @RequestMapping("/recipes")
+@RequiresPerm(value = PermissionEnum.MENU_RECIPE_MANAGE, roles = {RoleCodes.MANAGER, RoleCodes.KITCHEN_SUPERVISOR})
 public class RecipePageController
 {
 	private final RecipeService recipeService;
