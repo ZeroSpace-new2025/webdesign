@@ -190,7 +190,12 @@ public class BlanketOrderServiceImpl implements BlanketOrderService
 
 	@Override
 	public void refreshDailyStat(LocalDate date) {
-		rebuild(requireDate(date));
+		LocalDate target = requireDate(date);
+		// 刷新与聚合受同一时机约束：截止前重算会用尚未收齐的订单覆盖快照。
+		// 之前只有 aggregate 校验时间窗口，refreshDailyStat 直接 rebuild，导致
+		// “接口返回 42201、快照却已经被改写”的隐性写库（M3-06）。
+		requireWindowClosed(target);
+		rebuild(target);
 	}
 
 	// ------------------------------------------------------------------ 内部方法
