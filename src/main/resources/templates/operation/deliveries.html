@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>配送管理</title>
+    <link rel="stylesheet" th:href="@{/css/operation.css}">
+</head>
+<body>
+<div class="m3-container">
+    <div class="m3-header">
+        <h1>配送管理</h1>
+        <a th:href="@{/portal}" class="m3-back">← 返回门户</a>
+    </div>
+
+    <div class="m3-toolbar">
+        <form method="get" th:action="@{/operation/deliveries}">
+            <input type="date" name="date" th:value="${date}">
+            <button type="submit" class="m3-btn m3-btn-outline">查询</button>
+        </form>
+        <form method="post" th:action="@{/operation/deliveries/generate}">
+            <input type="hidden" name="date" th:value="${date}">
+            <button type="submit" class="m3-btn m3-btn-primary">生成配送任务</button>
+        </form>
+    </div>
+
+    <div th:if="${message}" class="m3-alert m3-alert-success" th:text="${message}"></div>
+    <div th:if="${error}" class="m3-alert m3-alert-error" th:text="${error}"></div>
+
+    <div th:if="${page.list.isEmpty()}" class="m3-empty">
+        <div class="m3-empty-icon">🚚</div>
+        <p>当日暂无配送任务</p>
+        <p style="font-size:13px;">配餐开始时间（默认 11:30）后点击"生成配送任务"，或等待定时任务自动生成。</p>
+    </div>
+
+    <form th:if="${!page.list.isEmpty()}" method="post" th:action="@{/operation/deliveries/batch-print}" onsubmit="return m3ConfirmPrint(event)">
+        <table class="m3-table">
+            <thead>
+            <tr>
+                <th style="width:40px;"><input type="checkbox" onclick="m3ToggleAll(this)"></th>
+                <th>任务编号</th><th>员工</th><th>工位</th><th>电话</th><th>状态</th><th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="task : ${page.list}">
+                <td><input type="checkbox" name="taskIds" th:value="${task.taskId}"></td>
+                <td th:text="${task.taskNo}"></td>
+                <td th:text="${task.employeeName}"></td>
+                <td th:text="${task.workstation}"></td>
+                <td th:text="${task.phone}"></td>
+                <td th:text="${task.statusText}"></td>
+                <td><a th:href="@{'/operation/deliveries/' + ${task.taskId}}" class="m3-btn m3-btn-outline" style="padding:4px 10px;">详情</a></td>
+            </tr>
+            </tbody>
+        </table>
+        <div style="margin-top:16px; text-align:right;">
+            <button type="submit" class="m3-btn m3-btn-success">🖨️ 批量打印选中任务</button>
+        </div>
+    </form>
+
+    <p style="margin-top:16px; color:var(--m3-muted);">共 <strong th:text="${page.total}"></strong> 条任务</p>
+</div>
+<script th:src="@{/js/operation.js}"></script>
+</body>
+</html>>
