@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Controller
@@ -50,6 +51,7 @@ public class DeliveryPageController
         model.addAttribute("status", status);
         model.addAttribute("workstation", workstation);
         model.addAttribute("allStatus", TaskStatus.values());
+        model.addAttribute("active", "delivery");
         return "operation/deliveries";
     }
 
@@ -71,6 +73,7 @@ public class DeliveryPageController
     public String detail(@PathVariable("id") Long id, Model model) {
         model.addAttribute("task", deliveryService.getDetail(id));
         model.addAttribute("allStatus", TaskStatus.values());
+        model.addAttribute("active", "delivery");
         return "operation/deliveries-detail";
     }
 
@@ -83,6 +86,18 @@ public class DeliveryPageController
         try {
             PrintBatchVO result = deliveryService.batchPrint(taskIds, templateId);
             model.addAttribute("batch", result);
+
+            // 👇 【新增】把选中的任务对象查出来，拿到姓名、工位、电话和明细
+            List<DeliveryTaskVO> tasks = new ArrayList<>();
+            if (taskIds != null) {
+                for (Long id : taskIds) {
+                    try {
+                        tasks.add(deliveryService.getDetail(id));
+                    } catch (Exception ignored) {}
+                }
+            }
+            model.addAttribute("tasks", tasks);
+
             return "operation/deliveries-print";
         } catch (RuntimeException e) {
             redirect.addFlashAttribute("error", e.getMessage());

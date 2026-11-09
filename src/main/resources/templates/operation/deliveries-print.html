@@ -2,24 +2,79 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>配送单打印预览</title>
-    <link rel="stylesheet" th:href="@{/css/operation.css}">
+    <title>批量订单打印</title>
+    <style>
+        body { font-family: "SimSun", "宋体", sans-serif; background-color: #f5f5f5; padding: 20px; }
+        .toolbar { max-width: 800px; margin: 0 auto 20px auto; text-align: right; }
+        .btn { padding: 6px 15px; background: #2563eb; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+        .print-paper { background: #fff; max-width: 800px; margin: 0 auto; }
+        .page-break { page-break-after: always; }
+
+        /* 完美边框样式 */
+        .doc-box { border: 1px solid #000; margin-bottom: 30px; }
+        .doc-header { border-bottom: 1px solid #000; padding: 8px; display: flex; justify-content: space-between; font-size: 15px; }
+        .doc-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+        .doc-table th, .doc-table td { border-bottom: 1px solid #000; padding: 8px; text-align: center; height: 28px; }
+        .doc-table th { border-bottom: 1px solid #000; font-weight: normal; }
+        .doc-footer { border-top: 1px solid #000; padding: 8px; display: flex; justify-content: space-between; font-size: 15px; }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .toolbar { display: none; }
+            .print-paper { margin: 0; padding: 0; max-width: 100%; }
+        }
+    </style>
 </head>
 <body>
-<div class="m3-container">
-    <div class="m3-toolbar m3-no-print">
-        <div>
-            <strong>批次号：</strong><span th:text="${batch.printBatchId}"></span>
-            　<strong>本次打印：</strong><span th:text="${batch.printedCount}"></span> 张
+
+<div class="toolbar">
+    <span style="margin-right: 15px; font-size: 14px;">批次号：<span th:text="${batch.printBatchId}"></span> (共 <span th:text="${batch.printedCount}"></span> 张)</span>
+    <button class="btn" onclick="window.print()">🖨️ 打印</button>
+    <a th:href="@{/operation/deliveries}" class="btn" style="text-decoration: none; background: #fff; color: #2563eb; border: 1px solid #2563eb; display: inline-block;">返回列表</a>
+</div>
+
+<div class="print-paper">
+    <!-- 循环渲染每个员工的配送单 -->
+    <div th:each="task : ${tasks}" class="page-break">
+        <div class="doc-box">
+            <div class="doc-header">
+                <div>员工：<strong th:text="${task.employeeName}"></strong></div>
+                <div>联系电话：<span th:text="${task.phone}"></span></div>
+            </div>
+            <div class="doc-header" style="border-bottom: none; padding-bottom: 15px;">
+                <div>工位信息：<span th:text="${task.workstation}"></span></div>
+                <div></div>
+            </div>
+
+            <table class="doc-table">
+                <thead>
+                <tr>
+                    <th style="width: 50%; border-top: 1px solid #000;">菜名</th>
+                    <th style="width: 25%; border-top: 1px solid #000;">单位</th>
+                    <th style="width: 25%; border-top: 1px solid #000;">分量</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="item : ${task.items}">
+                    <td th:text="${item.recipeName}"></td>
+                    <td th:text="${item.unit}"></td>
+                    <td th:text="${item.quantity}"></td>
+                </tr>
+                <!-- 补齐空白行以符合纸质单据样式 -->
+                <tr><td>&nbsp;</td><td></td><td></td></tr>
+                <tr><td>&nbsp;</td><td></td><td></td></tr>
+                <tr><td>&nbsp;</td><td></td><td></td></tr>
+                <tr><td>&nbsp;</td><td></td><td></td></tr>
+                </tbody>
+            </table>
+
+            <div class="doc-footer">
+                <div>送餐员：______________</div>
+                <div>打印时间：<span th:text="${#dates.format(#dates.createNow(), 'yyyy-MM-dd HH:mm:ss')}"></span></div>
+            </div>
         </div>
-        <div style="margin-left:auto; display:flex; gap:8px;">
-            <button type="button" class="m3-btn m3-btn-primary" onclick="window.print()">🖨️ 打印</button>
-            <a th:href="@{/operation/deliveries}" class="m3-btn m3-btn-outline">返回列表</a>
-        </div>
-    </div>
-    <div class="m3-print-preview">
-        <pre th:text="${batch.content}"></pre>
     </div>
 </div>
+
 </body>
 </html>
