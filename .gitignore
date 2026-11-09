@@ -44,3 +44,7 @@ out/
 .env
 .env.*
 !.env.example
+
+### 工具/诊断产物 ###
+# DSH 沙箱文件权限诊断留下的恢复记录（acl-backup-*.json / acl-report-*.jsonl）
+.dsh-acl-repair/
