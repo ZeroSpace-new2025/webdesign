@@ -1230,6 +1230,19 @@ svg {
 	margin-top: 5px;
 }
 
+.content-view > .flat-panel + .flat-panel {
+	margin-top: 18px;
+}
+
+.audit-employee-panel .row-actions {
+	justify-content: flex-end;
+}
+
+.audit-employee-panel .button {
+	text-decoration: none;
+	white-space: nowrap;
+}
+
 /* Toast */
 
 .toast-container {

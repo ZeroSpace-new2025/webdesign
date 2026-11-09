@@ -2,7 +2,6 @@ package com.university.webdesign.impl.report;
 
 import com.university.webdesign.common.BusinessException;
 import com.university.webdesign.common.ErrorCode;
-import com.university.webdesign.common.enums.PermissionEnum;
 import com.university.webdesign.common.RoleCodes;
 import com.university.webdesign.common.UserContext;
 import com.university.webdesign.common.UserContextHolder;
@@ -30,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -69,13 +69,13 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 	@Override
 	@Transactional
 	public EmployeeConsumptionVO auditEmployee(Long employeeId, YearMonth month, boolean withDetails) {
-		assertAuditPermission("员工消费审计");
 		if (employeeId == null) {
 			throw new BusinessException(ErrorCode.PARAM_INVALID, "员工ID不能为空");
 		}
 		if (month == null) {
 			throw new BusinessException(ErrorCode.PARAM_INVALID, "月份不能为空");
 		}
+		assertEmployeeAuditPermission(employeeId, "员工消费审计");
 		UserBriefVO brief = userService.getBrief(employeeId);
 		if (brief == null) {
 			throw new BusinessException(ErrorCode.NOT_FOUND, "员工不存在：" + employeeId);
@@ -118,7 +118,7 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 	@Override
 	@Transactional
 	public List<DeptConsumptionVO> sumByDept(YearMonth month, List<Long> deptIds) {
-		assertAuditPermission("部门消费汇总");
+		assertManagerOrFinance("部门消费汇总");
 		if (month == null) {
 			throw new BusinessException(ErrorCode.PARAM_INVALID, "月份不能为空");
 		}
@@ -255,19 +255,30 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 	}
 
 	/**
-	 * 校验审计权限：财务管理或餐厅经理（或持有审计/报表权限点）
+	 * 校验审计权限：财务管理或餐厅经理
 	 *
 	 * @param action 动作名称，用于中文提示
 	 */
-	private void assertAuditPermission(String action) {
+	private void assertManagerOrFinance(String action) {
 		UserContext context = UserContextHolder.require();
 		if (context.hasAnyRole(RoleCodes.FINANCE, RoleCodes.MANAGER)) {
 			return;
 		}
-		if (context.hasPermission(PermissionEnum.AUDIT_VIEW) || context.hasPermission(PermissionEnum.REPORT_VIEW)) {
+		throw new BusinessException(ErrorCode.FORBIDDEN, "无权执行该操作：" + action);
+	}
+
+	/**
+	 * 校验员工月度消费访问权限：员工本人可查看自己的报表，经理/财务可查看他人
+	 *
+	 * @param employeeId 目标员工ID
+	 * @param action     动作名称，用于中文提示
+	 */
+	private void assertEmployeeAuditPermission(Long employeeId, String action) {
+		UserContext context = UserContextHolder.require();
+		if (Objects.equals(employeeId, context.userId())) {
 			return;
 		}
-		throw new BusinessException(ErrorCode.FORBIDDEN, "无权执行该操作：" + action);
+		assertManagerOrFinance(action);
 	}
 
 	/**

@@ -109,6 +109,13 @@
 				<p>查看个人历史订单、月度汇总；经理可查看全部订单。</p>
 			</a>
 			<a class="portal-card"
+				th:if="${#lists.contains(permCodes,'order:submit')}"
+				th:href="@{/reports/employee-monthly}">
+				<span class="portal-card-icon"><i data-lucide="file-chart-column"></i></span>
+				<strong>月度消费报表</strong>
+				<p>查看个人月度消费统计和订单汇总，并直接打印或导出 Excel。</p>
+			</a>
+			<a class="portal-card"
 				th:if="${#lists.contains(permCodes,'menu:recipe:manage')}"
 				th:href="@{/recipes}">
 				<span class="portal-card-icon"><i data-lucide="chef-hat"></i></span>
