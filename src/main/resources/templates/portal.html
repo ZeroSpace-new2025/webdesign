@@ -63,6 +63,14 @@
             <a class="btn btn-primary" th:href="@{/console}">进入控制台</a>
         </div>
 
+        <!-- 员工月度消费报表：财务 / 经理按员工看月度消费并导出 CSV -->
+        <div class="card" th:if="${(permCodes != null and (#lists.contains(permCodes,'report:view') or #lists.contains(permCodes,'audit:view') or #lists.contains(permCodes,'user:manage')))
+                or (roleNames != null and (#lists.contains(roleNames,'FINANCE') or #lists.contains(roleNames,'MANAGER')))}">
+            <h2 style="font-size:17px;margin:0 0 8px;">员工月度消费报表</h2>
+            <p class="muted" style="margin:0 0 14px;">按月就餐日期统计每位员工的有效订单与消费金额，可下钻订单明细并导出 CSV。</p>
+            <a class="btn btn-primary" th:href="@{/reports/monthly}">查看报表</a>
+        </div>
+
         <!-- ================= 你的模块 M3 开始 ================= -->
 
         <!-- 厨房备料 -->

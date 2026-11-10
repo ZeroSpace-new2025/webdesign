@@ -18,6 +18,7 @@
         <a th:href="@{/recipes}" th:classappend="${active == 'recipe'} ? 'active'">菜品管理</a>
         <a th:href="@{/menus}" th:classappend="${active == 'menu'} ? 'active'">菜单管理</a>
         <a th:href="@{/console}" th:classappend="${active == 'console'} ? 'active'">控制台</a>
+        <a th:href="@{/reports/monthly}" th:classappend="${active == 'report'} ? 'active'">月度报表</a>
 
         <!-- ====== M3 运营与履约模块入口 ====== -->
         <a th:href="@{/operation/blanket-orders}" th:classappend="${active == 'blanket'} ? 'active'">厨房备料</a>

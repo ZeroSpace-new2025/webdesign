@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<!--
+    员工月度消费报表（M4 用户与报表中心）
+    对应 demand.md：财务 / 经理按月查看每位员工的消费与订单情况。
+    数据来自 ConsumptionAuditService.sumByEmployee（按就餐日期归集当月有效订单），
+    页面只负责展示与筛选，统计口径与权限都在 service 层。
+    布局沿用菜品页：公共导航栏 + .container + .page-header + 卡片，样式只引用 /css/style.css。
+-->
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('员工月度消费报表')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('report')}"></nav>
+
+<div class="container">
+    <div class="page-header">
+        <div>
+            <h1>员工月度消费报表</h1>
+            <p class="muted" style="margin:4px 0 0;">
+                按就餐日期统计当月有效订单的个人消费，可按员工下钻查看订单明细。
+            </p>
+        </div>
+        <div class="page-actions">
+            <a class="btn btn-primary" th:href="@{/reports/monthly/export(month=${month})}">下载 CSV</a>
+        </div>
+    </div>
+
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+    <!-- 查询条件：统计月份 + 关键字（关键字只在本页筛选，不参与服务端查询） -->
+    <div class="card">
+        <form class="filter-form" method="get" th:action="@{/reports/monthly}">
+            <label for="month">统计月份</label>
+            <input type="month" id="month" name="month" th:value="${month}"/>
+            <button type="submit" class="btn btn-primary">查询</button>
+            <a class="link" th:href="@{/reports/monthly}">本月</a>
+            <label for="keyword">筛选</label>
+            <input type="search" id="keyword" placeholder="输入工号、姓名或部门"/>
+        </form>
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="stat-label">当月有消费员工</div>
+            <div class="stat-value" th:text="${employeeCount}">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">有效订单</div>
+            <div class="stat-value" th:text="${orderCount}">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">菜品份数</div>
+            <div class="stat-value" th:text="${totalQuantity}">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">消费总额（元）</div>
+            <div class="stat-value"
+                 th:text="'¥' + ${totalAmount != null ? #numbers.formatDecimal(totalAmount, 1, 2) : '0.00'}">¥0.00</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <p class="summary">
+            统计月份 <strong th:text="${monthText}">2026 年 11 月</strong> ·
+            共 <strong th:text="${employeeCount}">0</strong> 人，
+            合计 <strong class="amount"
+                th:text="'¥' + ${totalAmount != null ? #numbers.formatDecimal(totalAmount, 1, 2) : '0.00'}">¥0.00</strong>
+        </p>
+
+        <div class="empty" th:if="${#lists.isEmpty(rows)}">
+            该月份还没有任何有效订单。员工下单后可在这里看到个人消费，已取消/已作废的订单不计入。
+        </div>
+
+        <table th:if="${!#lists.isEmpty(rows)}">
+            <thead>
+            <tr>
+                <th>工号</th>
+                <th>姓名</th>
+                <th>部门</th>
+                <th>工位</th>
+                <th class="num">就餐天数</th>
+                <th class="num">订单数</th>
+                <th class="num">菜品份数</th>
+                <th class="num">消费金额（元）</th>
+                <th style="width:100px;">操作</th>
+            </tr>
+            </thead>
+            <tbody id="report-rows">
+            <tr class="report-row" th:each="row : ${rows}">
+                <td th:text="${row.employeeNo != null ? row.employeeNo : '—'}">EMP001</td>
+                <td th:text="${row.employeeName != null ? row.employeeName : '—'}">张三</td>
+                <td th:text="${row.deptName != null ? row.deptName : '未分配部门'}">研发部</td>
+                <td th:text="${row.workstation != null ? row.workstation : '—'}">R-12</td>
+                <td class="num" th:text="${row.activeDays}">0</td>
+                <td class="num" th:text="${row.orderCount}">0</td>
+                <td class="num" th:text="${row.totalQuantity}">0</td>
+                <td class="num"
+                    th:text="${row.totalAmount != null ? #numbers.formatDecimal(row.totalAmount, 1, 2) : '0.00'}">0.00</td>
+                <td>
+                    <a class="btn btn-sm"
+                       th:href="@{/reports/monthly/employees/{id}(id=${row.employeeId}, month=${month})}">订单明细</a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+        <p class="hint">
+            统计口径：按就餐日期（order_date）归入月份，只统计 PENDING / VALID 的有效订单，取消与作废不计入；
+            “就餐天数”是当月有订单的天数，“菜品份数”是订单明细数量之和；
+            点“下载 CSV”导出同一份汇总表（UTF-8 带 BOM，Excel 可直接打开）。
+        </p>
+    </div>
+</div>
+
+<script>
+    // 本页关键字筛选：只过滤已渲染的行，不触发服务端查询，也不改变导出范围
+    (function () {
+        "use strict";
+        var input = document.getElementById("keyword");
+        if (!input) {
+            return;
+        }
+        var rows = Array.prototype.slice.call(document.querySelectorAll(".report-row"));
+        input.addEventListener("input", function () {
+            var keyword = input.value.trim().toLowerCase();
+            rows.forEach(function (row) {
+                var hit = keyword === "" || row.textContent.toLowerCase().indexOf(keyword) >= 0;
+                row.style.display = hit ? "" : "none";
+            });
+        });
+    })();
+</script>
+</body>
+</html>
