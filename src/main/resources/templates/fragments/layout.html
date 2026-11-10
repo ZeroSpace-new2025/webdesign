@@ -12,6 +12,8 @@
 <nav th:fragment="navbar(active)" class="navbar">
     <a class="brand" th:href="@{/}">🍽️ 企业餐厅点餐</a>
     <div class="nav-links">
+        <!-- 回总门户：所有使用本片段的页面（菜品/菜单/厨房备料）都能一键回到 /portal -->
+        <a th:href="@{/portal}" th:classappend="${active == 'portal'} ? 'active'">总门户</a>
         <!-- 组员原有的导航 -->
         <a th:href="@{/order/create}" th:classappend="${active == 'order'} ? 'active'">今日点餐</a>
         <a th:href="@{/order/mine}" th:classappend="${active == 'mine'} ? 'active'">我的订单</a>

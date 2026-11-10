@@ -67,6 +67,7 @@
 				<h1 id="page-title">数据概览</h1>
 			</div>
 			<div class="topbar-actions">
+				<a class="button button-secondary" th:href="@{/portal}">返回总门户</a>
 				<span class="today-label" id="today-label"></span>
 				<div class="current-user">
 					<span class="avatar avatar-current" th:text="${#strings.substring(currentUser.name, 0, 1)}">林</span>
