@@ -110,6 +110,11 @@ com.university.webdesign
   与 REST 控制器分开写（如 `web/order/OrderPageController` 走 `/order/**` 返回视图名，
   `api/order/ApiOrderController` 走 `/api/v1/order/**` 返回 JSON）。页面里不要硬编码业务规则，
   一律调用服务层判定后展示结果。
+- **页面布局统一复用菜品页的骨架**：`th:replace="~{fragments/layout :: head(...)}"` +
+  `~{fragments/layout :: navbar(active)}`，正文只使用 `/css/style.css` 里的通用组件
+  （`.container` / `.page-header` / `.card` / `.filter-form` / `.stat-grid` / `.alert` /
+  `.badge` / `.btn` / `.empty` / `.hint`）。**不要再为单个模块新建样式表**，
+  需要新组件就加到 `style.css`，避免各模块各写一套配色与间距。
 
 ## 4. 业务不变量（改代码时不能破坏）
 
@@ -201,7 +206,7 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
    `config.DatabaseDataInitializer` 只保留一件事：演示菜品 + 当日已发布菜单
    （必须走 `MenuService.publish` 冻结 `menu_snapshot`，纯 INSERT 保证不了这个不变量）。
 7. **总门户 + 登录入口**：登录成功后落到总门户 `/portal`（按当前账号的权限点列出各功能入口，
-   M3 尚无页面的功能以禁用卡片明确标注），`/console` 仍是用户与报表控制台。
+   四模块的入口均已可点击），`/console` 仍是用户与报表控制台。
    认证只有一条路径：`users` 表 + BCrypt 密码 + JWT —— **临时硬编码管理员（`admin` / `admin123`）
    已删除**，登录必须先有账号（账号来自 `reploy/sql/seed.sql`）。
    因此 `app.storage=none` 或空库时**无法登录**，本地跑通请用默认 dev（会自动执行种子脚本）。
@@ -230,9 +235,11 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
    唯一约束会拒绝，需要重试或改用数据库序列/Redis 发号。
 7. **事件监听器目前只覆盖 M3 的聚合与重算**；M4 报表缓存失效、菜单缓存预热尚未接监听器
    （`ReportService.getMonthly` 是“读缓存、缺失即同步生成”，因此暂无正确性风险，只是少了主动失效）。
-8. **页面覆盖**：总门户（`/portal`）、订单（`/order/**`）、菜品（`/recipes/**`）、菜单（`/menus/**`）
-   与控制台（`/console`）已可用；
-   M3 的聚合/配送/时间窗口目前只有 REST 接口，尚无专门的 Thymeleaf 页面（总门户里以禁用卡片占位）。
+8. **页面覆盖**：总门户（`/portal`）、订单（`/order/**`）、菜品（`/recipes/**`）、菜单（`/menus/**`）、
+   控制台（`/console`）与 M3 运营页（`/operation/blanket-orders`、`/operation/blanket-orders/history`、
+   `/operation/deliveries`、`/operation/deliveries/{id}`、`/operation/configs/service-window`）均已可用；
+   各业务页面统一采用菜品页的布局骨架（公共导航栏 + `.container` + 卡片 + `style.css` 通用组件），
+   打印页（生产单 / 配送单 / 月度报表）仍是独立的纸质排版页面，内联样式、不引入公共样式表。
 9. **`items` 在列表类响应里**由 Jackson 正常序列化为数组；用 PowerShell `ConvertTo-Json` 查看时
    空集合会显示成空字符串，这是查看工具的假象，不要据此判断接口有问题。
 
