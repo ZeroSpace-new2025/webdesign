@@ -35,11 +35,17 @@ public class WebConfig implements WebMvcConfigurer
 
 	private final AuthInterceptor authInterceptor;
 
+	/**
+	 * 导航栏权限拦截器：视图渲染前注入当前账号的权限点与角色
+	 */
+	private final NavPermissionInterceptor navPermissionInterceptor;
+
 	@Value("${app.upload.dir:uploads}")
 	private String uploadDir;
 
-	public WebConfig(AuthInterceptor authInterceptor) {
+	public WebConfig(AuthInterceptor authInterceptor, NavPermissionInterceptor navPermissionInterceptor) {
 		this.authInterceptor = authInterceptor;
+		this.navPermissionInterceptor = navPermissionInterceptor;
 	}
 
 	@Override
@@ -52,6 +58,10 @@ public class WebConfig implements WebMvcConfigurer
 	@Override
 	public void addInterceptors(InterceptorRegistry registry) {
 		registry.addInterceptor(authInterceptor)
+				.addPathPatterns("/**")
+				.excludePathPatterns(AUTH_WHITELIST);
+		// 放在认证之后：登录态已经在 preHandle 里写好，导航拦截器只需在渲染前补模型属性
+		registry.addInterceptor(navPermissionInterceptor)
 				.addPathPatterns("/**")
 				.excludePathPatterns(AUTH_WHITELIST);
 	}
