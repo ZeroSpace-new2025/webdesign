@@ -3,7 +3,7 @@
 企业餐厅网络点餐系统（课程小组项目）。本文件是本仓库的**唯一协作约定入口**，所有人和 AI 代理在改代码前都要先读这里，再读：
 
 1. `demand.md` —— 业务需求原文（权威来源）
-2. `对外方法表.md` —— 模块对外方法表 v2.0（66 个 api 接口 + 72 个 service 方法的签名与归属）
+2. `对外方法表.md` —— 模块对外方法表 v2.0（66 个 api 接口 + 73 个 service 方法的签名与归属）
 3. `REFACTOR_SPEC.md` —— 本次重构的实施规范（包结构、表结构、字段命名、跨模块依赖方向）
 
 三者冲突时的优先级：**用户明确指示 > `demand.md` > `对外方法表.md` > `REFACTOR_SPEC.md` > 本文件**。
@@ -181,7 +181,7 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
 
 已经落地：
 
-1. **四个模块的 service 与 api 全部按《对外方法表》实现**，共 66 个 REST 接口、72 个 service 方法。
+1. **四个模块的 service 与 api 全部按《对外方法表》实现**，共 66 个 REST 接口、73 个 service 方法。
 2. **统一基础设施**：`Result`（`code=0` 成功，附 `traceId`）、`ErrorCode` 11 个错误码、
    `BusinessException`、`PageQuery`/`PageResult`、`DateRange`、`UserContext`/`UserContextHolder`、
    全局异常处理器（全项目唯一）、`TabularExport`（CSV / SpreadsheetML 导出，不引入 POI）。
@@ -236,8 +236,10 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
 7. **事件监听器目前只覆盖 M3 的聚合与重算**；M4 报表缓存失效、菜单缓存预热尚未接监听器
    （`ReportService.getMonthly` 是“读缓存、缺失即同步生成”，因此暂无正确性风险，只是少了主动失效）。
 8. **页面覆盖**：总门户（`/portal`）、订单（`/order/**`）、菜品（`/recipes/**`）、菜单（`/menus/**`）、
-   控制台（`/console`）与 M3 运营页（`/operation/blanket-orders`、`/operation/blanket-orders/history`、
-   `/operation/deliveries`、`/operation/deliveries/{id}`、`/operation/configs/service-window`）均已可用；
+   控制台（`/console`）、员工月度消费报表（`/reports/monthly`、`/reports/monthly/employees/{id}`，
+   CSV 导出 `/reports/monthly/export`）与 M3 运营页（`/operation/blanket-orders`、
+   `/operation/blanket-orders/history`、`/operation/deliveries`、`/operation/deliveries/{id}`、
+   `/operation/configs/service-window`）均已可用；
    各业务页面统一采用菜品页的布局骨架（公共导航栏 + `.container` + 卡片 + `style.css` 通用组件），
    打印页（生产单 / 配送单 / 月度报表）仍是独立的纸质排版页面，内联样式、不引入公共样式表。
 9. **`items` 在列表类响应里**由 Jackson 正常序列化为数组；用 PowerShell `ConvertTo-Json` 查看时
