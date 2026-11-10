@@ -317,7 +317,8 @@ ServiceWindowVO get(LocalDate date, String scope, Long deptId);   // 无配置�
 
 - `TaskStatus`：`PENDING → DELIVERING → DELIVERED | EXCEPTION`，非法流转抛 40902。
 - 定时任务：`OrderWindowCloseJob`（`0 0 9 * * ?` 发 `OrderWindowClosedEvent`）、
-  `DeliveryOpenJob`（`0 30 11 * * ?` 预生成配送任务）；监听器订阅事件触发聚合/重算。
+  `DeliveryOpenJob`（`0 30 11 * * ?` 预生成配送任务）；监听器订阅事件触发聚合/重算
+  （订阅关系见第 6 节「跨模块事件」）。
 - `printProductionOrder` 返回纯文本生产单（`MediaType.TEXT_PLAIN`）或 XLSX；校验已过截止时间。
 
 ### M4 用户与报表中心 `api/user` + `service/{user,report}` + `domain/{user,report}` + `repository/{user,report}`
@@ -338,9 +339,16 @@ Service 方法（严格按《对外方法表》5.2）：`AuthService` 6 个、`U
 `RoleService` 7 个、`ReportService` 4 个、`ConsumptionAuditService` 2 个。
 
 - 认证采用 **JWT（HS256，`demo-secret` 可配置）+ `AuthInterceptor`**：
-  `AuthService.verifyToken(token)` 解析出 `UserContext`，`AuthInterceptor` 写入
-  `UserContextHolder` 并清理；登录态来源**不再接受前端自报 `operatorId`**。
-- `logout` 用内存黑名单（`Map<String, Instant>`，TTL = 剩余有效期），文档标注“生产建议换 Redis”。
+  `AuthService.verifyToken(token)` 校验签名/有效期/黑名单/改密时间戳，**并按 `userId` 回查库**里的
+  账号状态与角色权限后构造 `UserContext`；`AuthInterceptor` 写入 `UserContextHolder` 并清理。
+  登录态来源**不再接受前端自报 `operatorId`**。
+  - 为什么回查：令牌是自包含的，若直接信任载荷里的 `roles`/`permCodes`，停用账号或撤销权限点后，
+    已签发的令牌仍能用到自然过期（默认 12 小时）。
+  - 载荷另有随机 `jti`：时间字段只有秒级精度，同一秒内为同一用户签发的令牌本来会完全相同，
+    而黑名单按令牌字符串记账，会导致“登出/改密后立刻重新登录”拿到的新令牌命中旧黑名单。
+- `logout` 用内存黑名单（`Map<String, Instant>`，TTL = 剩余有效期），文档标注“生产建议换 Redis”；
+  `changePassword` 成功后由 `ApiAuthController` 额外调用 `logout(当前 Authorization 头)`，
+  立即拉黑本次会话的令牌（秒级时间戳比较兜不住同秒签发的情况）。
 - 密码统一 BCrypt；`UserService.create` 初始密码缺省 `123456`。
 - 角色/权限变更发 `RolePermissionChangedEvent`；用户信息变更发 `UserUpdatedEvent`。
 - `ReportService.getMonthly` 优先读 `monthly_report` 缓存，缺失则同步生成。
@@ -364,6 +372,27 @@ Service 方法（严格按《对外方法表》5.2）：`AuthService` 6 个、`U
 | `ReportService` | `OrderQueryService` | `page` / `listValidByDate` |
 | `ConsumptionAuditService` | `OrderQueryService` | `getDetail` / `page` |
 | `ConsumptionAuditService` | `UserService` | `listByIds(userIds)` |
+
+### 6.1 跨模块事件（进程内，非注入依赖）
+
+事件是**发布方不感知订阅方**的跨模块协作方式，同样要在本表登记；监听器只允许依赖被调模块的
+**service 接口**，不得直接碰对方的 repository 或表。
+
+| 事件 | 发布方（触发时机） | 订阅方（`event/listener`） | 处理 |
+|---|---|---|---|
+| `OrderCreatedEvent` | M2 `OrderService.submit` 落库后 | M3 `OrderCreatedListener` | `BlanketOrderService.refreshDailyStat(orderDate)` 重算当日 `daily_statistics` |
+| `OrderUpdatedEvent` | M2 `OrderService.modify` / `cancel` / `invalidate` | M3 `OrderUpdatedListener` | 同上（幂等覆盖写） |
+| `OrderWindowClosedEvent` | M3 `OperationScheduleConfig.orderWindowCloseJob`（09:00，**无事务上下文**） | M3 `OrderWindowClosedListener` | `BlanketOrderService.aggregate(date, true)` 截止这一刻强制覆盖重算（同模块内闭环，列在此处是为了说明“无事务发布 + 覆盖重算”的语义） |
+| `DeliveryGeneratedEvent` | M3 `DeliveryService.generateTasks` | 无 | 预留（打印/通知类扩展点） |
+| `MenuPublishedEvent` / `RecipeChangedEvent` | M1 `MenuService` / `RecipeService` | 无 | 预留（缓存刷新类扩展点） |
+| `RolePermissionChangedEvent` / `UserUpdatedEvent` / `MonthlyReportGeneratedEvent` | M4 | 无 | 预留；鉴权已改为每请求回查库，不依赖事件失效缓存 |
+
+**监听器写法约定（两个必踩的坑）**：
+1. 监听方法必须 `@Transactional(propagation = Propagation.REQUIRES_NEW)`；`AFTER_COMMIT` 阶段原事务
+   已提交但同步器仍挂在当前线程，默认 `REQUIRED` 会「加入」已完成的事务并抛
+   `TransactionRequiredException`，异常被事务同步器吞掉，派生数据悄悄不更新。
+2. 定时任务发布的事件没有事务，监听器必须 `fallbackExecution = true`，否则
+   `@TransactionalEventListener` 会**静默跳过**（09:00 的自动聚合因此长期不生效）。
 
 **环形依赖风险**：`OrderService` 依赖 `AuthService`，而 `AuthService` 属于 M4。
 为避免循环，`AuthService.checkPermission` 与 `UserService.hasAnyRole` 的实现

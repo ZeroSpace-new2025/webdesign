@@ -175,7 +175,7 @@ com.university.webdesign
 ```bash
 ./gradlew build            # 编译 + 测试（Windows: .\gradlew.bat build）
 ./gradlew test             # 只跑测试
-./gradlew test --tests "*OrderServiceIntegrationTests" --console=plain   # 只跑订单模块集成测试
+./gradlew test --tests "*OrderAggregationRefreshTests" --console=plain   # 只跑订单/聚合回归测试
 ./gradlew compileJava      # 快速语法检查
 ./gradlew bootRun          # 本地启动（默认 dev profile，用 H2，无需安装数据库）
 ./gradlew bootRun --args="--spring.profiles.active=prod"   # 连 PostgreSQL
@@ -210,7 +210,8 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
 测试目录镜像主代码分层：实现类测试放 `src/test/java/com/university/webdesign/impl/<模块>/`，
 公共设施（`PermissionEnum`、`PermissionList`、`RoleListConverter` 等）的测试放
 `src/test/java/com/university/webdesign/common/<子包>/`。
-主链路测试（`impl/order/OrderServiceIntegrationTests`）用 `@SpringBootTest` 走真实上下文与真实
+主链路测试（`impl/order/OrderAggregationRefreshTests`、`impl/operation/WindowClosedAggregationTests`、
+`impl/user/AuthTokenStatusTests`）用 `@SpringBootTest` 走真实上下文与真实
 角色/权限数据；模块内部逻辑用 Mockito 或 `@DataJpaTest` 直测实现类。**没有数据库的机器也能跑通。**
 
 ## 6. 当前状态与缺口（接手时请注意）
@@ -272,8 +273,11 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
    （H2 不支持部分索引，因此 `dev`/测试库仍只有服务层校验；并发撞索引时接口会返回 50000）。
 6. **`order_no` 发号**为 `yyyyMMdd + 4 位当日流水`，取当日最大单号 +1；极高并发下仍可能撞号，
    唯一约束会拒绝，需要重试或改用数据库序列/Redis 发号。
-7. **事件监听器目前只覆盖 M3 的聚合与重算**；M4 报表缓存失效、菜单缓存预热尚未接监听器
-   （`ReportService.getMonthly` 是“读缓存、缺失即同步生成”，因此暂无正确性风险，只是少了主动失效）。
+7. **事件监听器目前只覆盖 M3 的聚合与重算**（`OrderCreatedListener` / `OrderUpdatedListener` /
+   `OrderWindowClosedListener`，订阅关系登记在 `REFACTOR_SPEC.md` 第 6.1 节）；M4 报表失效、
+   菜单缓存预热尚未接监听器。注意 `ReportService.getMonthly` 是“读缓存、缺失即同步生成”，
+   **订单变更后报表不会自动重算**（报表是快照语义），需要页面刷新按钮或
+   `POST /api/v1/user/reports/monthly/refresh`。
 8. **页面覆盖**：总门户（`/portal`）、订单（`/order/create`、`/order/mine`、
    `/order/monthly` 个人月度消费与订单汇总可打印、`/order/manage` 经理订单管理与作废）、
    菜品（`/recipes/**`）、菜单（`/menus/**`）、控制台（`/console`）、员工月度消费报表

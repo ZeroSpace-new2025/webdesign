@@ -1,7 +1,7 @@
 # 实现路径文档（按模块）
 
 本目录按 **四个业务模块** 分别描述“一个功能从前端入口到数据库落库”的完整实现路径，
-用于代码走读、答辩讲解和后续接手。所有描述都以当前代码为准（对应提交 `24b2fa4`，
+用于代码走读、答辩讲解和后续接手。所有描述都以当前代码为准（最近一次同步对应提交 `e232a97`，
 `./gradlew build` 通过、四个模块页面与接口均已验证）。**代码改动后请同步更新本目录。**
 
 | 文档 | 模块 | 负责人（AGENTS.md 2.1） |
@@ -28,12 +28,16 @@
   └─ DispatcherServlet
        ├─ AuthInterceptor.preHandle
        │    · 解析 token：Authorization: Bearer → token 请求头 → Cookie dsh_token
-       │    · AuthService.verifyToken → UserContext 写入 UserContextHolder（含角色与权限点）
+       │    · AuthService.verifyToken → UserContext 写入 UserContextHolder
+       │      （校验签名/有效期/黑名单/改密时间戳，并**回查库里**的账号状态与角色权限；
+       │        令牌里的 roles/permCodes 只是签发时快照，不作授权依据）
        │    · 页面请求未登录 → 302 /login；/api/** 保持 JSON 语义
        │    · @RequiresPerm 校验权限点/角色，越权抛 40300
        ├─ Controller（api/** 返回 Result<T>；web/** 返回视图名，页面控制器同样声明 @RequiresPerm）
        ├─ Service 接口 → Impl（@Transactional 一律在 service 层）
        ├─ Repository（Spring Data JPA）→ 数据库表
+       ├─ （事务提交后，同一线程同步执行）event/listener 的 @TransactionalEventListener：
+       │    重算 daily_statistics 等派生数据，监听方法一律 @Transactional(REQUIRES_NEW)
        ├─ NavPermissionInterceptor.postHandle（仅视图：注入 navPermCodes / navRoleCodes 给导航栏）
        └─ GlobalExceptionHandler（业务异常 → ErrorCode + 中文提示；页面请求渲染 error.html）
 ```
@@ -45,6 +49,9 @@
   `common/enums/PermissionEnum`，落库为 `role.permission_list` 位图。
 - **失败**：业务错误抛 `BusinessException(ErrorCode, "中文")`，由 `GlobalExceptionHandler` 统一转换。
 - **快照**：菜品/菜单/订单三类快照字段只增不改，历史数据不随主数据变化。
+- **监听器**：跨模块协作只走进程内事件。`@TransactionalEventListener` 的监听方法必须
+  `@Transactional(propagation = REQUIRES_NEW)`；由定时任务发布（无事务）的事件还要
+  `fallbackExecution = true`，否则监听器会被静默跳过（两个坑的成因见 `AGENTS.md` 第 3 节）。
 
 ## 二、公共设施（被四个模块共用）
 
@@ -99,9 +106,19 @@
 ```bash
 ./gradlew build                                  # 编译 + 测试（提交前必跑）
 ./gradlew bootRun                                # dev（H2，自动执行 seed.sql）
-.\gradlew.bat test --tests "*OrderServiceIntegrationTests" --console=plain
+.\gradlew.bat test --tests "*OrderAggregationRefreshTests" --console=plain   # 只跑某一组用例
 psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/schema.sql
 ```
+
+现有测试（`src/test/java`，全部 `@SpringBootTest` + H2 + seed）：
+
+| 测试类 | 覆盖 |
+| --- | --- |
+| `WebdesignApplicationTests` | 上下文装配 |
+| `impl/order/OrderAggregationRefreshTests` | 下单/改单后 `daily_statistics` 必须重算 |
+| `impl/operation/WindowClosedAggregationTests` | 定时聚合（无事务入口）执行且覆盖重算 |
+| `impl/user/AuthTokenStatusTests` | 停用账号 / 撤销权限 / 同秒重新登录的令牌语义 |
+| `impl/user/JwtCodecTests` | 令牌唯一性（jti）与篡改拒绝 |
 
 演示账号（`reploy/sql/seed.sql`）：`manager/admin123`、`finance/finance123`、`kitchen/kitchen123`、
 `delivery/delivery123`、`zhangsan|lisi|wangwu|sunliu` 密码 `123456`。
