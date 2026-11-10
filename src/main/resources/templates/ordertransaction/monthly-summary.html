@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<!--
+    个人月度消费与订单汇总（订单与交易核心，员工本人）
+    对应需求原文第 6 条：“员工也可以打印自己的个人月度消费统计汇总表和月度订单汇总表”。
+    数据来自 OrderStatisticsService.monthlySummary（本人月度消费统计）+ OrderService.pageHistory（当月订单），
+    页面用 style.css 的打印样式，点“打印 / 另存 PDF”后浏览器直接出纸，导航与筛选不会被打出来。
+-->
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('个人月度消费汇总')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('mine')}"></nav>
+
+<div class="container">
+    <div class="page-header">
+        <div>
+            <h1>个人月度消费与订单汇总</h1>
+            <p class="muted" style="margin:4px 0 0;">
+                <strong th:text="${employeeName != null ? employeeName : '员工'}">张三</strong>
+                <span th:if="${employeeNo != null}">（工号 <span th:text="${employeeNo}">zhangsan</span>）</span>
+                · 统计月份 <span th:text="${monthText}">2026 年 11 月</span>
+                · 本页可直接打印或另存为 PDF
+            </p>
+        </div>
+        <div class="page-actions">
+            <button type="button" class="btn btn-primary" onclick="window.print()">打印 / 另存 PDF</button>
+            <a class="btn" th:href="@{/order/mine}">返回我的订单</a>
+        </div>
+    </div>
+
+    <!-- 打印时隐藏：换月份重新查询 -->
+    <div class="card no-print">
+        <form class="filter-form" method="get" th:action="@{/order/monthly}">
+            <label for="month">统计月份</label>
+            <input type="month" id="month" name="month" th:value="${month}"/>
+            <button type="submit" class="btn btn-primary">查询</button>
+            <a class="link" th:href="@{/order/monthly}">本月</a>
+        </form>
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="stat-label">有效订单</div>
+            <div class="stat-value" th:text="${summary.orderCount}">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">菜品份数</div>
+            <div class="stat-value" th:text="${totalQuantity}">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">消费总额（元）</div>
+            <div class="stat-value"
+                 th:text="'¥' + ${summary.totalAmount != null ? #numbers.formatDecimal(summary.totalAmount, 1, 2) : '0.00'}">¥0.00</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>月度消费统计（按分类）</h2>
+        <div class="empty" th:if="${#lists.isEmpty(summary.categoryBreakdown)}">该月份没有有效订单，暂无消费统计。</div>
+        <table th:if="${!#lists.isEmpty(summary.categoryBreakdown)}">
+            <thead>
+            <tr>
+                <th>分类</th>
+                <th class="num">份数</th>
+                <th class="num">金额（元）</th>
+                <th class="num">占比</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${summary.categoryBreakdown}">
+                <td th:text="${row.category != null ? row.category : '未分类'}">热菜</td>
+                <td class="num" th:text="${row.quantity}">0</td>
+                <td class="num"
+                    th:text="${row.amount != null ? #numbers.formatDecimal(row.amount, 1, 2) : '0.00'}">0.00</td>
+                <td class="num"
+                    th:text="${row.percentage != null ? #numbers.formatDecimal(row.percentage, 1, 1) + '%' : '0.0%'}">0.0%</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>月度消费明细（按菜品）</h2>
+        <div class="empty" th:if="${#lists.isEmpty(summary.dishBreakdown)}">该月份没有有效订单，暂无菜品明细。</div>
+        <table th:if="${!#lists.isEmpty(summary.dishBreakdown)}">
+            <thead>
+            <tr>
+                <th>菜品</th>
+                <th>分类</th>
+                <th class="num">份数</th>
+                <th class="num">金额（元）</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${summary.dishBreakdown}">
+                <td th:text="${row.recipeName}">黑椒牛柳</td>
+                <td th:text="${row.category != null ? row.category : '未分类'}">热菜</td>
+                <td class="num" th:text="${row.quantity}">0</td>
+                <td class="num"
+                    th:text="${row.amount != null ? #numbers.formatDecimal(row.amount, 1, 2) : '0.00'}">0.00</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>月度订单汇总</h2>
+        <div class="empty" th:if="${#lists.isEmpty(orders)}">该月份还没有订单。</div>
+        <table th:if="${!#lists.isEmpty(orders)}">
+            <thead>
+            <tr>
+                <th style="width:120px;" class="nowrap">就餐日期</th>
+                <th style="width:150px;">订单号</th>
+                <th style="width:90px;">状态</th>
+                <th>菜品明细</th>
+                <th class="num">金额（元）</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="order : ${orders}">
+                <td class="nowrap" th:text="${order.orderDate}">2026-11-11</td>
+                <td th:text="${order.orderNo}">202611110001</td>
+                <td>
+                    <span class="badge"
+                          th:classappend="${order.status == 'PENDING'} ? 'badge-draft'
+                              : (${order.status == 'VALID'} ? 'badge-published'
+                              : (${order.status == 'INVALID'} ? 'badge-offline' : 'badge-inactive'))"
+                          th:text="${order.statusText}">待确认</span>
+                </td>
+                <td>
+                    <span th:each="item, stat : ${order.items}">
+                        <span th:text="${item.recipeName}">菜名</span>
+                        <span class="muted" th:text="'×' + ${item.quantity}">×1</span>
+                        <span th:if="${!stat.last}">、</span>
+                    </span>
+                </td>
+                <td class="num"
+                    th:text="${order.totalAmount != null ? #numbers.formatDecimal(order.totalAmount, 1, 2) : '0.00'}">0.00</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <p class="hint">
+            统计口径：按就餐日期归入月份，只统计 PENDING / VALID 的有效订单；已取消与已作废的订单
+            只在订单明细里保留记录，不计入份数与金额。明细为下单时刻的菜名快照，菜单后续调价不影响本表。
+        </p>
+    </div>
+</div>
+</body>
+</html>

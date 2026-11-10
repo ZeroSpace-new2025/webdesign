@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<!--
+    员工月度消费明细（M4 用户与报表中心）
+    从“员工月度消费报表”下钻：某位员工当月全部有效订单及其下单时刻的菜品快照。
+    数据来自 ConsumptionAuditService.auditEmployee（明细条数由服务层截断）。
+    布局沿用菜品页：公共导航栏 + .container + .page-header + 卡片，样式只引用 /css/style.css。
+-->
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('员工月度消费明细')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('report')}"></nav>
+
+<div class="container">
+    <div class="page-header">
+        <div>
+            <h1>员工月度消费明细</h1>
+            <p class="muted" style="margin:4px 0 0;">
+                <strong th:text="${data.employeeName != null ? data.employeeName : '员工'}">张三</strong>
+                <span th:if="${data.employeeNo != null}">（工号 <span th:text="${data.employeeNo}">EMP001</span>）</span>
+                · 统计月份 <span th:text="${monthText}">2026 年 11 月</span>
+            </p>
+        </div>
+        <div class="page-actions">
+            <a class="btn" th:href="@{/reports/monthly(month=${month})}">返回月度报表</a>
+        </div>
+    </div>
+
+    <div th:if="${truncated}" class="alert alert-warning">
+        该员工当月订单超过明细上限，下面只展示最近的前 <span th:text="${#lists.size(data.details)}">100</span> 张；
+        完整历史请到「我的订单」或订单模块的查询接口查看。
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="stat-label">部门</div>
+            <div class="stat-value" style="font-size:18px;"
+                 th:text="${data.deptName != null ? data.deptName : '未分配部门'}">研发部</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">工位</div>
+            <div class="stat-value" style="font-size:18px;"
+                 th:text="${data.workstation != null ? data.workstation : '—'}">R-12</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">有效订单</div>
+            <div class="stat-value" th:text="${data.orderCount}">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">消费总额（元）</div>
+            <div class="stat-value"
+                 th:text="'¥' + ${data.totalAmount != null ? #numbers.formatDecimal(data.totalAmount, 1, 2) : '0.00'}">¥0.00</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>当月订单</h2>
+        <p class="summary">
+            共 <strong th:text="${data.orderCount}">0</strong> 张订单，
+            菜品合计 <strong th:text="${data.totalQuantity}">0</strong> 份
+        </p>
+
+        <div class="empty" th:if="${#lists.isEmpty(data.details)}">
+            该员工这个月没有有效订单。
+        </div>
+
+        <table th:if="${!#lists.isEmpty(data.details)}">
+            <thead>
+            <tr>
+                <th style="width:120px;" class="nowrap">就餐日期</th>
+                <th style="width:150px;">订单号</th>
+                <th style="width:90px;">状态</th>
+                <th>菜品明细</th>
+                <th class="num">金额（元）</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="order : ${data.details}">
+                <td class="nowrap" th:text="${order.orderDate}">2026-11-10</td>
+                <td th:text="${order.orderNo}">202611100001</td>
+                <td>
+                    <span class="badge"
+                          th:classappend="${order.status == 'PENDING'} ? 'badge-draft'
+                              : (${order.status == 'VALID'} ? 'badge-published'
+                              : (${order.status == 'INVALID'} ? 'badge-offline' : 'badge-inactive'))"
+                          th:text="${order.statusText}">待确认</span>
+                </td>
+                <td>
+                    <span th:each="item, stat : ${order.items}">
+                        <span th:text="${item.recipeName}">菜名</span>
+                        <span class="muted" th:text="'×' + ${item.quantity}">×1</span>
+                        <span th:if="${!stat.last}">、</span>
+                    </span>
+                </td>
+                <td class="num"
+                    th:text="${order.totalAmount != null ? #numbers.formatDecimal(order.totalAmount, 1, 2) : '0.00'}">0.00</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <p class="hint">
+            明细为下单时刻的菜名与数量快照，菜单后续调价不会改变这里；
+            统计只含 PENDING / VALID 的有效订单，取消与作废的订单不参与汇总。
+        </p>
+    </div>
+</div>
+</body>
+</html>

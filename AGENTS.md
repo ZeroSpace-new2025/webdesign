@@ -3,10 +3,13 @@
 企业餐厅网络点餐系统（课程小组项目）。本文件是本仓库的**唯一协作约定入口**，所有人和 AI 代理在改代码前都要先读这里，再读：
 
 1. `demand.md` —— 业务需求原文（权威来源）
-2. `对外方法表.md` —— 模块对外方法表 v2.0（66 个 api 接口 + 72 个 service 方法的签名与归属）
+2. `对外方法表.md` —— 模块对外方法表 v2.0（66 个 api 接口 + 73 个 service 方法的签名与归属）
 3. `REFACTOR_SPEC.md` —— 本次重构的实施规范（包结构、表结构、字段命名、跨模块依赖方向）
+4. `doc/` —— 四个模块的实现路径文档（**按模块**描述“入口 → 控制器 → 服务 → 仓储 → 表”、页面、权限、
+   事件与不变量；走读、答辩和接手时先看这里，改代码后同步更新）
 
-三者冲突时的优先级：**用户明确指示 > `demand.md` > `对外方法表.md` > `REFACTOR_SPEC.md` > 本文件**。
+以上文档冲突时的优先级：**用户明确指示 > `demand.md` > `对外方法表.md` > `REFACTOR_SPEC.md` > 本文件**
+（`doc/` 是实现路径说明，与代码不一致时以代码为准，并顺手更新 `doc/`）。
 
 ## 1. 项目概览
 
@@ -95,6 +98,9 @@ com.university.webdesign
   `IllegalArgumentException` 表达业务错误。错误码见《对外方法表》1.5 与 `ErrorCode` 枚举。
 - **身份传递**：service **不接收 `operatorId` 参数**，统一用 `UserContextHolder.require()` /
   `currentUserId()` 取当前登录用户；定时任务等无请求上下文的场景显式传参。禁止接受客户端自报身份。
+  身份放在 ThreadLocal 里，请求结束由 `config.UserContextCleanupFilter` 在最外层 `finally` 兜底清理
+  （只靠拦截器 `afterCompletion` 不够：`preHandle` 里抛 40300 时它不会回调，线程复用时会把上一个用户的
+  身份带给下一个请求）。
 - **权限**：api 层用 `@RequiresPerm({PermissionEnum.XXX})` 声明式拦截（`AuthInterceptor` 统一校验）；
   注解取值直接写 `common.enums.PermissionEnum` 常量（权限点编码只在该枚举里定义，不再有 `PermCodes` 常量类）；
   service 层仍要做**数据行级归属校验**（本人 or 经理/财务），越权抛 40300。
@@ -110,6 +116,33 @@ com.university.webdesign
   与 REST 控制器分开写（如 `web/order/OrderPageController` 走 `/order/**` 返回视图名，
   `api/order/ApiOrderController` 走 `/api/v1/order/**` 返回 JSON）。页面里不要硬编码业务规则，
   一律调用服务层判定后展示结果。
+- **页面布局统一复用菜品页的骨架**：`th:replace="~{fragments/layout :: head(...)}"` +
+  `~{fragments/layout :: navbar(active)}`，正文只使用 `/css/style.css` 里的通用组件
+  （`.container` / `.page-header` / `.card` / `.filter-form` / `.stat-grid` / `.alert` /
+  `.badge` / `.btn` / `.empty` / `.hint`）。**不要再为单个模块新建样式表**，
+  需要新组件就加到 `style.css`，避免各模块各写一套配色与间距。
+- **顶部导航栏按权限显示**：入口只在 `fragments/layout :: navbar` 里定义，每个链接用
+  `th:if="${#lists.contains(navPermCodes,'xxx')}"` 判定；`navPermCodes`（权限点）与
+  `navRoleCodes`（角色）由 `config.NavPermissionInterceptor` 在视图渲染前注入，
+  错误页由 `GlobalExceptionHandler` 补同一份数据——页面控制器不用自己往模型里塞权限。
+  入口与权限的对应关系：今日点餐 / 我的订单 → `order:submit`；菜品管理 → `menu:recipe:manage`；
+  菜单管理 → `menu:menu:manage`；控制台 → `user:manage` / `role:manage` / `report:view` /
+  `audit:view`（或 FINANCE 角色）；月度报表 → `report:view` / `audit:view`（或 FINANCE /
+  MANAGER 角色）；厨房备料 → `operation:aggregate`；配送管理 → `operation:delivery:print`；
+  时间配置 → `operation:window:manage`。总门户 `/portal` 的入口卡片用同一套判定，
+  新增页面时两边一起加。
+- **页面访问控制（与需求原文 `root_demend.md` 的角色一致）**：所有页面控制器都要声明
+  `@RequiresPerm(...)`（类级即可），由 `AuthInterceptor` 统一校验；未登录访问任何业务页面会被
+  重定向到 `/login`，`/api/**` 仍按接口自己的注解返回 40100 / 40300 JSON。
+  页面与权限的对应关系：`/recipes/**` → `menu:recipe:manage`（经理、厨房主管，需求第 7 条“内部食谱可以
+  餐厅经理和厨房主管进行管理”）；`/menus/**` → `menu:menu:manage`（经理，需求第 2 条）；
+  `/order/create`、`/order/mine`、`/order/monthly` → `order:submit`（需求第 2 条“任何用户都拥有普通员工的
+  权限”，所以预置角色都带该权限点）；`/order/manage/**` → `order:invalidate`（经理，需求第 3 条“经理可以
+  删除员工已经提交的订单”）；`/operation/blanket-orders/**` → `operation:aggregate`；
+  `/operation/deliveries/**` → `operation:delivery:print`；`/operation/configs/service-window` →
+  `operation:window:manage`；`/reports/monthly/**` → `report:view` / `audit:view`（或 FINANCE / MANAGER 角色）；
+  `/console` → `user:manage` / `role:manage` / `report:view` / `audit:view`（或 FINANCE）。
+  预置角色的权限位图只认 `reploy/sql/seed.sql`，新增/调整页面时先确认对应权限点已授予相应角色。
 
 ## 4. 业务不变量（改代码时不能破坏）
 
@@ -176,7 +209,7 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
 
 已经落地：
 
-1. **四个模块的 service 与 api 全部按《对外方法表》实现**，共 66 个 REST 接口、72 个 service 方法。
+1. **四个模块的 service 与 api 全部按《对外方法表》实现**，共 66 个 REST 接口、73 个 service 方法。
 2. **统一基础设施**：`Result`（`code=0` 成功，附 `traceId`）、`ErrorCode` 11 个错误码、
    `BusinessException`、`PageQuery`/`PageResult`、`DateRange`、`UserContext`/`UserContextHolder`、
    全局异常处理器（全项目唯一）、`TabularExport`（CSV / SpreadsheetML 导出，不引入 POI）。
@@ -198,10 +231,13 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
    + `jpa.defer-datasource-initialization=true`；该文件由 `build.gradle` 的 `processResources`
    从 `reploy/sql/` 拷进 `classpath:db/`）。PostgreSQL 部署不自动执行，由 DBA 手工 `psql -f`。
    改角色/权限/演示账号改 SQL 即可，**不要再往 Java 里加种子数据**。
+   预置角色的权限位图按需求原文（`root_demend.md`）对齐：所有角色都带 `order:submit`（任何用户都拥有
+   普通员工的权限）、厨房主管额外带 `menu:recipe:manage`（内部食谱由经理和厨房主管管理）；
+   本段只做“不存在才插入”，已有数据库升级时需在角色权限页面手工调整。
    `config.DatabaseDataInitializer` 只保留一件事：演示菜品 + 当日已发布菜单
    （必须走 `MenuService.publish` 冻结 `menu_snapshot`，纯 INSERT 保证不了这个不变量）。
 7. **总门户 + 登录入口**：登录成功后落到总门户 `/portal`（按当前账号的权限点列出各功能入口，
-   M3 尚无页面的功能以禁用卡片明确标注），`/console` 仍是用户与报表控制台。
+   四模块的入口均已可点击），`/console` 仍是用户与报表控制台。
    认证只有一条路径：`users` 表 + BCrypt 密码 + JWT —— **临时硬编码管理员（`admin` / `admin123`）
    已删除**，登录必须先有账号（账号来自 `reploy/sql/seed.sql`）。
    因此 `app.storage=none` 或空库时**无法登录**，本地跑通请用默认 dev（会自动执行种子脚本）。
@@ -230,9 +266,17 @@ psql -U postgres -d webdesign -v ON_ERROR_STOP=1 -f reploy/sql/drop.sql     # �
    唯一约束会拒绝，需要重试或改用数据库序列/Redis 发号。
 7. **事件监听器目前只覆盖 M3 的聚合与重算**；M4 报表缓存失效、菜单缓存预热尚未接监听器
    （`ReportService.getMonthly` 是“读缓存、缺失即同步生成”，因此暂无正确性风险，只是少了主动失效）。
-8. **页面覆盖**：总门户（`/portal`）、订单（`/order/**`）、菜品（`/recipes/**`）、菜单（`/menus/**`）
-   与控制台（`/console`）已可用；
-   M3 的聚合/配送/时间窗口目前只有 REST 接口，尚无专门的 Thymeleaf 页面（总门户里以禁用卡片占位）。
+8. **页面覆盖**：总门户（`/portal`）、订单（`/order/create`、`/order/mine`、
+   `/order/monthly` 个人月度消费与订单汇总可打印、`/order/manage` 经理订单管理与作废）、
+   菜品（`/recipes/**`）、菜单（`/menus/**`）、控制台（`/console`）、员工月度消费报表
+   （`/reports/monthly`、`/reports/monthly/employees/{id}`，CSV 导出 `/reports/monthly/export`）
+   与 M3 运营页（`/operation/blanket-orders`、`/operation/blanket-orders/history`、
+   `/operation/deliveries`、`/operation/deliveries/{id}`、`/operation/configs/service-window`）均已可用，
+   且每个页面都按需求角色声明了 `@RequiresPerm`（见第 3 节“页面访问控制”）；
+   各业务页面统一采用菜品页的布局骨架（公共导航栏 + `.container` + 卡片 + `style.css` 通用组件，
+   打印样式也在 `style.css` 的 `@media print` 里）。原先占位用的硬编码演示页
+   `web/operation/ReportDemoController`（假数据“员工月度菜品统计表”）已删除，由 `/order/monthly`
+   的真实数据页面替代。
 9. **`items` 在列表类响应里**由 Jackson 正常序列化为数组；用 PowerShell `ConvertTo-Json` 查看时
    空集合会显示成空字符串，这是查看工具的假象，不要据此判断接口有问题。
 

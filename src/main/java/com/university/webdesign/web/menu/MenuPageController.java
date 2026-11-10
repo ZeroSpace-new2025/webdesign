@@ -1,6 +1,8 @@
 package com.university.webdesign.web.menu;
 
 import com.university.webdesign.common.PageResult;
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.domain.menu.MenuStatus;
 import com.university.webdesign.domain.menu.RecipeStatus;
 import com.university.webdesign.service.menu.MenuService;
@@ -37,9 +39,13 @@ import java.util.Map;
  * 已发布菜单不可编辑删除。页面只做视图组装与错误回显。
  * <p>
  * 发布时会真实写入 {@code menu_snapshot}，因此点餐页与下单链路取到的就是冻结价格。
+ * <p>
+ * 访问控制：菜单由餐厅经理编排（需求原文第 2 条），因此整个 `/menus/**` 需要
+ * {@link PermissionEnum#MENU_MENU_MANAGE} 权限点。
  */
 @Controller
 @RequestMapping("/menus")
+@RequiresPerm(PermissionEnum.MENU_MENU_MANAGE)
 public class MenuPageController
 {
 	/**

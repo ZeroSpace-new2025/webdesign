@@ -20,9 +20,12 @@ import java.nio.file.Paths;
 public class WebConfig implements WebMvcConfigurer
 {
 	/**
-	 * 免认证路径白名单：登录接口、错误页、静态资源、上传文件、H2 控制台
+	 * 免认证路径白名单：登录页与登录接口、错误页、静态资源、上传文件、H2 控制台
+	 * <p>
+	 * `/login` 必须在这里，否则“未登录访问页面 → 跳登录页 → 登录页又要求登录”会形成重定向死循环。
 	 */
 	private static final String[] AUTH_WHITELIST = {
+			"/login",
 			"/api/v1/user/auth/login",
 			"/error",
 			"/css/**",
@@ -35,11 +38,17 @@ public class WebConfig implements WebMvcConfigurer
 
 	private final AuthInterceptor authInterceptor;
 
+	/**
+	 * 导航栏权限拦截器：视图渲染前注入当前账号的权限点与角色
+	 */
+	private final NavPermissionInterceptor navPermissionInterceptor;
+
 	@Value("${app.upload.dir:uploads}")
 	private String uploadDir;
 
-	public WebConfig(AuthInterceptor authInterceptor) {
+	public WebConfig(AuthInterceptor authInterceptor, NavPermissionInterceptor navPermissionInterceptor) {
 		this.authInterceptor = authInterceptor;
+		this.navPermissionInterceptor = navPermissionInterceptor;
 	}
 
 	@Override
@@ -52,6 +61,10 @@ public class WebConfig implements WebMvcConfigurer
 	@Override
 	public void addInterceptors(InterceptorRegistry registry) {
 		registry.addInterceptor(authInterceptor)
+				.addPathPatterns("/**")
+				.excludePathPatterns(AUTH_WHITELIST);
+		// 放在认证之后：登录态已经在 preHandle 里写好，导航拦截器只需在渲染前补模型属性
+		registry.addInterceptor(navPermissionInterceptor)
 				.addPathPatterns("/**")
 				.excludePathPatterns(AUTH_WHITELIST);
 	}

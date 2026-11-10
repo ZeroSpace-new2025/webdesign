@@ -1,8 +1,11 @@
 package com.university.webdesign.web;
 
 import com.university.webdesign.common.BusinessException;
+import com.university.webdesign.common.RoleCodes;
 import com.university.webdesign.common.UserContext;
 import com.university.webdesign.common.UserContextHolder;
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.user.AuthService;
 import com.university.webdesign.service.user.UserService;
 import com.university.webdesign.service.user.dto.CurrentUserVO;
@@ -84,6 +87,9 @@ public class PageController
 	 * @return 视图名或重定向
 	 */
 	@GetMapping("/console")
+	@RequiresPerm(value = {PermissionEnum.USER_MANAGE, PermissionEnum.ROLE_MANAGE,
+			PermissionEnum.REPORT_VIEW, PermissionEnum.AUDIT_VIEW},
+			roles = {RoleCodes.FINANCE})
 	public String console(Model model) {
 		UserContext context = UserContextHolder.get();
 		if (context == null || context.userId() == null) {

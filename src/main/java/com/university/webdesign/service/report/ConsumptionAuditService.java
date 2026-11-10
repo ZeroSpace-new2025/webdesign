@@ -2,6 +2,7 @@ package com.university.webdesign.service.report;
 
 import com.university.webdesign.service.report.dto.DeptConsumptionVO;
 import com.university.webdesign.service.report.dto.EmployeeConsumptionVO;
+import com.university.webdesign.service.report.dto.EmployeeMonthlyConsumptionVO;
 
 import java.time.YearMonth;
 import java.util.List;
@@ -44,4 +45,18 @@ public interface ConsumptionAuditService
 	 * @return 部门维度汇总列表
 	 */
 	List<DeptConsumptionVO> sumByDept(YearMonth month, List<Long> deptIds);
+
+	/**
+	 * 员工维度月度消费汇总（报表页面与 CSV 导出取数，无 HTTP 端点）
+	 * <p>
+	 * 按月就餐日期归集当月有效订单，一个员工一行；{@code deptId} 非空时只统计该部门员工。
+	 * 结果按消费金额倒序（金额相同按工号升序），当月没有有效订单时返回空列表。
+	 * <p>
+	 * 取数同样只经 {@code OrderQueryService}（默认只看有效订单），**不直接访问订单表**。
+	 *
+	 * @param month  月份
+	 * @param deptId 部门ID，可为空表示全部部门
+	 * @return 员工维度汇总列表
+	 */
+	List<EmployeeMonthlyConsumptionVO> sumByEmployee(YearMonth month, Long deptId);
 }

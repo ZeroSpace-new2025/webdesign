@@ -36,14 +36,22 @@
 --   15 order:submit              20 operation:window:manage   25 audit:view
 --   16 order:invalidate          21 user:manage
 --   17 order:view:all            22 role:manage
+--
+-- 位图与需求原文（root_demend.md）的对应关系：
+--   * “任何用户都拥有普通员工的权限” —— 所有角色都带 15(order:submit)，都能点餐与查自己的历史；
+--   * “内部食谱可以餐厅经理和厨房主管进行管理” —— KITCHEN_SUPERVISOR 带 13(menu:recipe:manage)，
+--     菜单本身（14）仍然只给餐厅经理；
+--   * 经理天然拥有最高人事管理权限 —— MANAGER 拥有全部 13~25。
+-- 注意：本段只做“不存在才插入”。已有数据库升级时，预置角色的权限不会自动变，
+-- 需要在“角色权限”页面按上表调整，或手工执行 update role set permission_list = … where name = …。
 -- -----------------------------------------------------------------------------
 insert into role (name, permission_list)
 select m.name, m.permission_list
 from (values
 	('MANAGER',            '13,14,15,16,17,18,19,20,21,22,23,24,25'),
-	('KITCHEN_SUPERVISOR', '17,18,19,23'),
-	('DELIVERY_STAFF',     '19'),
-	('FINANCE',            '17,23,24,25'),
+	('KITCHEN_SUPERVISOR', '13,15,17,18,19,23'),
+	('DELIVERY_STAFF',     '15,19'),
+	('FINANCE',            '15,17,23,24,25'),
 	('EMPLOYEE',           '15')
 ) as m (name, permission_list)
 where not exists (select 1 from role r where r.name = m.name);

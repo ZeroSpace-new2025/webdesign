@@ -1,73 +1,78 @@
 <!DOCTYPE html>
+<!--
+    历史汇总快照页（M3 运营与履约）—— 每日聚合后的存档记录，用于历史追溯。
+    布局沿用菜品页：公共导航栏 + .container + .page-header + 卡片，样式只引用 /css/style.css。
+-->
 <html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <title>历史汇总快照</title>
-    <link rel="stylesheet" th:href="@{/css/style.css}"/>
-    <link rel="stylesheet" th:href="@{/css/operation.css}">
-</head>
+<head th:replace="~{fragments/layout :: head('历史汇总快照')}"></head>
 <body>
-<!-- 引入公共导航栏 -->
 <nav th:replace="~{fragments/layout :: navbar('blanket')}"></nav>
 
-<div class="container" style="margin-top: 20px;">
-    <div class="page-header" style="margin-bottom: 20px;">
-        <h1>历史汇总快照</h1>
-        <p class="muted">系统每日聚合后的存档记录，用于历史追溯。</p>
+<div class="container">
+    <div class="page-header">
+        <div>
+            <h1>历史汇总快照</h1>
+            <p class="muted" style="margin:4px 0 0;">
+                系统每日聚合后的存档记录，用于历史追溯。
+            </p>
+        </div>
+        <div class="page-actions">
+            <a class="btn" th:href="@{/operation/blanket-orders}">返回备料页</a>
+        </div>
     </div>
 
-    <!-- 顶部查询工具栏 -->
-    <div class="m3-toolbar">
-        <form method="get" th:action="@{/operation/blanket-orders/history}" style="display: flex; gap: 10px; align-items: center;">
-            <label style="font-size: 14px;">起始日期：<input type="date" name="dateFrom" th:value="${dateFrom}"></label>
-            <label style="font-size: 14px;">结束日期：<input type="date" name="dateTo" th:value="${dateTo}"></label>
-            <button type="submit" class="m3-btn m3-btn-primary">查询</button>
-            <a th:href="@{/operation/blanket-orders}" class="m3-btn m3-btn-outline">返回备料页</a>
+    <!-- 查询条件：汇总日期区间 -->
+    <div class="card">
+        <form class="filter-form" method="get" th:action="@{/operation/blanket-orders/history}">
+            <label for="dateFrom">起始日期</label>
+            <input type="date" id="dateFrom" name="dateFrom" th:value="${dateFrom}"/>
+            <label for="dateTo">结束日期</label>
+            <input type="date" id="dateTo" name="dateTo" th:value="${dateTo}"/>
+            <button type="submit" class="btn btn-primary">查询</button>
+            <a class="link" th:href="@{/operation/blanket-orders/history}">重置</a>
         </form>
     </div>
 
-    <!-- 空状态提示 -->
-    <div th:if="${page.list.isEmpty()}" class="m3-empty" style="margin-top: 20px;">
-        <div class="m3-empty-icon">📅</div>
-        <p>该时间段内没有任何历史聚合快照。</p>
-        <p style="font-size: 13px; color: #999;">只有在订餐截止后触发过聚合的日期，才会产生快照。</p>
-    </div>
+    <div class="card">
+        <p class="summary">共 <strong th:text="${page.total}">0</strong> 份历史快照</p>
 
-    <!-- 数据表格 -->
-    <table th:if="${!page.list.isEmpty()}" class="m3-table" style="margin-top: 20px;">
-        <thead>
-        <tr>
-            <th>汇总日期</th>
-            <th>有效订单数</th>
-            <th>总金额(元)</th>
-            <th>快照状态</th>
-            <th>生成时间</th>
-            <th>操作</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr th:each="stat : ${page.list}">
-            <td><strong th:text="${stat.statisticsDate}"></strong></td>
-            <td th:text="${stat.totalOrders}"></td>
-            <td>￥<span th:text="${#numbers.formatDecimal(stat.totalAmount, 1, 2)}"></span></td>
-            <td>
-                <span class="badge badge-published" th:text="${stat.status}">AGGREGATED</span>
-            </td>
-            <!-- 处理时间戳展示 -->
-            <td th:text="${stat.generatedTime != null ? #dates.format(new java.util.Date(stat.generatedTime), 'yyyy-MM-dd HH:mm:ss') : '-'}"></td>
-            <td>
-                <!-- 点击可以查看那一天的详情（这里链接到当天的备料页） -->
-                <a th:href="@{/operation/blanket-orders(date=${stat.statisticsDate})}" class="m3-btn m3-btn-outline" style="padding: 4px 10px; font-size: 13px;">查看详情</a>
-            </td>
-        </tr>
-        </tbody>
-    </table>
+        <div class="empty" th:if="${page.list.isEmpty()}">
+            该时间段内没有任何历史聚合快照。只有在订餐截止后触发过聚合的日期，才会产生快照。
+        </div>
 
-    <!-- 分页控件（简单版） -->
-    <div class="m3-pagination" th:if="${page.total > 0}">
-        <span>共 <strong th:text="${page.total}"></strong> 条记录</span>
+        <table th:if="${!page.list.isEmpty()}">
+            <thead>
+            <tr>
+                <th>汇总日期</th>
+                <th class="num">有效订单数</th>
+                <th class="num">总金额（元）</th>
+                <th style="width:100px;">快照状态</th>
+                <th style="width:180px;" class="nowrap">生成时间</th>
+                <th style="width:100px;">操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="stat : ${page.list}">
+                <td><strong th:text="${stat.statisticsDate}">2026-01-01</strong></td>
+                <td class="num" th:text="${stat.totalOrders}">0</td>
+                <td class="num"
+                    th:text="${stat.totalAmount != null ? #numbers.formatDecimal(stat.totalAmount, 1, 2) : '0.00'}">0.00</td>
+                <td>
+                    <span class="badge badge-published"
+                          th:text="${stat.status == 'AGGREGATED' ? '已聚合' : stat.status}">已聚合</span>
+                </td>
+                <td class="nowrap" th:text="${stat.generatedTime != null ? #dates.format(new java.util.Date(stat.generatedTime), 'yyyy-MM-dd HH:mm') : '—'}">2026-01-01 09:00</td>
+                <td>
+                    <a class="btn btn-sm" th:href="@{/operation/blanket-orders(date=${stat.statisticsDate})}">查看详情</a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="hint">
+            历史快照只读：每日截止后的聚合结果按日期存档，点击“查看详情”回到当天的备料页；
+            重新聚合只会刷新当日快照，不会改动历史日期。
+        </p>
     </div>
 </div>
-
 </body>
 </html>

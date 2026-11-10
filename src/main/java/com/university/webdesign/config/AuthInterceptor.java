@@ -50,13 +50,21 @@ public class AuthInterceptor implements HandlerInterceptor
 	}
 
 	@Override
-	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+			throws java.io.IOException {
 		String token = resolveToken(request);
 
 		// 先写入登录上下文：白名单接口（登录）也会经过这里，token 为空则跳过
 		if (token != null && !token.isBlank()) {
 			UserContext context = authService.verifyToken(token);
 			UserContextHolder.set(context);
+		}
+
+		// 页面一律要求登录：未登录直接回登录页，避免匿名访问业务页面（看到空数据或不该看的内容）。
+		// /api/** 保持原来的语义：由接口自己的 @RequiresPerm 与 service 归属校验返回 40100 / 40300 JSON。
+		if (!isApiRequest(request) && UserContextHolder.get() == null) {
+			response.sendRedirect(request.getContextPath() + "/login");
+			return false;
 		}
 
 		if (!(handler instanceof HandlerMethod handlerMethod)) {
@@ -70,7 +78,8 @@ public class AuthInterceptor implements HandlerInterceptor
 		boolean roleMatched = requiresPerm.roles().length > 0 && context.hasAnyRole(requiresPerm.roles());
 		boolean permMatched = Arrays.stream(requiresPerm.value()).anyMatch(context::hasPermission);
 		if (!roleMatched && !permMatched) {
-			throw BusinessException.forbidden("无权限访问该接口");
+			// 页面与接口的提示分开写，用户看错误页时能一眼看出是“页面无权限”还是“接口无权限”
+			throw BusinessException.forbidden(isApiRequest(request) ? "无权限访问该接口" : "无权限访问该页面");
 		}
 		return true;
 	}
@@ -107,6 +116,19 @@ public class AuthInterceptor implements HandlerInterceptor
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * 是否 JSON 接口请求
+	 * <p>
+	 * 本项目的对外接口统一挂在 `/api/v1/**` 下；其余路径都是页面、静态资源或 H2 控制台，
+	 * 因此用路径前缀区分“页面”和“接口”即可，不需要额外的请求头约定。
+	 *
+	 * @param request 请求
+	 * @return 接口请求返回 true
+	 */
+	private boolean isApiRequest(HttpServletRequest request) {
+		return request.getRequestURI().startsWith(request.getContextPath() + "/api/");
 	}
 
 	/**

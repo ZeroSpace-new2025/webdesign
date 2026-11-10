@@ -192,6 +192,8 @@ public class GlobalExceptionHandler
 		ModelAndView view = new ModelAndView("error");
 		view.addObject("status", code);
 		view.addObject("message", message == null || message.isBlank() ? "处理请求时发生错误" : message);
+		// 错误页也复用公共导航栏：控制器抛出异常时拦截器不会走 postHandle，这里补上导航权限上下文
+		NavContext.fill(view.getModelMap());
 		return view;
 	}
 

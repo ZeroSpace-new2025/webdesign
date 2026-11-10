@@ -1,5 +1,7 @@
 package com.university.webdesign.web.operation;
 
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.operation.ServiceWindowService;
 import com.university.webdesign.service.operation.dto.ServiceWindowCmd;
 import com.university.webdesign.service.operation.dto.ServiceWindowVO;
@@ -15,8 +17,15 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
+/**
+ * 时间窗口配置页面控制器（M3 运营与履约）。
+ * <p>
+ * 订餐截止时间与配餐开始时间是全系统唯一的时间来源，修改后立即生效。
+ * 访问控制：需要 {@link PermissionEnum#OPERATION_WINDOW_MANAGE} 权限点（餐厅经理）。
+ */
 @Controller
 @RequestMapping("/operation/configs/service-window")
+@RequiresPerm(PermissionEnum.OPERATION_WINDOW_MANAGE)
 public class ServiceWindowPageController
 {
     private final ServiceWindowService serviceWindowService;

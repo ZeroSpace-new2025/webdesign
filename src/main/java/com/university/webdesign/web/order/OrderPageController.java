@@ -5,11 +5,15 @@ import com.university.webdesign.api.order.view.OrderPageView;
 import com.university.webdesign.common.PageResult;
 import com.university.webdesign.common.UserContext;
 import com.university.webdesign.common.UserContextHolder;
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.domain.order.OrderStatus;
 import com.university.webdesign.service.menu.MenuService;
 import com.university.webdesign.service.menu.dto.MenuItemVO;
 import com.university.webdesign.service.menu.dto.MenuVO;
 import com.university.webdesign.service.order.OrderService;
+import com.university.webdesign.service.order.OrderStatisticsService;
+import com.university.webdesign.service.order.dto.MonthlySummaryVO;
 import com.university.webdesign.service.order.dto.OrderHistoryQuery;
 import com.university.webdesign.service.order.dto.OrderModifyCmd;
 import com.university.webdesign.service.order.dto.OrderSubmitCmd;
@@ -43,17 +47,30 @@ import java.util.UUID;
  * <p>
  * 与重构前的差异：登录身份来自认证拦截器写入的 {@link UserContextHolder}，
  * 页面不再传 `operatorId`，也不再提供“切换身份”入口（那会绕过角色校验）。
+ * <p>
+ * 访问控制：点餐与个人历史属于“普通员工”功能（需求原文：任何用户都拥有普通员工的权限），
+ * 因此整个 `/order/**` 需要 {@link PermissionEnum#ORDER_SUBMIT} 权限点；未登录由
+ * {@code AuthInterceptor} 统一重定向到登录页。经理的“订单管理”页在
+ * {@code OrderManagePageController}，需要作废权限，不走这里。
  */
 @Controller
 @RequestMapping("/order")
+@RequiresPerm(PermissionEnum.ORDER_SUBMIT)
 public class OrderPageController
 {
 	private final OrderService orderService;
 	private final MenuService menuService;
 
-	public OrderPageController(OrderService orderService, MenuService menuService) {
+	/**
+	 * 个人月度消费统计（M2-09）：给“个人月度消费与订单汇总”打印页取数
+	 */
+	private final OrderStatisticsService orderStatisticsService;
+
+	public OrderPageController(OrderService orderService, MenuService menuService,
+			OrderStatisticsService orderStatisticsService) {
 		this.orderService = orderService;
 		this.menuService = menuService;
+		this.orderStatisticsService = orderStatisticsService;
 	}
 
 	/**
@@ -222,6 +239,51 @@ public class OrderPageController
 		view.setTotalAmount(total);
 		model.addAttribute("data", view);
 		return "ordertransaction/my-orders";
+	}
+
+	/**
+	 * 个人月度消费与订单汇总（可打印）
+	 * <p>
+	 * 对应需求原文第 6 条：员工可以打印自己的“个人月度消费统计汇总表”和“月度订单汇总表”。
+	 * 统计数据只取 {@link OrderStatisticsService#monthlySummary}（本人，service 层校验归属），
+	 * 订单列表复用个人历史查询；页面用 `style.css` 的打印样式，浏览器直接打印/另存 PDF。
+	 *
+	 * @param month 月份（`yyyy-MM`），为空取当月
+	 * @param model 视图模型
+	 * @return 视图名
+	 */
+	@GetMapping("/monthly")
+	public String monthlyReport(@RequestParam(value = "month", required = false) String month, Model model) {
+		YearMonth target;
+		try {
+			target = month == null || month.isBlank() ? YearMonth.now() : YearMonth.parse(month.trim());
+		} catch (RuntimeException exception) {
+			throw new IllegalArgumentException("月份格式应为 yyyy-MM");
+		}
+		UserContext context = UserContextHolder.require();
+		MonthlySummaryVO summary = orderStatisticsService.monthlySummary(context.userId(), target);
+		long totalQuantity = 0L;
+		for (MonthlySummaryVO.DishSummaryVO dish : summary.getDishBreakdown()) {
+			totalQuantity += dish.getQuantity();
+		}
+
+		OrderHistoryQuery query = new OrderHistoryQuery();
+		query.setDateFrom(target.atDay(1));
+		query.setDateTo(target.atEndOfMonth());
+		query.setPageNum(1);
+		query.setPageSize(100);
+		List<OrderVO> orders = orderService.pageHistory(query).getList();
+
+		model.addAttribute("month", target.toString());
+		model.addAttribute("monthText", target.getYear() + " 年 " + target.getMonthValue() + " 月");
+		// 姓名优先取统计结果，缺失时用登录身份兜底；工号来自登录上下文
+		model.addAttribute("employeeName", summary.getEmployeeName() != null
+				? summary.getEmployeeName() : context.name());
+		model.addAttribute("employeeNo", context.employeeNo());
+		model.addAttribute("summary", summary);
+		model.addAttribute("totalQuantity", totalQuantity);
+		model.addAttribute("orders", orders);
+		return "ordertransaction/monthly-summary";
 	}
 
 	/**

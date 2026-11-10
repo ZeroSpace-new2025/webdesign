@@ -1,75 +1,100 @@
 <!DOCTYPE html>
+<!--
+    厨房备料页（M3 运营与履约）—— 汇总当日有效订单，按分类统计产量。
+    布局沿用菜品页：公共导航栏 + .container + .page-header + 卡片，样式只引用 /css/style.css。
+-->
 <html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <title>厨房备料 · 总括订单</title>
-    <!-- 必须引入组员的全局样式 -->
-    <link rel="stylesheet" th:href="@{/css/style.css}"/>
-    <!-- 引入你的样式 -->
-    <link rel="stylesheet" th:href="@{/css/operation.css}">
-</head>
+<head th:replace="~{fragments/layout :: head('厨房备料')}"></head>
 <body>
-<!-- 引入公共导航栏 -->
 <nav th:replace="~{fragments/layout :: navbar('blanket')}"></nav>
 
 <div class="container">
-    <div class="page-header" style="margin-top: 20px;">
-        <h1>厨房备料 · <span th:text="${date}"></span></h1>
-        <p class="muted">截止后聚合总括订单、按分类统计产量。</p>
+    <div class="page-header">
+        <div>
+            <h1>厨房备料</h1>
+            <p class="muted" style="margin:4px 0 0;">
+                截止后聚合当日有效订单，按分类统计产量，用于后厨备料与生产单打印。
+            </p>
+        </div>
+        <div class="page-actions">
+            <a class="btn" th:href="@{/operation/blanket-orders/history}">历史快照</a>
+            <a class="btn" th:href="@{/operation/blanket-orders/print/preview(date=${date})}" target="_blank">打印生产单</a>
+            <form class="inline-form" method="post" th:action="@{/operation/blanket-orders/aggregate}">
+                <input type="hidden" name="date" th:value="${date}"/>
+                <button type="submit" class="btn btn-primary">手动聚合</button>
+            </form>
+        </div>
     </div>
 
-    <div class="m3-toolbar" style="margin-top: 20px;">
-        <form method="get" th:action="@{/operation/blanket-orders}">
-            <input type="date" name="date" th:value="${date}">
-            <button type="submit" class="m3-btn m3-btn-outline">查询</button>
+    <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+    <!-- 查询条件：汇总日期 -->
+    <div class="card">
+        <form class="filter-form" method="get" th:action="@{/operation/blanket-orders}">
+            <label for="date">汇总日期</label>
+            <input type="date" id="date" name="date" th:value="${date}"/>
+            <button type="submit" class="btn btn-primary">查询</button>
+            <a class="link" th:href="@{/operation/blanket-orders}">回到今天</a>
         </form>
-        <form method="post" th:action="@{/operation/blanket-orders/aggregate}">
-            <input type="hidden" name="date" th:value="${date}">
-            <button type="submit" class="m3-btn m3-btn-primary">手动聚合</button>
-        </form>
-        <a th:href="@{/operation/blanket-orders/print/preview(date=${date})}" target="_blank" class="m3-btn m3-btn-success">打印生产单</a>
-        <a th:href="@{/operation/blanket-orders/history}" class="m3-btn m3-btn-outline">历史快照</a>
     </div>
 
-    <div th:if="${message}" class="m3-alert m3-alert-success" th:text="${message}"></div>
-    <div th:if="${error}" class="m3-alert m3-alert-error" th:text="${error}"></div>
-
-    <div th:if="${!hasSnapshot}" class="m3-empty" style="margin-top: 20px;">
-        <div class="m3-empty-icon">📋</div>
-        <p>当日尚未聚合</p>
-        <p style="font-size:13px;">请等到订餐截止时间后自动聚合，或手动点击"手动聚合"。</p>
+    <div class="card" th:if="${!hasSnapshot}">
+        <div class="empty">
+            当日尚未聚合。请等到订餐截止时间后自动聚合，或点击右上角“手动聚合”。
+        </div>
     </div>
 
     <th:block th:if="${hasSnapshot}">
-        <div class="m3-stats" style="margin-top: 20px;">
-            <div class="m3-stat-card">
-                <div class="m3-stat-label">菜品种类</div>
-                <div class="m3-stat-value" th:text="${totalItems}"></div>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="stat-label">菜品种类</div>
+                <div class="stat-value" th:text="${totalItems}">0</div>
             </div>
-            <div class="m3-stat-card m3-stat-success">
-                <div class="m3-stat-label">分类数</div>
-                <div class="m3-stat-value" th:text="${#maps.size(groups)}"></div>
+            <div class="stat-card">
+                <div class="stat-label">分类数</div>
+                <div class="stat-value" th:text="${#maps.size(groups)}">0</div>
             </div>
         </div>
 
-        <table class="m3-table" style="margin-top: 20px;">
-            <thead>
-            <tr><th>分类</th><th>菜品</th><th>单位</th><th>需求总量</th><th>金额</th><th>涉及订单数</th></tr>
-            </thead>
-            <tbody>
-            <th:block th:each="entry : ${groups}">
-                <tr class="m3-category-row"><td colspan="6" th:text="'【' + ${entry.key} + '】'"></td></tr>
-                <tr th:each="item : ${entry.value}">
-                    <td></td>
-                    <td th:text="${item.recipeName}"></td>
-                    <td th:text="${item.unit}"></td>
-                    <td><strong th:text="${item.totalQuantity}"></strong></td>
-                    <td th:text="${item.totalAmount}"></td>
-                    <td th:text="${item.orderCount}"></td>
+        <div class="card">
+            <p class="summary">
+                汇总日期 <strong th:text="${date}">-</strong> ·
+                共 <strong th:text="${totalItems}">0</strong> 种菜品
+            </p>
+            <table>
+                <thead>
+                <tr>
+                    <th>分类</th>
+                    <th>菜品</th>
+                    <th>单位</th>
+                    <th class="num">需求总量</th>
+                    <th class="num">金额（元）</th>
+                    <th class="num">涉及订单数</th>
                 </tr>
-            </th:block>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                <th:block th:each="entry : ${groups}">
+                    <tr class="table-group-row">
+                        <td colspan="6" th:text="'【' + ${entry.key} + '】'">【分类】</td>
+                    </tr>
+                    <tr th:each="item : ${entry.value}">
+                        <td></td>
+                        <td th:text="${item.recipeName}">菜品</td>
+                        <td th:text="${item.unit}">份</td>
+                        <td class="num"><strong th:text="${item.totalQuantity}">0</strong></td>
+                        <td class="num"
+                            th:text="${item.totalAmount != null ? #numbers.formatDecimal(item.totalAmount, 1, 2) : '—'}">0.00</td>
+                        <td class="num" th:text="${item.orderCount}">0</td>
+                    </tr>
+                </th:block>
+                </tbody>
+            </table>
+            <p class="hint">
+                汇总口径：只统计当日 PENDING / VALID 的有效订单，取消与作废的订单不计入；
+                产量取自订单明细的下单快照，菜谱后续改名调价不影响已生成的汇总。
+            </p>
+        </div>
     </th:block>
 </div>
 </body>
