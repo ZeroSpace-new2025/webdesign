@@ -29,7 +29,7 @@
        ├─ AuthInterceptor.preHandle
        │    · 解析 token：Authorization: Bearer → token 请求头 → Cookie dsh_token
        │    · AuthService.verifyToken → UserContext 写入 UserContextHolder
-       │      （校验签名/有效期/黑名单/改密时间戳，并**回查库里**的账号状态与角色权限；
+       │      （校验签名/有效期/黑名单/改密时间戳，并回查库里的账号状态与角色权限；
        │        令牌里的 roles/permCodes 只是签发时快照，不作授权依据）
        │    · 页面请求未登录 → 302 /login；/api/** 保持 JSON 语义
        │    · @RequiresPerm 校验权限点/角色，越权抛 40300
