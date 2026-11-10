@@ -27,11 +27,23 @@
                 </div>
                 <div class="form-group">
                     <label>分类</label>
-                    <input type="text" class="form-control" th:field="*{category}"
-                           list="category-options" placeholder="如：热菜（可新建分类）"/>
+                    <div class="field-with-picker">
+                        <select class="form-control" id="category-picker" aria-label="选择已有分类">
+                            <option value="">选择已有分类…</option>
+                            <option th:each="c : ${categories}" th:value="${c}" th:text="${c}">分类</option>
+                            <option value="__new__">＋ 新建分类</option>
+                        </select>
+                        <input type="text" class="form-control" id="category-input" name="category"
+                               th:value="*{category}" list="category-options"
+                               placeholder="如：热菜"/>
+                    </div>
                     <datalist id="category-options">
                         <option th:each="c : ${categories}" th:value="${c}"></option>
                     </datalist>
+                    <div class="muted">
+                        优先从已有分类里选，避免出现“热菜 / 热 菜”这类重复分类；保存时会自动去空格。
+                        分类是生产单按类统计的口径，请保持统一。
+                    </div>
                 </div>
             </div>
 
@@ -77,5 +89,31 @@
         </form>
     </div>
 </div>
+
+<script>
+    /*
+     * 分类选择：下拉只负责“把已有分类填进输入框”，真正提交的仍是 name="category" 的文本框。
+     * 这样既能点选已有分类，也能直接输入新分类，且不依赖 JS（脚本失效时文本框照常可用）。
+     */
+    (function () {
+        var picker = document.getElementById('category-picker');
+        var input = document.getElementById('category-input');
+        if (!picker || !input) { return; }
+        if (input.value) {
+            var matched = Array.prototype.some.call(picker.options, function (option) {
+                return option.value === input.value;
+            });
+            if (matched) { picker.value = input.value; }
+        }
+        picker.addEventListener('change', function () {
+            if (picker.value === '__new__') {
+                input.value = '';
+                input.focus();
+            } else if (picker.value) {
+                input.value = picker.value;
+            }
+        });
+    })();
+</script>
 </body>
 </html>

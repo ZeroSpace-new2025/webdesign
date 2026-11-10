@@ -31,6 +31,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -181,9 +182,11 @@ public class RecipeServiceImpl implements RecipeService
 	@Override
 	public List<CategoryVO> listCategories() {
 		// 分类字典当前由 recipe.category 去重派生（未来可独立建分类表，categoryId 语义不变）
+		// 按名称排序：下拉框顺序稳定，不会因为入库顺序变化而跳动
 		return recipeRepository.findDistinctCategories().stream()
 				.filter(name -> name != null && !name.isBlank())
 				.map(name -> new CategoryVO(categoryIdOf(name), name, recipeRepository.countByCategory(name)))
+				.sorted(Comparator.comparing(CategoryVO::getCategoryName))
 				.toList();
 	}
 
@@ -198,7 +201,8 @@ public class RecipeServiceImpl implements RecipeService
 						"%" + q.getKeyword().trim().toLowerCase() + "%"));
 			}
 			if (q.getCategory() != null && !q.getCategory().isBlank()) {
-				predicates.add(cb.equal(root.get("category"), q.getCategory().trim()));
+				// 与写入口同一套归一化，避免“热 菜”查不到“热菜”
+				predicates.add(cb.equal(root.get("category"), normalizeCategory(q.getCategory())));
 			} else if (q.getCategoryId() != null) {
 				List<String> categoryNames = matchCategoryNames(q.getCategoryId());
 				// 分类不存在时用恒假条件返回空页，而不是报错（筛选条件允许查不到）
@@ -223,7 +227,7 @@ public class RecipeServiceImpl implements RecipeService
 	 * 菜品分类：直接给分类名时按其登记（派生分类允许新分类名），只给分类ID时必须能解析出分类名
 	 */
 	private String resolveCategory(String category, Long categoryId) {
-		String trimmed = normalize(category);
+		String trimmed = normalizeCategory(category);
 		if (trimmed != null) {
 			if (categoryId != null && !categoryId.equals(categoryIdOf(trimmed))) {
 				throw new BusinessException(ErrorCode.PARAM_INVALID,
@@ -339,6 +343,29 @@ public class RecipeServiceImpl implements RecipeService
 		}
 		String trimmed = value.trim();
 		return trimmed.isEmpty() ? null : trimmed;
+	}
+
+	/**
+	 * 分类名归一化（写入口唯一口径）
+	 * <p>
+	 * 分类是 M1 的分类字典来源、也是 M3 生产单的聚合维度，必须避免
+	 * “热菜 / 热 菜 / 热菜 ” 被记成三个分类：
+	 * 全角空格与各类空白统一成半角空格、连续空白折叠成一个、首尾去空白。
+	 *
+	 * @param category 原始分类名
+	 * @return 归一化后的分类名；空白返回 null
+	 */
+	private static String normalizeCategory(String category) {
+		if (category == null) {
+			return null;
+		}
+		String collapsed = category.replace('\u3000', ' ').replaceAll("\\s+", " ").trim();
+		if (collapsed.isEmpty()) {
+			return null;
+		}
+		// 汉字之间的空格按误输入处理直接去掉：“热 菜”“热　菜”都归一为“热菜”；
+		// 含英文的分类（如 Main Dish）保留单词间空格
+		return collapsed.replaceAll("(?<=\\p{IsHan})\\s+(?=\\p{IsHan})", "");
 	}
 
 	private static String truncate(String value, int maxLength) {

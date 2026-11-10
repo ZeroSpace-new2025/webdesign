@@ -401,3 +401,99 @@ th.num, td.num { text-align: right; white-space: nowrap; }
 
     a { color: inherit; text-decoration: none; }
 }
+
+/* ===== 查询条件栏（菜品列表 / 菜单列表共用） ===== */
+.filter-form {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+.filter-form label {
+    font-size: 13px;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 4px;
+}
+.filter-form input,
+.filter-form select {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    font-size: 14px;
+    font-family: inherit;
+    background: #fff;
+}
+.filter-form button {
+    padding: 7px 16px;
+    border: 1px solid var(--primary);
+    border-radius: 7px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+}
+.filter-form button:hover { background: var(--primary-dark); }
+.link { color: var(--primary); text-decoration: none; font-size: 14px; }
+.link:hover { text-decoration: underline; }
+.hint {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+    margin: 14px 0 0;
+}
+.summary { font-size: 14px; color: var(--muted); margin: 0 0 12px; }
+.thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    object-fit: cover;
+    background: var(--border);
+    display: inline-block;
+}
+
+/* ===== 菜品选择区工具栏（菜单编排页） ===== */
+.picker-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+.picker-toolbar .form-control { width: auto; }
+#picker-search { flex: 1; min-width: 180px; }
+.picker-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--muted);
+    white-space: nowrap;
+    margin: 0;
+}
+.picker-summary {
+    font-size: 13px;
+    color: var(--primary-dark);
+    background: var(--primary-light);
+    padding: 3px 12px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.recipe-picker tr.picker-group td {
+    background: #f6f8fa;
+    font-weight: 600;
+    color: var(--primary-dark);
+    font-size: 13px;
+    padding: 8px 14px;
+}
+.recipe-picker tr.picker-group td::before { content: "▾ "; }
+.picker-group-count {
+    color: var(--muted);
+    font-weight: 400;
+    margin-left: 8px;
+}
+.is-hidden { display: none !important; }
+
+/* ===== 分类选择（菜品表单） ===== */
+.field-with-picker { display: flex; gap: 10px; }
+.field-with-picker select { max-width: 190px; flex: 0 0 auto; }
