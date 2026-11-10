@@ -115,6 +115,16 @@ com.university.webdesign
   （`.container` / `.page-header` / `.card` / `.filter-form` / `.stat-grid` / `.alert` /
   `.badge` / `.btn` / `.empty` / `.hint`）。**不要再为单个模块新建样式表**，
   需要新组件就加到 `style.css`，避免各模块各写一套配色与间距。
+- **顶部导航栏按权限显示**：入口只在 `fragments/layout :: navbar` 里定义，每个链接用
+  `th:if="${#lists.contains(navPermCodes,'xxx')}"` 判定；`navPermCodes`（权限点）与
+  `navRoleCodes`（角色）由 `config.NavPermissionInterceptor` 在视图渲染前注入，
+  错误页由 `GlobalExceptionHandler` 补同一份数据——页面控制器不用自己往模型里塞权限。
+  入口与权限的对应关系：今日点餐 / 我的订单 → `order:submit`；菜品管理 → `menu:recipe:manage`；
+  菜单管理 → `menu:menu:manage`；控制台 → `user:manage` / `role:manage` / `report:view` /
+  `audit:view`（或 FINANCE 角色）；月度报表 → `report:view` / `audit:view`（或 FINANCE /
+  MANAGER 角色）；厨房备料 → `operation:aggregate`；配送管理 → `operation:delivery:print`；
+  时间配置 → `operation:window:manage`。总门户 `/portal` 的入口卡片用同一套判定，
+  新增页面时两边一起加。
 
 ## 4. 业务不变量（改代码时不能破坏）
 
