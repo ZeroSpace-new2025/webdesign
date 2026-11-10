@@ -8,22 +8,53 @@
 </head>
 <body>
 
-<!-- 导航栏片段：active 参数用于高亮当前菜单 -->
+<!--
+    导航栏片段：active 参数用于高亮当前菜单。
+
+    每个入口都按当前账号的权限点显示，权限集合由 NavContext 注入模型
+    （config.NavPermissionInterceptor 在渲染前统一填充，错误页由 GlobalExceptionHandler 补）：
+      navPermCodes —— 权限点编码（order:submit / menu:recipe:manage / ...，与 @RequiresPerm 同一口径）
+      navRoleCodes —— 角色名称（FINANCE / MANAGER 等，报表类入口按预置角色放行）
+    未登录时两个集合为空，导航栏只剩品牌名。
+    新增入口时请顺手写上 th:if，别让用户点到必然 403 的页面。
+-->
 <nav th:fragment="navbar(active)" class="navbar">
     <a class="brand" th:href="@{/}">🍽️ 企业餐厅点餐</a>
     <div class="nav-links">
-        <!-- 组员原有的导航 -->
-        <a th:href="@{/order/create}" th:classappend="${active == 'order'} ? 'active'">今日点餐</a>
-        <a th:href="@{/order/mine}" th:classappend="${active == 'mine'} ? 'active'">我的订单</a>
-        <a th:href="@{/recipes}" th:classappend="${active == 'recipe'} ? 'active'">菜品管理</a>
-        <a th:href="@{/menus}" th:classappend="${active == 'menu'} ? 'active'">菜单管理</a>
-        <a th:href="@{/console}" th:classappend="${active == 'console'} ? 'active'">控制台</a>
-        <a th:href="@{/reports/monthly}" th:classappend="${active == 'report'} ? 'active'">月度报表</a>
+        <!-- 订单：员工与经理（order:submit） -->
+        <a th:href="@{/order/create}" th:classappend="${active == 'order'} ? 'active'"
+           th:if="${#lists.contains(navPermCodes,'order:submit')}">今日点餐</a>
+        <a th:href="@{/order/mine}" th:classappend="${active == 'mine'} ? 'active'"
+           th:if="${#lists.contains(navPermCodes,'order:submit')}">我的订单</a>
+
+        <!-- 菜品与菜单：M1 维护权限 -->
+        <a th:href="@{/recipes}" th:classappend="${active == 'recipe'} ? 'active'"
+           th:if="${#lists.contains(navPermCodes,'menu:recipe:manage')}">菜品管理</a>
+        <a th:href="@{/menus}" th:classappend="${active == 'menu'} ? 'active'"
+           th:if="${#lists.contains(navPermCodes,'menu:menu:manage')}">菜单管理</a>
+
+        <!-- 控制台：用户 / 角色 / 报表 / 审计任一权限点，财务角色也放行 -->
+        <a th:href="@{/console}" th:classappend="${active == 'console'} ? 'active'"
+           th:if="${#lists.contains(navPermCodes,'user:manage')
+                or #lists.contains(navPermCodes,'role:manage')
+                or #lists.contains(navPermCodes,'report:view')
+                or #lists.contains(navPermCodes,'audit:view')
+                or #lists.contains(navRoleCodes,'FINANCE')}">控制台</a>
+
+        <!-- 月度报表：报表/审计权限点，或财务、经理角色 -->
+        <a th:href="@{/reports/monthly}" th:classappend="${active == 'report'} ? 'active'"
+           th:if="${#lists.contains(navPermCodes,'report:view')
+                or #lists.contains(navPermCodes,'audit:view')
+                or #lists.contains(navRoleCodes,'FINANCE')
+                or #lists.contains(navRoleCodes,'MANAGER')}">月度报表</a>
 
         <!-- ====== M3 运营与履约模块入口 ====== -->
-        <a th:href="@{/operation/blanket-orders}" th:classappend="${active == 'blanket'} ? 'active'">厨房备料</a>
-        <a th:href="@{/operation/deliveries}" th:classappend="${active == 'delivery'} ? 'active'">配送管理</a>
-        <a th:href="@{/operation/configs/service-window}" th:classappend="${active == 'window'} ? 'active'">时间配置</a>
+        <a th:href="@{/operation/blanket-orders}" th:classappend="${active == 'blanket'} ? 'active'"
+           th:if="${#lists.contains(navPermCodes,'operation:aggregate')}">厨房备料</a>
+        <a th:href="@{/operation/deliveries}" th:classappend="${active == 'delivery'} ? 'active'"
+           th:if="${#lists.contains(navPermCodes,'operation:delivery:print')}">配送管理</a>
+        <a th:href="@{/operation/configs/service-window}" th:classappend="${active == 'window'} ? 'active'"
+           th:if="${#lists.contains(navPermCodes,'operation:window:manage')}">时间配置</a>
         <!-- ===================================== -->
     </div>
 </nav>

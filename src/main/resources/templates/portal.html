@@ -56,15 +56,19 @@
             </div>
         </div>
 
-        <!-- 组员：用户与报表 -->
-        <div class="card" th:if="${permCodes != null and (#lists.contains(permCodes,'user:manage') or #lists.contains(permCodes,'report:view'))}">
+        <!-- 组员：用户与报表（与顶部导航栏同一套判定：任一控制台权限点或财务角色） -->
+        <div class="card" th:if="${(permCodes != null and (#lists.contains(permCodes,'user:manage')
+                or #lists.contains(permCodes,'role:manage')
+                or #lists.contains(permCodes,'report:view')
+                or #lists.contains(permCodes,'audit:view')))
+                or (roleNames != null and #lists.contains(roleNames,'FINANCE'))}">
             <h2 style="font-size:17px;margin:0 0 8px;">用户与报表控制台</h2>
             <p class="muted" style="margin:0 0 14px;">员工与角色权限维护、批量导入、月度报表与消费审计。</p>
             <a class="btn btn-primary" th:href="@{/console}">进入控制台</a>
         </div>
 
         <!-- 员工月度消费报表：财务 / 经理按员工看月度消费并导出 CSV -->
-        <div class="card" th:if="${(permCodes != null and (#lists.contains(permCodes,'report:view') or #lists.contains(permCodes,'audit:view') or #lists.contains(permCodes,'user:manage')))
+        <div class="card" th:if="${(permCodes != null and (#lists.contains(permCodes,'report:view') or #lists.contains(permCodes,'audit:view')))
                 or (roleNames != null and (#lists.contains(roleNames,'FINANCE') or #lists.contains(roleNames,'MANAGER')))}">
             <h2 style="font-size:17px;margin:0 0 8px;">员工月度消费报表</h2>
             <p class="muted" style="margin:0 0 14px;">按月就餐日期统计每位员工的有效订单与消费金额，可下钻订单明细并导出 CSV。</p>
@@ -73,22 +77,22 @@
 
         <!-- ================= 你的模块 M3 开始 ================= -->
 
-        <!-- 厨房备料 -->
-        <div class="card">
+        <!-- 厨房备料：需要聚合总括订单权限 -->
+        <div class="card" th:if="${permCodes != null and #lists.contains(permCodes,'operation:aggregate')}">
             <h2 style="font-size:17px;margin:0 0 8px;">厨房备料（M3）</h2>
             <p class="muted" style="margin:0 0 14px;">截止后聚合总括订单、按分类统计产量，打印后厨生产单。</p>
             <a class="btn btn-primary" th:href="@{/operation/blanket-orders}">进入备料页</a>
         </div>
 
-        <!-- 配送管理 -->
-        <div class="card">
+        <!-- 配送管理：需要配送单打印权限 -->
+        <div class="card" th:if="${permCodes != null and #lists.contains(permCodes,'operation:delivery:print')}">
             <h2 style="font-size:17px;margin:0 0 8px;">配送管理（M3）</h2>
             <p class="muted" style="margin:0 0 14px;">到配餐时间后按员工/工位批量生成配送单，并支持批量打印。</p>
             <a class="btn btn-primary" th:href="@{/operation/deliveries}">进入配送页</a>
         </div>
 
-        <!-- 时间配置 -->
-        <div class="card">
+        <!-- 时间配置：需要维护时间窗口权限 -->
+        <div class="card" th:if="${permCodes != null and #lists.contains(permCodes,'operation:window:manage')}">
             <h2 style="font-size:17px;margin:0 0 8px;">时间配置（M3）</h2>
             <p class="muted" style="margin:0 0 14px;">配置订餐截止时间与配餐开始时间，修改后定时任务立即生效。</p>
             <a class="btn btn-primary" th:href="@{/operation/configs/service-window}">修改时间</a>
