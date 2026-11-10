@@ -108,6 +108,14 @@ com.university.webdesign
   失败由 `common.GlobalExceptionHandler` 统一转 40001。
 - **事务**：全部落在 service 层；**查询也不要加 `readOnly = true`**——Hibernate 在只读事务下会把 flush
   模式切成 MANUAL，同一事务内“先改后查”会读到旧数据（曾因此出现取消订单仍被算作有效订单的缺陷）。
+- **领域事件监听器**（`event/listener`）有两个必踩的坑，改监听器时照抄现有写法：
+  1. 监听方法必须 `@Transactional(propagation = Propagation.REQUIRES_NEW)`。`AFTER_COMMIT` 阶段
+     原事务已提交但同步器仍挂在当前线程，默认 `REQUIRED` 会“加入”这个已完成的事务而不开新事务，
+     JPA 抛 `TransactionRequiredException: No active transaction`，**异常被事务同步器吞掉只留一行
+     ERROR 日志**，业务数据悄悄不更新。
+  2. 定时任务发布事件时**没有事务**，`@TransactionalEventListener` 默认会**静默跳过**监听器，
+     这种情况必须写 `fallbackExecution = true`（见 `OrderWindowClosedListener`）。
+  回归用例：`impl/order/OrderAggregationRefreshTests`、`impl/operation/WindowClosedAggregationTests`。
 - **实体**：`@Entity` + `@Getter@Setter`（或 `@Data`）+ `@NoArgsConstructor`，显式 `@Table(name = "...")`
   与 `@Column(name = "...")`（下划线命名），不用隐式命名策略。乐观锁用 `@Version`。
 - **依赖注入用构造器注入**，禁止字段注入 `@Autowired`。
