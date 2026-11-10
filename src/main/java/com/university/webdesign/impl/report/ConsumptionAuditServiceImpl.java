@@ -16,6 +16,7 @@ import com.university.webdesign.service.report.dto.ConsumptionDetailVO;
 import com.university.webdesign.service.report.dto.DeptConsumptionVO;
 import com.university.webdesign.service.report.dto.DishSalesVO;
 import com.university.webdesign.service.report.dto.EmployeeConsumptionVO;
+import com.university.webdesign.service.report.dto.EmployeeMonthlyConsumptionVO;
 import com.university.webdesign.service.user.UserService;
 import com.university.webdesign.service.user.dto.UserBriefVO;
 import lombok.extern.slf4j.Slf4j;
@@ -23,8 +24,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -171,6 +174,92 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 		return result;
 	}
 
+	@Override
+	@Transactional
+	public List<EmployeeMonthlyConsumptionVO> sumByEmployee(YearMonth month, Long deptId) {
+		assertAuditPermission("员工月度消费汇总");
+		if (month == null) {
+			throw new BusinessException(ErrorCode.PARAM_INVALID, "月份不能为空");
+		}
+		// 只经 OrderQueryService 取当月有效订单（默认过滤掉已取消/已作废）
+		List<OrderVO> orders = orderReader.readMonth(month);
+		if (orders.isEmpty()) {
+			return List.of();
+		}
+		Set<Long> employeeIds = new LinkedHashSet<>();
+		for (OrderVO order : orders) {
+			if (order.getEmployeeId() != null) {
+				employeeIds.add(order.getEmployeeId());
+			}
+		}
+		Map<Long, UserBriefVO> briefs = new LinkedHashMap<>();
+		for (UserBriefVO brief : userService.listByIds(employeeIds)) {
+			if (brief != null && brief.getUserId() != null) {
+				briefs.put(brief.getUserId(), brief);
+			}
+		}
+		Map<Long, EmployeeAggregate> aggregates = new LinkedHashMap<>();
+		for (OrderVO order : orders) {
+			Long employeeId = order.getEmployeeId();
+			if (employeeId == null) {
+				continue;
+			}
+			UserBriefVO brief = briefs.get(employeeId);
+			Long orderDeptId = brief == null ? order.getDeptId() : brief.getDeptId();
+			if (deptId != null && (orderDeptId == null || !deptId.equals(orderDeptId))) {
+				continue;
+			}
+			EmployeeAggregate aggregate = aggregates.computeIfAbsent(employeeId,
+					ignored -> new EmployeeAggregate(employeeId, brief, order));
+			aggregate.orderCount++;
+			if (order.getOrderDate() != null) {
+				aggregate.orderDates.add(order.getOrderDate());
+			}
+			aggregate.totalAmount = aggregate.totalAmount.add(order.getTotalAmount() == null
+					? BigDecimal.ZERO
+					: order.getTotalAmount());
+			for (DishSalesVO item : itemsOf(order)) {
+				aggregate.totalQuantity += item.getQuantity() == null ? 0L : item.getQuantity();
+			}
+		}
+		List<EmployeeMonthlyConsumptionVO> result = new ArrayList<>();
+		for (EmployeeAggregate aggregate : aggregates.values()) {
+			result.add(toEmployeeMonthly(aggregate, month));
+		}
+		// 金额高的排前面，便于财务先看消费大头；金额相同按工号升序，保证输出稳定
+		result.sort(Comparator.comparing(EmployeeMonthlyConsumptionVO::getTotalAmount,
+						Comparator.nullsFirst(Comparator.naturalOrder()))
+				.reversed()
+				.thenComparing(EmployeeMonthlyConsumptionVO::getEmployeeNo,
+						Comparator.nullsLast(Comparator.naturalOrder())));
+		log.debug("员工月度消费汇总：月份={}，员工数={}", month, result.size());
+		return result;
+	}
+
+	/**
+	 * 员工聚合结果 → 视图
+	 *
+	 * @param aggregate 聚合中间结果
+	 * @param month     统计月份
+	 * @return 员工月度消费视图
+	 */
+	private EmployeeMonthlyConsumptionVO toEmployeeMonthly(EmployeeAggregate aggregate, YearMonth month) {
+		UserBriefVO brief = aggregate.brief;
+		EmployeeMonthlyConsumptionVO vo = new EmployeeMonthlyConsumptionVO();
+		vo.setEmployeeId(aggregate.employeeId);
+		vo.setEmployeeNo(brief == null ? null : brief.getEmployeeNo());
+		vo.setEmployeeName(brief == null ? aggregate.fallbackName : brief.getName());
+		vo.setDeptId(brief == null ? aggregate.fallbackDeptId : brief.getDeptId());
+		vo.setDeptName(brief == null ? aggregate.fallbackDeptName : brief.getDeptName());
+		vo.setWorkstation(brief == null ? null : brief.getWorkstation());
+		vo.setMonth(MonthConverter.format(month));
+		vo.setActiveDays((long) aggregate.orderDates.size());
+		vo.setOrderCount(aggregate.orderCount);
+		vo.setTotalQuantity(aggregate.totalQuantity);
+		vo.setTotalAmount(aggregate.totalAmount);
+		return vo;
+	}
+
 	/**
 	 * 订单视图 → 明细视图
 	 *
@@ -268,6 +357,68 @@ public class ConsumptionAuditServiceImpl implements ConsumptionAuditService
 		private DeptAggregate(Long deptId, String deptName) {
 			this.deptId = deptId;
 			this.deptName = deptName;
+		}
+	}
+
+	/**
+	 * 员工聚合中间结果
+	 * <p>
+	 * 员工信息优先取 {@code UserService.listByIds} 的实时快照；员工已删除时回退到订单上的
+	 * 姓名/部门快照，保证历史月份仍能出表。
+	 */
+	private static final class EmployeeAggregate
+	{
+		/**
+		 * 员工ID
+		 */
+		private final Long employeeId;
+
+		/**
+		 * 员工精简信息，可能为空
+		 */
+		private final UserBriefVO brief;
+
+		/**
+		 * 员工信息缺失时回退的姓名（来自订单视图）
+		 */
+		private final String fallbackName;
+
+		/**
+		 * 员工信息缺失时回退的部门ID（来自订单视图）
+		 */
+		private final Long fallbackDeptId;
+
+		/**
+		 * 员工信息缺失时回退的部门名（来自订单视图）
+		 */
+		private final String fallbackDeptName;
+
+		/**
+		 * 当月有订单的就餐日期（去重后即“就餐天数”）
+		 */
+		private final Set<LocalDate> orderDates = new LinkedHashSet<>();
+
+		/**
+		 * 订单数
+		 */
+		private long orderCount;
+
+		/**
+		 * 菜品总份数
+		 */
+		private long totalQuantity;
+
+		/**
+		 * 消费总金额
+		 */
+		private BigDecimal totalAmount = BigDecimal.ZERO;
+
+		private EmployeeAggregate(Long employeeId, UserBriefVO brief, OrderVO order) {
+			this.employeeId = employeeId;
+			this.brief = brief;
+			this.fallbackName = order.getEmployeeName();
+			this.fallbackDeptId = order.getDeptId();
+			this.fallbackDeptName = order.getDeptName();
 		}
 	}
 }
