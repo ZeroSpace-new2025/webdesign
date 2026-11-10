@@ -1,6 +1,8 @@
 package com.university.webdesign.web.menu;
 
 import com.university.webdesign.common.PageResult;
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.domain.menu.RecipeStatus;
 import com.university.webdesign.service.menu.RecipeService;
 import com.university.webdesign.service.menu.dto.CategoryVO;
@@ -27,9 +29,14 @@ import java.util.List;
  * 与 REST 控制器 {@code api.menu.ApiRecipeController} 分开写：本类只组装视图，
  * 业务规则（重名 40901、被已发布菜单引用 42203、乐观锁 40902）全部由 {@link RecipeService} 判定，
  * 页面只负责把失败原因回显。
+ * <p>
+ * 访问控制：需求原文规定“内部食谱可以由餐厅经理和厨房主管管理”，因此整个
+ * `/recipes/**` 需要 {@link PermissionEnum#MENU_RECIPE_MANAGE} 权限点；
+ * 未登录由 {@code AuthInterceptor} 统一重定向到登录页。
  */
 @Controller
 @RequestMapping("/recipes")
+@RequiresPerm(PermissionEnum.MENU_RECIPE_MANAGE)
 public class RecipePageController
 {
 	private final RecipeService recipeService;

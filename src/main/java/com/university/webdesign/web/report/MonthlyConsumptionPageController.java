@@ -1,6 +1,9 @@
 package com.university.webdesign.web.report;
 
+import com.university.webdesign.common.RoleCodes;
 import com.university.webdesign.common.TabularExport;
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.report.ConsumptionAuditService;
 import com.university.webdesign.service.report.MonthConverter;
 import com.university.webdesign.service.report.dto.EmployeeConsumptionVO;
@@ -35,9 +38,12 @@ import java.util.List;
  *     <li>`GET /reports/monthly/export`：同一份汇总表的 CSV 下载（UTF-8 BOM，Excel 可直接打开）；</li>
  *     <li>`GET /reports/monthly/employees/{id}`：单个员工当月的订单明细。</li>
  * </ul>
+ * 访问控制：员工消费属于财务视角，需要报表/审计权限点，或财务管理、餐厅经理角色。
  */
 @Controller
 @RequestMapping("/reports/monthly")
+@RequiresPerm(value = {PermissionEnum.REPORT_VIEW, PermissionEnum.AUDIT_VIEW},
+		roles = {RoleCodes.MANAGER, RoleCodes.FINANCE})
 public class MonthlyConsumptionPageController
 {
 	/**

@@ -42,8 +42,15 @@
         <!-- 组员：我的订单 -->
         <div class="card" th:if="${permCodes != null and #lists.contains(permCodes,'order:submit')}">
             <h2 style="font-size:17px;margin:0 0 8px;">我的订单</h2>
-            <p class="muted" style="margin:0 0 14px;">个人历史订单、月度消费汇总与订单详情，截止前可取消。</p>
+            <p class="muted" style="margin:0 0 14px;">个人历史订单、月度消费汇总与订单详情，截止前可取消，可打印月度汇总表。</p>
             <a class="btn btn-primary" th:href="@{/order/mine}">查看订单</a>
+        </div>
+
+        <!-- 经理：订单管理（查看全部订单并作废违规订单） -->
+        <div class="card" th:if="${permCodes != null and #lists.contains(permCodes,'order:invalidate')}">
+            <h2 style="font-size:17px;margin:0 0 8px;">订单管理</h2>
+            <p class="muted" style="margin:0 0 14px;">按就餐日期查看全部订单，作废违规订单（逻辑删除，留痕可追溯）。</p>
+            <a class="btn btn-primary" th:href="@{/order/manage}">进入订单管理</a>
         </div>
 
         <!-- 组员：菜品与菜单 -->

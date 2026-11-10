@@ -26,6 +26,9 @@
            th:if="${#lists.contains(navPermCodes,'order:submit')}">今日点餐</a>
         <a th:href="@{/order/mine}" th:classappend="${active == 'mine'} ? 'active'"
            th:if="${#lists.contains(navPermCodes,'order:submit')}">我的订单</a>
+        <!-- 订单管理：经理查看全部订单并作废违规订单（order:invalidate） -->
+        <a th:href="@{/order/manage}" th:classappend="${active == 'manage'} ? 'active'"
+           th:if="${#lists.contains(navPermCodes,'order:invalidate')}">订单管理</a>
 
         <!-- 菜品与菜单：M1 维护权限 -->
         <a th:href="@{/recipes}" th:classappend="${active == 'recipe'} ? 'active'"

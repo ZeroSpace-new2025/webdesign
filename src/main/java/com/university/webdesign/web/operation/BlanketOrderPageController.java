@@ -3,6 +3,8 @@ package com.university.webdesign.web.operation;
 import com.university.webdesign.common.DateRange;
 import com.university.webdesign.common.PageQuery;
 import com.university.webdesign.common.PageResult;
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.operation.BlanketOrderService;
 import com.university.webdesign.service.operation.dto.CategoryStatVO;
 import com.university.webdesign.service.operation.dto.CategorySumVO;
@@ -23,8 +25,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 厨房备料页面控制器（M3 运营与履约）。
+ * <p>
+ * 对应需求：订餐截止后聚合总括订单，按分类统计产量供后厨备料，并可打印生产单。
+ * 访问控制：需要 {@link PermissionEnum#OPERATION_AGGREGATE} 权限点（厨房主管、餐厅经理）。
+ */
 @Controller
 @RequestMapping("/operation/blanket-orders")
+@RequiresPerm(PermissionEnum.OPERATION_AGGREGATE)
 public class BlanketOrderPageController
 {
     private final BlanketOrderService blanketOrderService;

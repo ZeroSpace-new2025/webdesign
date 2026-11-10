@@ -350,3 +350,54 @@ th.num, td.num { text-align: right; white-space: nowrap; }
 /* ===== 点餐页的分类分组 ===== */
 .menu-group + .menu-group { margin-top: 20px; }
 .menu-group h3 { margin: 0 0 8px; color: var(--primary-dark); font-size: 14px; }
+
+/* ===== 表格内的小输入框（订单管理里的“作废原因”） ===== */
+.input-sm {
+    padding: 5px 9px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: #fff;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+}
+.input-sm:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+/* ===== 打印：导航、操作按钮、筛选与提示不打印，卡片按纸张排版 ===== */
+@media print {
+    .navbar,
+    .page-actions,
+    .filter-form,
+    .alert,
+    .hint,
+    .no-print {
+        display: none !important;
+    }
+
+    body { background: #fff; }
+
+    .container {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .card,
+    .stat-card {
+        box-shadow: none;
+        break-inside: avoid;
+    }
+
+    .card { border: 1px solid #d0d7de; }
+
+    .container > .card + .card,
+    .stat-grid { margin-top: 12px; }
+
+    .stat-value { color: var(--text); }
+
+    a { color: inherit; text-decoration: none; }
+}

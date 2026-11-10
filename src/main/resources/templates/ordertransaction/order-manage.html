@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<!--
+    订单管理页（订单与交易核心，餐厅经理专用）
+    对应需求原文第 3 条：“餐厅经理可以删除员工已经提交的订单”，
+    以及需求文档 M2 的“订单管理页面：餐厅经理查看所有订单，支持删除违规订单”。
+    删除走“作废留痕”（status=INVALID + 作废人/原因/时间），不做物理删除。
+    访问控制：OrderManagePageController 声明了 order:invalidate 权限点。
+-->
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('订单管理')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('manage')}"></nav>
+
+<div class="container">
+    <div class="page-header">
+        <div>
+            <h1>订单管理</h1>
+            <p class="muted" style="margin:4px 0 0;">
+                查看全部订单并作废违规订单；作废只做逻辑删除，保留作废人、原因与时间，历史统计可追溯。
+            </p>
+        </div>
+    </div>
+
+    <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+    <!-- 查询条件：就餐日期区间 + 状态（默认今天） -->
+    <div class="card">
+        <form class="filter-form" method="get" th:action="@{/order/manage}">
+            <label for="dateFrom">起始日期</label>
+            <input type="date" id="dateFrom" name="dateFrom" th:value="${dateFrom}"/>
+            <label for="dateTo">结束日期</label>
+            <input type="date" id="dateTo" name="dateTo" th:value="${dateTo}"/>
+            <label for="status">状态</label>
+            <select id="status" name="status">
+                <option value="">全部</option>
+                <option th:each="s : ${allStatus}" th:value="${s.name()}" th:text="${s.text}"
+                        th:selected="${status == s.name()}">待确认</option>
+            </select>
+            <button type="submit" class="btn btn-primary">查询</button>
+            <a class="link" th:href="@{/order/manage(dateFrom=${today}, dateTo=${today})}">今天</a>
+            <a class="link" th:href="@{/order/manage(dateFrom=${monthStart}, dateTo=${today})}">本月</a>
+        </form>
+    </div>
+
+    <div class="card">
+        <p class="summary">
+            共 <strong th:text="${total}">0</strong> 张订单（含已取消 / 已作废）
+        </p>
+
+        <div class="empty" th:if="${#lists.isEmpty(orders)}">
+            该时间范围内没有订单。订单由员工在订餐截止前提交，日期默认按“就餐日期”筛选。
+        </div>
+
+        <table th:if="${!#lists.isEmpty(orders)}">
+            <thead>
+            <tr>
+                <th style="width:150px;">订单号</th>
+                <th>员工</th>
+                <th style="width:120px;" class="nowrap">就餐日期</th>
+                <th style="width:160px;" class="nowrap">下单时间</th>
+                <th class="num">金额（元）</th>
+                <th style="width:90px;">状态</th>
+                <th style="width:250px;">操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="order : ${orders}">
+                <td th:text="${order.orderNo}">202611110001</td>
+                <td>
+                    <div th:text="${order.employeeName != null ? order.employeeName : '员工#' + order.employeeId}">张三</div>
+                    <div class="muted"
+                         th:text="${order.deptName != null ? order.deptName : '未分配部门'}">研发部</div>
+                </td>
+                <td class="nowrap" th:text="${order.orderDate}">2026-11-11</td>
+                <td class="nowrap" th:text="${order.createdAt != null ? order.createdAt : '—'}">2026-11-11 08:30:00</td>
+                <td class="num"
+                    th:text="${order.totalAmount != null ? #numbers.formatDecimal(order.totalAmount, 1, 2) : '0.00'}">0.00</td>
+                <td>
+                    <span class="badge"
+                          th:classappend="${order.status == 'PENDING'} ? 'badge-draft'
+                              : (${order.status == 'VALID'} ? 'badge-published'
+                              : (${order.status == 'INVALID'} ? 'badge-offline' : 'badge-inactive'))"
+                          th:text="${order.statusText}">待确认</span>
+                </td>
+                <td>
+                    <!-- 只有仍然有效（占用名额）的订单可以作废 -->
+                    <form th:if="${order.status == 'PENDING' or order.status == 'VALID'}"
+                          class="inline-form" method="post"
+                          th:action="@{/order/manage/{id}/invalidate(id=${order.orderId})}"
+                          onsubmit="return confirm('作废后该订单不再参与统计与配送，且不能恢复，确定作废？');">
+                        <input type="hidden" name="dateFrom" th:value="${dateFrom}"/>
+                        <input type="hidden" name="dateTo" th:value="${dateTo}"/>
+                        <input type="hidden" name="status" th:value="${status}"/>
+                        <input type="text" class="input-sm" name="reason" placeholder="作废原因"
+                               style="width:120px;" required/>
+                        <button type="submit" class="btn btn-sm btn-danger">作废</button>
+                    </form>
+                    <span class="muted" th:unless="${order.status == 'PENDING' or order.status == 'VALID'}"
+                          th:text="${order.invalidateReason != null ? order.invalidateReason
+                              : (order.status == 'CANCELLED' ? '员工本人已取消' : '—')}">—</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+        <p class="hint">
+            作废是“删单留痕”：订单状态置为已作废并写入作废人、原因与时间，不会真正删除数据；
+            已作废与已取消的订单不再占用“一人一天一单”名额，也不参与总括订单聚合、配送单生成与报表统计。
+        </p>
+    </div>
+</div>
+</body>
+</html>

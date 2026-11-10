@@ -1,6 +1,8 @@
 package com.university.webdesign.web.operation;
 
 import com.university.webdesign.common.PageResult;
+import com.university.webdesign.common.enums.PermissionEnum;
+import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.service.operation.DeliveryService;
 import com.university.webdesign.service.operation.dto.DeliveryQuery;
 import com.university.webdesign.service.operation.dto.DeliveryTaskVO;
@@ -20,8 +22,15 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 配送管理页面控制器（M3 运营与履约）。
+ * <p>
+ * 对应需求：到达配餐开始时间后按员工/工位批量生成并打印配送单。
+ * 访问控制：需要 {@link PermissionEnum#OPERATION_DELIVERY_PRINT} 权限点（配餐员、厨房主管、餐厅经理）。
+ */
 @Controller
 @RequestMapping("/operation/deliveries")
+@RequiresPerm(PermissionEnum.OPERATION_DELIVERY_PRINT)
 public class DeliveryPageController
 {
     private final DeliveryService deliveryService;
