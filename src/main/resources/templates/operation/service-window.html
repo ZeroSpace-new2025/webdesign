@@ -1,67 +1,99 @@
 <!DOCTYPE html>
+<!--
+    时间窗口配置页（M3 运营与履约）—— 订餐截止时间与配餐开始时间，
+    是 M2 下单校验时间窗口的唯一数据来源，修改后立即生效。
+    布局沿用菜品页：公共导航栏 + .container + .page-header + 卡片，样式只引用 /css/style.css。
+-->
 <html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <title>时间窗口配置</title>
-    <link rel="stylesheet" th:href="@{/css/operation.css}">
-</head>
+<head th:replace="~{fragments/layout :: head('时间窗口配置')}"></head>
 <body>
-<div class="m3-container">
-    <div class="m3-header">
-        <h1>时间窗口配置</h1>
-        <a th:href="@{/portal}" class="m3-back">← 返回门户</a>
-    </div>
+<nav th:replace="~{fragments/layout :: navbar('window')}"></nav>
 
-    <div th:if="${message}" class="m3-alert m3-alert-success" th:text="${message}"></div>
-    <div th:if="${error}" class="m3-alert m3-alert-error" th:text="${error}"></div>
-
-    <div class="m3-stats">
-        <div class="m3-stat-card">
-            <div class="m3-stat-label">当前订餐截止时间</div>
-            <div class="m3-stat-value" th:text="${window.cutoffTime}"></div>
+<div class="container">
+    <div class="page-header">
+        <div>
+            <h1>时间窗口配置</h1>
+            <p class="muted" style="margin:4px 0 0;">
+                订餐截止时间与配餐开始时间，修改后立即生效
+                <span th:if="${window.serverTime != null}">· 服务器当前时间 <span th:text="${window.serverTime}">-</span></span>
+            </p>
         </div>
-        <div class="m3-stat-card m3-stat-success">
-            <div class="m3-stat-label">当前配餐开始时间</div>
-            <div class="m3-stat-value" th:text="${window.deliveryStartTime}"></div>
-        </div>
-        <div class="m3-stat-card m3-stat-warning">
-            <div class="m3-stat-label">作用域</div>
-            <div class="m3-stat-value" style="font-size:18px;" th:text="${window.scope}"></div>
+        <div class="page-actions">
+            <a class="btn" th:href="@{/operation/blanket-orders}">厨房备料</a>
+            <a class="btn" th:href="@{/operation/deliveries}">配送管理</a>
         </div>
     </div>
 
-    <h2>修改配置（立即生效）</h2>
-    <form method="post" th:action="@{/operation/configs/service-window}" data-m3="service-window" class="m3-toolbar" style="flex-direction:column; align-items:stretch; gap:16px;">
-        <input type="hidden" name="configId" th:value="${window.configId}">
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px;">
-            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--m3-muted);">
-                订餐截止时间
-                <input type="time" name="cutoffTime" th:value="${window.cutoffTime}" required>
-            </label>
-            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--m3-muted);">
-                配餐开始时间
-                <input type="time" name="deliveryStartTime" th:value="${window.deliveryStartTime}" required>
-            </label>
-            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--m3-muted);">
-                生效起始日期
-                <input type="date" name="effectiveFrom" th:value="${window.effectiveFrom}">
-            </label>
-            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--m3-muted);">
-                作用域
-                <select name="scope">
-                    <option value="GLOBAL" th:selected="${window.scope == 'GLOBAL'}">全局（GLOBAL）</option>
-                    <option value="DEPT" th:selected="${window.scope == 'DEPT'}">部门（DEPT）</option>
-                </select>
-            </label>
-            <label style="display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--m3-muted);">
-                部门ID（DEPT 时必填）
-                <input type="number" name="deptId" th:value="${window.deptId}">
-            </label>
+    <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="stat-label">当前订餐截止时间</div>
+            <div class="stat-value" th:text="${window.cutoffTime}">09:00</div>
         </div>
-        <div style="text-align:right;">
-            <button type="submit" class="m3-btn m3-btn-primary">保存（立即生效）</button>
+        <div class="stat-card">
+            <div class="stat-label">当前配餐开始时间</div>
+            <div class="stat-value" th:text="${window.deliveryStartTime}">11:30</div>
         </div>
-    </form>
+        <div class="stat-card">
+            <div class="stat-label">生效范围</div>
+            <div class="stat-value" style="font-size:18px;"
+                 th:text="${window.scope == 'DEPT'} ? '部门（DEPT）' : '全局（GLOBAL）'">全局（GLOBAL）</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>修改配置（立即生效）</h2>
+        <form method="post" th:action="@{/operation/configs/service-window}" data-m3="service-window">
+            <input type="hidden" name="configId" th:value="${window.configId}"/>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="cutoffTime">订餐截止时间 <span class="req">*</span></label>
+                    <input type="time" id="cutoffTime" name="cutoffTime" class="form-control"
+                           th:value="${window.cutoffTime}" required/>
+                    <div class="muted">截止后员工不能再下单、改单或取消，厨房开始聚合总括订单。</div>
+                </div>
+                <div class="form-group">
+                    <label for="deliveryStartTime">配餐开始时间 <span class="req">*</span></label>
+                    <input type="time" id="deliveryStartTime" name="deliveryStartTime" class="form-control"
+                           th:value="${window.deliveryStartTime}" required/>
+                    <div class="muted">到达该时间后才开放配送单生成与打印，必须晚于订餐截止时间。</div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="effectiveFrom">生效起始日期</label>
+                    <input type="date" id="effectiveFrom" name="effectiveFrom" class="form-control"
+                           th:value="${window.effectiveFrom}"/>
+                </div>
+                <div class="form-group">
+                    <label for="scope">作用域</label>
+                    <select id="scope" name="scope" class="form-control">
+                        <option value="GLOBAL" th:selected="${window.scope == 'GLOBAL'}">全局（GLOBAL）</option>
+                        <option value="DEPT" th:selected="${window.scope == 'DEPT'}">部门（DEPT）</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="deptId">部门ID</label>
+                    <input type="number" id="deptId" name="deptId" class="form-control"
+                           th:value="${window.deptId}" min="1"/>
+                    <div class="muted">作用域选“部门”时必填，全局配置留空。</div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">保存（立即生效）</button>
+                <a class="btn" th:href="@{/operation/configs/service-window}">重置</a>
+            </div>
+        </form>
+        <p class="hint">
+            时间窗口是全系统唯一的时间来源：员工下单、改单、取消，厨房聚合与配送单生成都按这里配置的值判定；
+            数据库没有配置时回退到 application.yml 的默认值（09:00 / 11:30）。
+        </p>
+    </div>
 </div>
 <script th:src="@{/js/operation.js}"></script>
 </body>
