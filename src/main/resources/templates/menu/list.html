@@ -16,9 +16,25 @@
     <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
 
+    <!-- 状态筛选：草稿与已发布混在一起时不好找，尤其删草稿前想先看只剩哪些草稿 -->
+    <div class="card">
+        <form class="filter-form" th:action="@{/menus}" method="get">
+            <label for="status">菜单状态</label>
+            <select id="status" name="status">
+                <option value="">全部</option>
+                <option value="DRAFT" th:selected="${status == 'DRAFT'}">草稿</option>
+                <option value="PUBLISHED" th:selected="${status == 'PUBLISHED'}">已发布</option>
+                <option value="OFFLINE" th:selected="${status == 'OFFLINE'}">已下架</option>
+            </select>
+            <button type="submit">查询</button>
+            <a class="link" th:href="@{/menus}">重置</a>
+        </form>
+    </div>
+
     <div class="card">
         <div th:if="${menus.isEmpty()}" class="empty">
-            暂无菜单，点击右上角“新建菜单”，从菜品库中挑选菜品生成菜单。
+            <span th:if="${status == '' or status == null}">暂无菜单，点击右上角“新建菜单”，从菜品库中挑选菜品生成菜单。</span>
+            <span th:if="${status != '' and status != null}">当前筛选下没有菜单，可点“重置”查看全部。</span>
         </div>
         <table th:if="${!menus.isEmpty()}">
             <thead>
@@ -66,10 +82,12 @@
                         <input type="hidden" name="reason" value="页面操作下架"/>
                         <button class="btn btn-sm btn-warning">下架</button>
                     </form>
-                    <!-- 草稿可直接下架（不做物理删除） -->
-                    <form th:if="${!m.locked}" th:action="@{/menus/{id}/delete(id=${m.menuId})}" method="post"
-                          style="display:inline;">
-                        <button class="btn btn-sm btn-danger">下架草稿</button>
+                    <!-- 草稿可删除：草稿没有快照也没有订单引用，物理删除不影响任何历史数据 -->
+                    <form th:if="${!m.locked and m.status == 'DRAFT'}"
+                          th:action="@{/menus/{id}/delete(id=${m.menuId})}" method="post"
+                          style="display:inline;"
+                          onsubmit="return confirm('删除后不可恢复（该草稿没有价格快照，也不会影响历史菜单与订单）。确定删除？');">
+                        <button class="btn btn-sm btn-danger">删除草稿</button>
                     </form>
                 </td>
             </tr>
@@ -77,6 +95,7 @@
         </table>
         <p class="hint">
             菜单发布即锁定：不可再编辑或删除，只能下架；需要调整时用“复制”生成新草稿。
+            草稿（从未发布过）可以“删除草稿”直接删掉，删后不可恢复；
             发布时会写入不可变的价格快照，菜谱后续改名调价都不会影响已发布菜单与历史订单。
         </p>
     </div>

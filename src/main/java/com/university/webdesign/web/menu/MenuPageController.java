@@ -25,6 +25,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,18 +58,33 @@ public class MenuPageController
 
 	/**
 	 * 菜单列表
+	 * <p>
+	 * 默认列出全部状态；带 {@code status} 时按单一状态筛选，
+	 * 便于在“草稿 / 已发布 / 已下架”之间快速切换，删草稿时不用在长列表里翻找。
 	 *
-	 * @param model 视图模型
+	 * @param status 状态编码（DRAFT / PUBLISHED / OFFLINE），为空表示全部
+	 * @param model  视图模型
 	 * @return 视图名
 	 */
 	@GetMapping
-	public String list(Model model) {
+	public String list(
+			@RequestParam(value = "status", required = false) String status,
+			Model model) {
+		String normalized = status == null ? "" : status.trim().toUpperCase();
 		MenuQuery query = new MenuQuery();
+		if (MenuStatus.DRAFT.name().equals(normalized)
+				|| MenuStatus.PUBLISHED.name().equals(normalized)
+				|| MenuStatus.OFFLINE.name().equals(normalized)) {
+			query.setStatus(normalized);
+		} else {
+			normalized = "";
+		}
 		query.setWithItems(Boolean.TRUE);
 		query.setPageNum(1);
 		query.setPageSize(QUERY_PAGE_SIZE);
 		PageResult<MenuVO> page = menuService.page(query);
 		model.addAttribute("menus", page.getList());
+		model.addAttribute("status", normalized);
 		return "menu/list";
 	}
 
@@ -273,7 +289,10 @@ public class MenuPageController
 	}
 
 	/**
-	 * 把草稿菜单下架（不做物理删除，历史数据始终保留）
+	 * 删除草稿菜单（物理删除，仅限从未发布过的草稿）
+	 * <p>
+	 * 与“下架”分开：下架是已发布菜单的留痕操作（快照与历史订单必须保留），
+	 * 草稿没有快照也没有订单引用，才允许真正删掉。已发布/已下架菜单调用本接口会被拒绝（40902）。
 	 *
 	 * @param id       菜单ID
 	 * @param redirect 重定向属性
@@ -282,8 +301,8 @@ public class MenuPageController
 	@PostMapping("/{id}/delete")
 	public String delete(@PathVariable("id") Long id, RedirectAttributes redirect) {
 		try {
-			menuService.unpublish(id, "页面删除草稿");
-			redirect.addFlashAttribute("message", "菜单已下架（历史数据保留）");
+			menuService.deleteDraft(id);
+			redirect.addFlashAttribute("message", "草稿菜单已删除");
 		} catch (RuntimeException exception) {
 			redirect.addFlashAttribute("error", exception.getMessage());
 		}
@@ -382,11 +401,22 @@ public class MenuPageController
 			row.setRecipeName(recipe.getName());
 			row.setCategory(recipe.getCategory());
 			row.setUnit(recipe.getUnit());
+			row.setUnitPrice(recipe.getUnitPrice());
 			row.setDisabled(false);
 			if (row.getMenuPrice() == null) {
 				row.setMenuPrice(recipe.getUnitPrice());
 			}
 			rows.add(row);
+		}
+		// 按分类归并：同一分类的菜品连续排列，模板据此插入分组标题（未分类排在最后）。
+		// List.sort 是稳定排序，同分类内保持菜品库原有顺序。
+		rows.sort(Comparator.comparing(row -> row.getCategory() == null ? "\uFFFF" : row.getCategory()));
+		// 标记每个分类分组的首行，模板据此渲染分组标题（避免在模板里做下标回溯）
+		String previousCategory = null;
+		for (MenuForm.Row row : rows) {
+			String category = row.getCategory() == null ? "\uFFFF" : row.getCategory();
+			row.setGroupStart(!category.equals(previousCategory));
+			previousCategory = category;
 		}
 		return rows;
 	}

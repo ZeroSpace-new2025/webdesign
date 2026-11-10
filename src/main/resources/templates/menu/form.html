@@ -41,6 +41,19 @@
                     勾选要加入菜单的菜品，可在“菜单售价”中微调（默认取菜品标准价）；
                     菜单售价就是下单时写入订单快照的价格。
                 </div>
+
+                <!-- 拣菜工具栏：纯前端过滤，只控制显示，不改动任何表单项的提交 -->
+                <div class="picker-toolbar">
+                    <input type="search" id="picker-search" class="form-control" placeholder="搜索菜名…"/>
+                    <select id="picker-category" class="form-control">
+                        <option value="">全部分类</option>
+                    </select>
+                    <label class="picker-toggle">
+                        <input type="checkbox" id="picker-only-selected"/> 只看已选
+                    </label>
+                    <span class="picker-summary" id="picker-summary">已选 0 道</span>
+                </div>
+
                 <div class="recipe-picker">
                     <table>
                         <thead>
@@ -53,29 +66,41 @@
                             <th style="width:120px;">菜单售价</th>
                         </tr>
                         </thead>
-                        <tbody>
-                        <tr th:each="row, stat : *{rows}"
-                            th:classappend="${row.disabled} ? 'disabled-row'">
-                            <td>
-                                <input type="hidden" th:field="*{rows[__${stat.index}__].recipeId}"/>
-                                <input type="checkbox" th:field="*{rows[__${stat.index}__].selected}"
-                                       th:disabled="${row.disabled}"/>
-                            </td>
-                            <td>
-                                <span th:text="${row.recipeName}">菜名</span>
-                                <span class="muted" th:if="${row.disabled}">（已停用，仅历史可保留）</span>
-                            </td>
-                            <td th:text="${row.category}">分类</td>
-                            <td th:text="${row.unit}">单位</td>
-                            <td>
-                                <span th:text="${row.menuPrice != null ? #numbers.formatDecimal(row.menuPrice, 1, 2) : '-'}">0.00</span>
-                            </td>
-                            <td>
-                                <input type="number" class="form-control price-input"
-                                       th:field="*{rows[__${stat.index}__].menuPrice}"
-                                       step="0.01" min="0"/>
-                            </td>
-                        </tr>
+                        <tbody id="picker-body">
+                        <th:block th:each="row, stat : *{rows}">
+                            <!-- 分类分组标题：分类切换处插一行，JS 会按“已选优先”重排分组 -->
+                            <tr class="picker-group" th:if="${row.groupStart}">
+                                <td colspan="6">
+                                    <span class="picker-group-name"
+                                          th:text="${row.category != null ? row.category : '未分类'}">分类</span>
+                                    <span class="picker-group-count"></span>
+                                </td>
+                            </tr>
+                            <tr class="picker-item"
+                                th:classappend="${row.disabled} ? 'disabled-row'"
+                                th:attr="data-category=${row.category},data-name=${row.recipeName},data-selected=${row.selected}">
+                                <td>
+                                    <input type="hidden" th:field="*{rows[__${stat.index}__].recipeId}"/>
+                                    <input type="checkbox" th:field="*{rows[__${stat.index}__].selected}"
+                                           th:disabled="${row.disabled}"/>
+                                </td>
+                                <td>
+                                    <span th:text="${row.recipeName}">菜名</span>
+                                    <span class="muted" th:if="${row.disabled}">（已停用，仅历史可保留）</span>
+                                </td>
+                                <td th:text="${row.category}">分类</td>
+                                <td th:text="${row.unit}">单位</td>
+                                <td>
+                                    <span th:text="${row.unitPrice != null ? #numbers.formatDecimal(row.unitPrice, 1, 2) : '-'}">0.00</span>
+                                </td>
+                                <td>
+                                    <input type="number" class="form-control price-input"
+                                           th:field="*{rows[__${stat.index}__].menuPrice}"
+                                           th:attr="placeholder=${row.unitPrice != null ? #numbers.formatDecimal(row.unitPrice, 1, 2) : ''}"
+                                           step="0.01" min="0"/>
+                                </td>
+                            </tr>
+                        </th:block>
                         </tbody>
                     </table>
                 </div>
@@ -89,7 +114,144 @@
                 <a class="btn" th:href="@{/menus}">取消</a>
             </div>
         </form>
+
+        <!-- 编辑草稿时可直接删除；仅在编辑态出现，已发布/已下架菜单不会走到这里 -->
+        <form th:if="${isEdit}" th:action="@{/menus/{id}/delete(id=${form.menuId})}" method="post"
+              style="margin-top:12px;padding-top:12px;border-top:1px solid #eee;"
+              onsubmit="return confirm('删除后不可恢复（该草稿没有价格快照，也不会影响历史菜单与订单）。确定删除？');">
+            <span class="muted" style="margin-right:10px;">放弃这份草稿？</span>
+            <button type="submit" class="btn btn-sm btn-danger">删除该草稿</button>
+        </form>
     </div>
 </div>
+
+<script>
+    /*
+     * 拣菜区交互：搜索 / 分类筛选 / 只看已选 / 已选置顶 + 计数。
+     * 只操作 DOM 的显示与顺序，不增删任何 input，
+     * 因此 rows[i] 的提交值与顺序索引始终由服务端渲染决定。
+     */
+    (function () {
+        var body = document.getElementById('picker-body');
+        if (!body) { return; }
+        var search = document.getElementById('picker-search');
+        var category = document.getElementById('picker-category');
+        var onlySelected = document.getElementById('picker-only-selected');
+        var summary = document.getElementById('picker-summary');
+
+        function itemRows() {
+            return Array.prototype.slice.call(body.querySelectorAll('tr.picker-item'));
+        }
+
+        function isChecked(row) {
+            var box = row.querySelector('input[type="checkbox"]');
+            return !!(box && box.checked);
+        }
+
+        function categoryOf(row) {
+            return row.getAttribute('data-category') || '未分类';
+        }
+
+        // 分组标题与它下面的菜品行看作一个整体，重排时整块移动
+        function groups() {
+            var blocks = [];
+            Array.prototype.forEach.call(body.children, function (node) {
+                if (node.classList.contains('picker-group')) {
+                    blocks.push({header: node, items: []});
+                } else if (node.classList.contains('picker-item')) {
+                    if (!blocks.length) { blocks.push({header: null, items: []}); }
+                    blocks[blocks.length - 1].items.push(node);
+                }
+            });
+            return blocks;
+        }
+
+        // 有勾选的分组排到前面；组内已勾选的行排到前面。
+        // 排序基准是首次渲染时记下的原始顺序（data-group-order / data-row-order），
+        // 这样取消勾选后一定会回到原始分类顺序，不会“浮上去就下不来”。
+        function orderOf(block) {
+            var source = block.header || block.items[0];
+            var order = source ? source.getAttribute('data-group-order') : null;
+            return order === null ? 0 : Number(order);
+        }
+
+        function byRowOrder(a, b) {
+            return Number(a.getAttribute('data-row-order')) - Number(b.getAttribute('data-row-order'));
+        }
+
+        function applyOrder() {
+            var blocks = groups();
+            blocks.sort(function (a, b) {
+                var aSelected = a.items.some(isChecked) ? 0 : 1;
+                var bSelected = b.items.some(isChecked) ? 0 : 1;
+                return aSelected - bSelected || orderOf(a) - orderOf(b);
+            });
+            blocks.forEach(function (block) {
+                var picked = block.items.filter(isChecked).sort(byRowOrder);
+                var rest = block.items.filter(function (row) { return !isChecked(row); }).sort(byRowOrder);
+                if (block.header) { body.appendChild(block.header); }
+                picked.concat(rest).forEach(function (row) { body.appendChild(row); });
+            });
+        }
+
+        function applyFilter() {
+            var keyword = (search.value || '').trim().toLowerCase();
+            var wanted = category.value;
+            itemRows().forEach(function (row) {
+                var name = (row.getAttribute('data-name') || '').toLowerCase();
+                var matched = (!keyword || name.indexOf(keyword) >= 0)
+                    && (!wanted || categoryOf(row) === wanted)
+                    && (!onlySelected.checked || isChecked(row));
+                row.classList.toggle('is-hidden', !matched);
+            });
+            groups().forEach(function (block) {
+                var shown = block.items.filter(function (row) {
+                    return !row.classList.contains('is-hidden');
+                }).length;
+                if (!block.header) { return; }
+                block.header.classList.toggle('is-hidden', shown === 0);
+                var counter = block.header.querySelector('.picker-group-count');
+                if (counter) { counter.textContent = shown + ' 道'; }
+            });
+        }
+
+        function updateSummary() {
+            if (summary) { summary.textContent = '已选 ' + itemRows().filter(isChecked).length + ' 道'; }
+        }
+
+        function refresh() {
+            applyOrder();
+            applyFilter();
+            updateSummary();
+        }
+
+        // 分类下拉的选项直接由渲染好的行数据生成，避免再传一份模型
+        var seen = {};
+        itemRows().forEach(function (row) { seen[categoryOf(row)] = true; });
+        Object.keys(seen).sort().forEach(function (name) {
+            var option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            category.appendChild(option);
+        });
+
+        // 记录首次渲染顺序，作为排序的稳定基准
+        groups().forEach(function (block, index) {
+            if (block.header) { block.header.setAttribute('data-group-order', String(index)); }
+            block.items.forEach(function (row, rowIndex) {
+                row.setAttribute('data-row-order', String(rowIndex));
+            });
+        });
+
+        body.addEventListener('change', function (event) {
+            if (event.target && event.target.type === 'checkbox') { refresh(); }
+        });
+        search.addEventListener('input', applyFilter);
+        category.addEventListener('change', applyFilter);
+        onlySelected.addEventListener('change', applyFilter);
+
+        refresh();
+    })();
+</script>
 </body>
 </html>

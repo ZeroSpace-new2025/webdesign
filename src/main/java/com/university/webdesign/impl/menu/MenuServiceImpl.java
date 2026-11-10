@@ -219,6 +219,20 @@ public class MenuServiceImpl implements MenuService
 	}
 
 	@Override
+	public void deleteDraft(Long menuId) {
+		Menu menu = requireMenu(menuId);
+		if (menu.isLocked() || menu.getStatus() != MenuStatus.DRAFT) {
+			throw new BusinessException(ErrorCode.STATE_CONFLICT,
+					"仅草稿菜单可删除（当前状态：" + label(menu.getStatus())
+							+ "）；已发布或已下架菜单只能下架，历史快照必须保留");
+		}
+		// 草稿没有 menu_snapshot，也没有订单引用它，物理删除不影响任何历史数据；
+		// 先删 menu_item 再删 menu，避免留下孤儿明细
+		menuItemRepository.deleteAllByMenuId(menuId);
+		menuRepository.delete(menu);
+	}
+
+	@Override
 	public MenuVO getCurrent(LocalDate date) {
 		LocalDate target = date == null ? LocalDate.now() : date;
 		List<Menu> candidates = menuRepository
