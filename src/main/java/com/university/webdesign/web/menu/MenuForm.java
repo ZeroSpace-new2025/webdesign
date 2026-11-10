@@ -78,6 +78,11 @@ public class MenuForm
 		private String unit;
 
 		/**
+		 * 菜品标准单价（只读展示，取自菜品库，不随本页调价变化）
+		 */
+		private BigDecimal unitPrice;
+
+		/**
 		 * 菜单售价
 		 */
 		private BigDecimal menuPrice;
@@ -86,5 +91,10 @@ public class MenuForm
 		 * 菜品是否已停用（停用菜品不可加入新菜单）
 		 */
 		private boolean disabled;
+
+		/**
+		 * 是否为所属分类分组的首行（供模板插入分组标题，不在表单里提交）
+		 */
+		private boolean groupStart;
 	}
 }

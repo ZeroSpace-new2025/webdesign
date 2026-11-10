@@ -13,6 +13,7 @@ import com.university.webdesign.service.menu.dto.MenuVO;
 import com.university.webdesign.service.menu.dto.PublishResultVO;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -106,6 +107,21 @@ public class ApiMenuController
 			@RequestParam(value = "reason", required = false) String reason) {
 		menuService.unpublish(menuId, reason);
 		return Result.success(findMenu(menuId));
+	}
+
+	/**
+	 * 删除草稿菜单（仅 DRAFT 可删，物理删除）
+	 * <p>
+	 * 已发布 / 已下架菜单返回 40902：它们已冻结快照，只能用 {@code /unpublish} 下架留痕。
+	 *
+	 * @param menuId 菜单ID
+	 * @return 空结果
+	 */
+	@DeleteMapping("/{menuId}")
+	@RequiresPerm(value = PermissionEnum.MENU_MENU_MANAGE, roles = RoleCodes.MANAGER)
+	public Result<Void> deleteDraft(@PathVariable("menuId") Long menuId) {
+		menuService.deleteDraft(menuId);
+		return Result.ok();
 	}
 
 	/**

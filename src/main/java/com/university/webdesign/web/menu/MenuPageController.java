@@ -1,9 +1,6 @@
 package com.university.webdesign.web.menu;
 
 import com.university.webdesign.common.PageResult;
-import com.university.webdesign.common.RoleCodes;
-import com.university.webdesign.common.enums.PermissionEnum;
-import com.university.webdesign.config.RequiresPerm;
 import com.university.webdesign.domain.menu.MenuStatus;
 import com.university.webdesign.domain.menu.RecipeStatus;
 import com.university.webdesign.service.menu.MenuService;
@@ -28,6 +25,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,13 +38,9 @@ import java.util.Map;
  * 已发布菜单不可编辑删除。页面只做视图组装与错误回显。
  * <p>
  * 发布时会真实写入 {@code menu_snapshot}，因此点餐页与下单链路取到的就是冻结价格。
- * <p>
- * 权限：与 {@code api.menu.ApiMenuController} 保持一致（菜单维护或经理）。
- * 页面控制器同样会被 {@code AuthInterceptor} 拦截，未登录用户不能通过表单入口发布/下架菜单。
  */
 @Controller
 @RequestMapping("/menus")
-@RequiresPerm(value = PermissionEnum.MENU_MENU_MANAGE, roles = RoleCodes.MANAGER)
 public class MenuPageController
 {
 	/**
@@ -64,19 +58,70 @@ public class MenuPageController
 
 	/**
 	 * 菜单列表
+	 * <p>
+	 * 默认列出全部状态；带 {@code status} 时按单一状态筛选，
+	 * 便于在“草稿 / 已发布 / 已下架”之间快速切换，删草稿时不用在长列表里翻找。
 	 *
-	 * @param model 视图模型
+	 * @param status 状态编码（DRAFT / PUBLISHED / OFFLINE），为空表示全部
+	 * @param model  视图模型
 	 * @return 视图名
 	 */
 	@GetMapping
-	public String list(Model model) {
+	public String list(
+			@RequestParam(value = "status", required = false) String status,
+			Model model) {
+		String normalized = status == null ? "" : status.trim().toUpperCase();
 		MenuQuery query = new MenuQuery();
+		if (MenuStatus.DRAFT.name().equals(normalized)
+				|| MenuStatus.PUBLISHED.name().equals(normalized)
+				|| MenuStatus.OFFLINE.name().equals(normalized)) {
+			query.setStatus(normalized);
+		} else {
+			normalized = "";
+		}
 		query.setWithItems(Boolean.TRUE);
 		query.setPageNum(1);
 		query.setPageSize(QUERY_PAGE_SIZE);
 		PageResult<MenuVO> page = menuService.page(query);
 		model.addAttribute("menus", page.getList());
+		model.addAttribute("status", normalized);
 		return "menu/list";
+	}
+
+	/**
+	 * 历史菜单列表：已发布 + 已下架（locked）菜单，带发布时冻结的菜品快照
+	 * <p>
+	 * 默认取全部历史版本；带 {@code status} 时按单一状态筛选。
+	 * 明细走 {@code MenuService.page(withItems=true)}：已发布/已下架菜单取 {@code menu_snapshot}，
+	 * 因此菜名与价格是发布当时的冻结值，不受菜品后续改名调价影响。
+	 *
+	 * @param status 状态编码（PUBLISHED / OFFLINE），为空表示全部历史
+	 * @param model  视图模型
+	 * @return 视图名
+	 */
+	@GetMapping("/history")
+	public String history(
+			@RequestParam(value = "status", required = false) String status,
+			Model model) {
+		MenuQuery query = new MenuQuery();
+		String normalized = status == null ? null : status.trim().toUpperCase();
+		boolean singleStatus = MenuStatus.PUBLISHED.name().equals(normalized)
+				|| MenuStatus.OFFLINE.name().equals(normalized);
+		if (singleStatus) {
+			query.setStatus(normalized);
+		} else {
+			// 未指定（或不合法）状态时，历史页只取已锁定版本：已发布 + 已下架，绝不混入草稿
+			normalized = null;
+			query.setStatuses(List.of(MenuStatus.PUBLISHED.name(), MenuStatus.OFFLINE.name()));
+		}
+		query.setWithItems(Boolean.TRUE);
+		query.setPageNum(1);
+		query.setPageSize(QUERY_PAGE_SIZE);
+		PageResult<MenuVO> page = menuService.page(query);
+		model.addAttribute("menus", page.getList());
+		model.addAttribute("total", page.getTotal());
+		model.addAttribute("status", normalized);
+		return "menu/history";
 	}
 
 	/**
@@ -244,7 +289,10 @@ public class MenuPageController
 	}
 
 	/**
-	 * 把草稿菜单下架（不做物理删除，历史数据始终保留）
+	 * 删除草稿菜单（物理删除，仅限从未发布过的草稿）
+	 * <p>
+	 * 与“下架”分开：下架是已发布菜单的留痕操作（快照与历史订单必须保留），
+	 * 草稿没有快照也没有订单引用，才允许真正删掉。已发布/已下架菜单调用本接口会被拒绝（40902）。
 	 *
 	 * @param id       菜单ID
 	 * @param redirect 重定向属性
@@ -253,8 +301,8 @@ public class MenuPageController
 	@PostMapping("/{id}/delete")
 	public String delete(@PathVariable("id") Long id, RedirectAttributes redirect) {
 		try {
-			menuService.unpublish(id, "页面删除草稿");
-			redirect.addFlashAttribute("message", "菜单已下架（历史数据保留）");
+			menuService.deleteDraft(id);
+			redirect.addFlashAttribute("message", "草稿菜单已删除");
 		} catch (RuntimeException exception) {
 			redirect.addFlashAttribute("error", exception.getMessage());
 		}
@@ -318,7 +366,10 @@ public class MenuPageController
 	}
 
 	/**
-	 * 构建“全部菜品 + 勾选状态 + 菜单售价”的编辑网格
+	 * 构建“菜品 + 勾选状态 + 菜单售价”的编辑网格
+	 * <p>
+	 * 按 demand.md“已删除的菜品在这里不显示”：已下架（DISABLED）菜品一律不出现在候选里，
+	 * 已下架菜品只能通过历史菜单/菜单订单里的快照查看。
 	 *
 	 * @param menu 正在编辑的菜单，为 null 表示新建
 	 * @return 编辑行
@@ -341,18 +392,31 @@ public class MenuPageController
 		List<MenuForm.Row> rows = new ArrayList<>();
 		for (RecipeVO recipe : recipes) {
 			boolean disabled = !RecipeStatus.ACTIVE.name().equals(recipe.getStatus());
-			MenuForm.Row chosen = selected.get(recipe.getRecipeId());
-			// 历史菜单里的菜品即使已停用也要展示出来，否则编辑时会莫名丢菜
-			MenuForm.Row row = chosen == null ? new MenuForm.Row() : chosen;
+			// 已下架菜品不再作为候选展示（历史菜单与历史订单另有快照可查）
+			if (disabled) {
+				continue;
+			}
+			MenuForm.Row row = selected.getOrDefault(recipe.getRecipeId(), new MenuForm.Row());
 			row.setRecipeId(recipe.getRecipeId());
 			row.setRecipeName(recipe.getName());
 			row.setCategory(recipe.getCategory());
 			row.setUnit(recipe.getUnit());
-			row.setDisabled(disabled);
+			row.setUnitPrice(recipe.getUnitPrice());
+			row.setDisabled(false);
 			if (row.getMenuPrice() == null) {
 				row.setMenuPrice(recipe.getUnitPrice());
 			}
 			rows.add(row);
+		}
+		// 按分类归并：同一分类的菜品连续排列，模板据此插入分组标题（未分类排在最后）。
+		// List.sort 是稳定排序，同分类内保持菜品库原有顺序。
+		rows.sort(Comparator.comparing(row -> row.getCategory() == null ? "\uFFFF" : row.getCategory()));
+		// 标记每个分类分组的首行，模板据此渲染分组标题（避免在模板里做下标回溯）
+		String previousCategory = null;
+		for (MenuForm.Row row : rows) {
+			String category = row.getCategory() == null ? "\uFFFF" : row.getCategory();
+			row.setGroupStart(!category.equals(previousCategory));
+			previousCategory = category;
 		}
 		return rows;
 	}

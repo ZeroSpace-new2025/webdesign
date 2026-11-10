@@ -71,6 +71,17 @@ public interface MenuService
 	void unpublish(Long menuId, String reason);
 
 	/**
+	 * 删除草稿菜单（M1 内部能力，服务于管理页的“删除草稿”）
+	 * <p>
+	 * 只有从未发布过的 {@code DRAFT}（且未锁定）才可物理删除：草稿没有价格快照、
+	 * 也没有被任何订单引用，删掉不破坏“数据快照”不变量。
+	 * 已发布 / 已下架菜单一律拒绝——它们已冻结快照，只能下架留痕。
+	 *
+	 * @param menuId 菜单ID
+	 */
+	void deleteDraft(Long menuId);
+
+	/**
 	 * 查询指定日期的有效菜单（M1-12，**M2 下单取价唯一入口**）
 	 * <p>
 	 * 取“生效日期不晚于 {@code date}、状态为 {@code PUBLISHED}、且已冻结快照”的菜单中
