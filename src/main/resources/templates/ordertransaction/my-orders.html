@@ -1,135 +1,154 @@
 <!DOCTYPE html>
 <!--
-	我的订单页（订单与交易核心）
-	对应 demand.md：个人历史查询 —— 员工查看自己的历史订单。
-	今日订单可在截止前取消；历史订单展示下单时刻的快照明细。
-	身份来自认证上下文，页面不再提供“切换身份”。
+    我的订单页（订单与交易核心）
+    对应 demand.md：个人历史查询 —— 员工查看自己的历史订单。
+    今日订单可在截止前取消；历史订单展示下单时刻的快照明细。
+    身份来自认证上下文，页面不再提供“切换身份”。
+    布局沿用菜品页：公共导航栏 + .container + .page-header + 卡片，样式只引用 /css/style.css。
 -->
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{ordertransaction/fragments/common :: head('我的订单')}"></head>
+<head th:replace="~{fragments/layout :: head('我的订单')}"></head>
 <body>
+<nav th:replace="~{fragments/layout :: navbar('mine')}"></nav>
 
-<header th:replace="~{ordertransaction/fragments/common :: navbar('mine')}"></header>
+<div class="container">
+    <div class="page-header">
+        <div>
+            <h1>我的订单</h1>
+            <p class="muted" style="margin:4px 0 0;" th:if="${data.userId != null}">
+                当前登录：<strong th:text="${data.userName != null ? data.userName : '员工#' + data.userId}">员工</strong>
+                （ID <span th:text="${data.userId}">-</span>）
+            </p>
+        </div>
+        <div class="page-actions">
+            <a class="btn btn-primary" th:href="@{/order/create}">今日点餐</a>
+        </div>
+    </div>
 
-<main class="page">
-	<h1>我的订单</h1>
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+    <div th:if="${data.userId == null}" class="alert alert-error">
+        尚未登录，无法查看订单。历史订单只能查看自己的；经理与财务查询他人消费走报表中心的入口。
+    </div>
 
-	<div th:replace="~{ordertransaction/fragments/common :: flash}"></div>
-	<section th:replace="~{ordertransaction/fragments/common :: identity(${data.userId}, ${data.userName})}"></section>
+    <!-- 今日订单：可取消 / 可去改单 -->
+    <div class="card" th:if="${data.todayOrder != null}">
+        <h2>我的今日订单</h2>
+        <p class="summary">
+            订单号 <strong th:text="${data.todayOrder.orderNo}">-</strong>
+            <span class="badge"
+                  th:classappend="${data.todayOrder.status == 'PENDING'} ? 'badge-draft'
+                      : (${data.todayOrder.status == 'VALID'} ? 'badge-published'
+                      : (${data.todayOrder.status == 'INVALID'} ? 'badge-offline' : 'badge-inactive'))"
+                  th:text="${data.todayOrder.statusText}">待确认</span>
+            合计 <strong class="amount"
+                th:text="'¥' + ${#numbers.formatDecimal(data.todayOrder.totalAmount, 1, 2)}">¥0.00</strong>
+        </p>
+        <table>
+            <thead>
+            <tr>
+                <th>菜名</th>
+                <th>分类</th>
+                <th class="num">单价（元）</th>
+                <th class="num">数量</th>
+                <th class="num">小计（元）</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="item : ${data.todayOrder.items}">
+                <td th:text="${item.recipeName}">菜名</td>
+                <td th:text="${item.category}">分类</td>
+                <td class="num" th:text="${#numbers.formatDecimal(item.unitPrice, 1, 2)}">0.00</td>
+                <td class="num" th:text="${item.quantity}">1</td>
+                <td class="num" th:text="${#numbers.formatDecimal(item.amount, 1, 2)}">0.00</td>
+            </tr>
+            </tbody>
+        </table>
+        <p class="hint" th:unless="${data.canModify}">
+            已过订餐截止时间（<span th:text="${data.cutoffTime}">09:00</span>），不能再取消或修改订单。
+        </p>
+        <div class="form-actions" th:if="${data.canModify}">
+            <form class="inline-form" th:action="@{/order/{id}/cancel(id=${data.todayOrder.orderId})}" method="post">
+                <input type="hidden" name="redirectTo" value="/order/mine"/>
+                <button type="submit" class="btn btn-danger">取消订单</button>
+            </form>
+            <a class="btn" th:href="@{/order/create}">截止前修改菜品</a>
+        </div>
+    </div>
 
-	<p class="notice" th:if="${data.userId == null}">
-		尚未登录，无法查看订单。历史订单只能查看自己的；经理与财务查询他人消费走报表中心的入口。
-	</p>
+    <!-- 历史查询条件 -->
+    <div class="card">
+        <h2>历史订单查询</h2>
+        <form class="filter-form" th:action="@{/order/mine}" method="get">
+            <label for="start">起始日期</label>
+            <input type="date" id="start" name="start" th:value="${data.start}"/>
+            <label for="end">结束日期</label>
+            <input type="date" id="end" name="end" th:value="${data.end}"/>
+            <button type="submit" class="btn btn-primary">查询</button>
+            <a class="link" th:href="@{/order/mine(all=true)}">查询全部历史</a>
+        </form>
+        <p class="hint" th:if="${data.showAll}">当前展示：全部历史订单。</p>
+        <p class="hint" th:unless="${data.showAll}">未选择日期时默认查询本月，可指定区间或点“查询全部历史”。</p>
+    </div>
 
-	<!-- 今日订单：可取消 / 可去改单 -->
-	<section class="card" th:if="${data.todayOrder != null}">
-		<h2>我的今日订单</h2>
-		<p class="meta">
-			订单号 <strong th:text="${data.todayOrder.orderNo}">-</strong>
-			<span class="badge" th:text="${data.todayOrder.statusText}">待确认</span>
-			合计 <strong class="amount"
-				th:text="'¥' + ${#numbers.formatDecimal(data.todayOrder.totalAmount, 1, 2)}">¥0.00</strong>
-		</p>
-		<table class="data-table">
-			<thead>
-			<tr>
-				<th>菜名</th>
-				<th>分类</th>
-				<th class="num">单价（元）</th>
-				<th class="num">数量</th>
-				<th class="num">小计（元）</th>
-			</tr>
-			</thead>
-			<tbody>
-			<tr th:each="item : ${data.todayOrder.items}">
-				<td th:text="${item.recipeName}">菜名</td>
-				<td th:text="${item.category}">分类</td>
-				<td class="num" th:text="${#numbers.formatDecimal(item.unitPrice, 1, 2)}">0.00</td>
-				<td class="num" th:text="${item.quantity}">1</td>
-				<td class="num" th:text="${#numbers.formatDecimal(item.amount, 1, 2)}">0.00</td>
-			</tr>
-			</tbody>
-		</table>
-		<div class="actions">
-			<form class="inline-form" th:if="${data.canModify}"
-				  th:action="@{/order/{id}/cancel(id=${data.todayOrder.orderId})}" method="post">
-				<input type="hidden" name="redirectTo" value="/order/mine">
-				<button type="submit" class="danger">取消订单</button>
-			</form>
-			<a class="button" th:href="@{/order/create}">截止前修改菜品</a>
-		</div>
-		<p class="hint" th:unless="${data.canModify}">
-			已过订餐截止时间（<span th:text="${data.cutoffTime}">09:00</span>），不能再取消或修改订单。
-		</p>
-	</section>
+    <!-- 历史订单列表 -->
+    <div class="card" th:if="${data.userId != null}">
+        <h2>订单明细</h2>
+        <p class="summary">
+            共 <strong th:text="${data.orderCount}">0</strong> 张订单，
+            消费合计（不含已取消/已作废）<strong class="amount"
+                th:text="'¥' + ${#numbers.formatDecimal(data.totalAmount, 1, 2)}">¥0.00</strong>
+        </p>
 
-	<!-- 历史查询条件 -->
-	<section class="card">
-		<h2>历史订单查询</h2>
-		<form class="filter-form" th:action="@{/order/mine}" method="get">
-			<label for="start">起始日期</label>
-			<input type="date" id="start" name="start" th:value="${data.start}">
-			<label for="end">结束日期</label>
-			<input type="date" id="end" name="end" th:value="${data.end}">
-			<button type="submit">查询</button>
-			<a class="link" th:href="@{/order/mine(all=true)}">查询全部历史</a>
-		</form>
-		<p class="hint" th:if="${data.showAll}">当前展示：全部历史订单。</p>
-		<p class="hint" th:unless="${data.showAll}">未选择日期时默认查询本月，可指定区间或点“查询全部历史”。</p>
-	</section>
+        <div class="empty" th:if="${data.orderCount == 0}">该时间范围内还没有订单。</div>
 
-	<!-- 历史订单列表 -->
-	<section class="card" th:if="${data.userId != null}">
-		<h2>订单明细</h2>
-		<p class="summary">
-			共 <strong th:text="${data.orderCount}">0</strong> 张订单，
-			消费合计（不含已取消/已作废）<strong class="amount"
-				th:text="'¥' + ${#numbers.formatDecimal(data.totalAmount, 1, 2)}">¥0.00</strong>
-		</p>
+        <article class="order-card" th:each="row : ${data.rows}">
+            <h3>
+                订单号 <span th:text="${row.order.orderNo}">-</span>
+                <span class="badge"
+                      th:classappend="${row.cancelled} ? 'badge-inactive'
+                          : (${row.order.status == 'PENDING'} ? 'badge-draft' : 'badge-published')"
+                      th:text="${row.order.statusText}">待确认</span>
+            </h3>
+            <p class="meta">
+                下单时间 <span th:text="${row.createdAtText}">-</span>
+                · 合计 <strong class="amount"
+                    th:text="'¥' + ${#numbers.formatDecimal(row.order.totalAmount, 1, 2)}">¥0.00</strong>
+            </p>
+            <table>
+                <thead>
+                <tr>
+                    <th>菜名</th>
+                    <th>分类</th>
+                    <th class="num">单价（元）</th>
+                    <th class="num">数量</th>
+                    <th class="num">小计（元）</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="item : ${row.order.items}">
+                    <td th:text="${item.recipeName}">菜名</td>
+                    <td th:text="${item.category}">分类</td>
+                    <td class="num" th:text="${#numbers.formatDecimal(item.unitPrice, 1, 2)}">0.00</td>
+                    <td class="num" th:text="${item.quantity}">1</td>
+                    <td class="num" th:text="${#numbers.formatDecimal(item.amount, 1, 2)}">0.00</td>
+                </tr>
+                </tbody>
+            </table>
+            <div class="form-actions" th:if="${row.cancellable}">
+                <form class="inline-form"
+                      th:action="@{/order/{id}/cancel(id=${row.order.orderId})}" method="post">
+                    <input type="hidden" name="redirectTo" value="/order/mine"/>
+                    <button type="submit" class="btn btn-danger btn-sm">取消订单</button>
+                </form>
+            </div>
+        </article>
 
-		<p class="empty" th:if="${data.orderCount == 0}">该时间范围内还没有订单。</p>
-
-		<article class="order-card" th:each="row : ${data.rows}">
-			<h3>
-				订单号 <span th:text="${row.order.orderNo}">-</span>
-				<span class="badge" th:classappend="${row.cancelled} ? 'cancelled'"
-					  th:text="${row.order.statusText}">待确认</span>
-			</h3>
-			<p class="meta">
-				下单时间 <span th:text="${row.createdAtText}">-</span>
-				· 合计 <strong class="amount"
-					th:text="'¥' + ${#numbers.formatDecimal(row.order.totalAmount, 1, 2)}">¥0.00</strong>
-			</p>
-			<table class="data-table">
-				<thead>
-				<tr>
-					<th>菜名</th>
-					<th>分类</th>
-					<th class="num">单价（元）</th>
-					<th class="num">数量</th>
-					<th class="num">小计（元）</th>
-				</tr>
-				</thead>
-				<tbody>
-				<tr th:each="item : ${row.order.items}">
-					<td th:text="${item.recipeName}">菜名</td>
-					<td th:text="${item.category}">分类</td>
-					<td class="num" th:text="${#numbers.formatDecimal(item.unitPrice, 1, 2)}">0.00</td>
-					<td class="num" th:text="${item.quantity}">1</td>
-					<td class="num" th:text="${#numbers.formatDecimal(item.amount, 1, 2)}">0.00</td>
-				</tr>
-				</tbody>
-			</table>
-			<div class="actions" th:if="${row.cancellable}">
-				<form class="inline-form"
-					  th:action="@{/order/{id}/cancel(id=${row.order.orderId})}" method="post">
-					<input type="hidden" name="redirectTo" value="/order/mine">
-					<button type="submit" class="danger">取消</button>
-				</form>
-			</div>
-		</article>
-	</section>
-</main>
-
+        <p class="hint">
+            订单明细来自下单时刻的快照（菜名、分类、单价、数量），菜单后续调价不会改变历史订单。
+            已取消/已作废的订单不计入消费合计。
+        </p>
+    </div>
+</div>
 </body>
 </html>
