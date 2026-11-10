@@ -78,14 +78,21 @@ public class ApiAuthController extends ApiUserSupport
 
 	/**
 	 * M4-04 修改密码（本人）
+	 * <p>
+	 * 改密成功后立即把**本次调用所用的 token** 加入黑名单：改密失效时间戳只到秒，
+	 * 同一秒内签发的 token（例如登录后马上改密）不会被时间戳挡住，
+	 * 显式拉黑当前会话才能保证“改密后旧登录态立刻失效”。
 	 *
-	 * @param request 旧密码 + 新密码
+	 * @param request       旧密码 + 新密码
+	 * @param authorization 当前请求的 {@code Authorization} 头，可选
 	 * @return 空结果
 	 */
 	@PutMapping("/password")
-	public Result<Void> changePassword(@Valid @RequestBody PasswordChangeRequest request) {
+	public Result<Void> changePassword(@Valid @RequestBody PasswordChangeRequest request,
+			@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
 		UserContext context = currentUser();
 		authService.changePassword(context.userId(), request.getOldPassword(), request.getNewPassword());
+		authService.logout(authorization);
 		return Result.ok();
 	}
 }

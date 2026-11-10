@@ -134,6 +134,7 @@ public class AuthServiceImpl implements AuthService
 	}
 
 	@Override
+	@Transactional
 	public UserContext verifyToken(String token) {
 		String raw = JwtCodec.unify(token);
 		JwtPayload payload = jwtCodec.parse(raw);
@@ -148,8 +149,27 @@ public class AuthServiceImpl implements AuthService
 		if (changed != null && payload.issuedAt() < changed.getEpochSecond()) {
 			throw new BusinessException(ErrorCode.UNAUTHENTICATED, "密码已修改，请重新登录");
 		}
-		return new UserContext(payload.userId(), payload.employeeNo(), payload.name(), payload.deptId(),
-				null, null, List.copyOf(payload.roles()), List.copyOf(payload.permCodes()));
+		// 账号状态与角色权限以库为准：JWT 里的 claims 只是签发那一刻的快照，
+		// 不能当作授权依据。否则“停用账号”只能挡住新的登录，已签发的 token 仍可用满有效期
+		// （默认 12 小时）；同理，角色上撤销某个权限点后，旧 token 依然能过 @RequiresPerm。
+		User user = userRepository.findWithRolesById(payload.userId())
+				.orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED, "登录已失效，请重新登录"));
+		UserStatus status = user.getStatus() == null ? UserStatus.ACTIVE : user.getStatus();
+		if (status != UserStatus.ACTIVE) {
+			throw new BusinessException(ErrorCode.UNAUTHENTICATED,
+					"账号" + status.getText() + "，请联系管理员");
+		}
+		List<String> roles = new ArrayList<>();
+		Set<String> permCodes = new LinkedHashSet<>();
+		for (Role role : user.getRoles()) {
+			if (role == null) {
+				continue;
+			}
+			roles.add(role.getName());
+			permCodes.addAll(role.permCodes());
+		}
+		return new UserContext(user.getId(), user.getEmployeeNo(), user.getName(), user.getDeptId(),
+				user.getWorkstation(), user.getPhone(), List.copyOf(roles), List.copyOf(permCodes));
 	}
 
 	@Override

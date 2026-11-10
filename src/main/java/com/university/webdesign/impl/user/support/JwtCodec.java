@@ -15,6 +15,7 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 轻量 JWT 编解码器（HS256）。
@@ -102,7 +103,12 @@ public class JwtCodec
 				roles == null ? List.of() : List.copyOf(roles),
 				permCodes == null ? List.of() : List.copyOf(permCodes),
 				issuedAt, expiresAt);
-		String body = ENCODER.encodeToString(toJson(payload).getBytes(StandardCharsets.UTF_8));
+		// jti（唯一标识）：载荷里所有字段都是秒级时间，同一秒内为同一用户签发的令牌
+		// 会得到**完全相同的字符串**。黑名单是按令牌字符串记账的，一旦把其中一个拉黑，
+		// 同一秒重新登录/改密后重新登录拿到的“新”令牌会命中旧黑名单（表现为刚登录就 40100）。
+		// 每次签发带上随机 jti，保证令牌两两不同。
+		String tokenId = UUID.randomUUID().toString();
+		String body = ENCODER.encodeToString(toJson(payload, tokenId).getBytes(StandardCharsets.UTF_8));
 		String content = HEADER + "." + body;
 		return content + "." + sign(content);
 	}
@@ -180,12 +186,14 @@ public class JwtCodec
 	 * 载荷转 JSON（手写，避免引入 JSON 序列化依赖）
 	 *
 	 * @param payload 载荷
+	 * @param tokenId 令牌唯一标识（jti），保证同一秒内签发的令牌也不相同
 	 * @return JSON 字符串
 	 */
-	private String toJson(JwtPayload payload) {
+	private String toJson(JwtPayload payload, String tokenId) {
 		StringBuilder builder = new StringBuilder(256);
 		builder.append('{');
-		builder.append("\"userId\":").append(payload.userId() == null ? "null" : payload.userId());
+		builder.append("\"jti\":").append(quote(tokenId));
+		builder.append(",\"userId\":").append(payload.userId() == null ? "null" : payload.userId());
 		builder.append(",\"employeeNo\":").append(quote(payload.employeeNo()));
 		builder.append(",\"name\":").append(quote(payload.name()));
 		builder.append(",\"deptId\":").append(payload.deptId() == null ? "null" : payload.deptId());
