@@ -89,42 +89,6 @@ public class MenuPageController
 	}
 
 	/**
-	 * 历史菜单列表：已发布 + 已下架（locked）菜单，带发布时冻结的菜品快照
-	 * <p>
-	 * 默认取全部历史版本；带 {@code status} 时按单一状态筛选。
-	 * 明细走 {@code MenuService.page(withItems=true)}：已发布/已下架菜单取 {@code menu_snapshot}，
-	 * 因此菜名与价格是发布当时的冻结值，不受菜品后续改名调价影响。
-	 *
-	 * @param status 状态编码（PUBLISHED / OFFLINE），为空表示全部历史
-	 * @param model  视图模型
-	 * @return 视图名
-	 */
-	@GetMapping("/history")
-	public String history(
-			@RequestParam(value = "status", required = false) String status,
-			Model model) {
-		MenuQuery query = new MenuQuery();
-		String normalized = status == null ? null : status.trim().toUpperCase();
-		boolean singleStatus = MenuStatus.PUBLISHED.name().equals(normalized)
-				|| MenuStatus.OFFLINE.name().equals(normalized);
-		if (singleStatus) {
-			query.setStatus(normalized);
-		} else {
-			// 未指定（或不合法）状态时，历史页只取已锁定版本：已发布 + 已下架，绝不混入草稿
-			normalized = null;
-			query.setStatuses(List.of(MenuStatus.PUBLISHED.name(), MenuStatus.OFFLINE.name()));
-		}
-		query.setWithItems(Boolean.TRUE);
-		query.setPageNum(1);
-		query.setPageSize(QUERY_PAGE_SIZE);
-		PageResult<MenuVO> page = menuService.page(query);
-		model.addAttribute("menus", page.getList());
-		model.addAttribute("total", page.getTotal());
-		model.addAttribute("status", normalized);
-		return "menu/history";
-	}
-
-	/**
 	 * 新建菜单表单
 	 *
 	 * @param model 视图模型
